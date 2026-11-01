@@ -11,6 +11,7 @@ the Android app in `app/` wraps it in a WebView and adds self-updates.
 - Simple sums in the amount fields (`12*3.5`, `(40+25)/2`), with + − × ÷ keys above the phone keyboard
 - Optional bank/card fee (0.5–5%) applied to every result, with the mid-market rate still shown
 - 1W / 1M / 1Y trend from European Central Bank reference rates
+- "Also in": the amount in up to four other recent currencies; tap one to switch to it
 - Quick amounts in both directions
 - Remembers the pair, amount, fee and trend range; light and dark themes
 - Home-screen widget with the current pair's rate (refreshes every 30 minutes and whenever the app is used)

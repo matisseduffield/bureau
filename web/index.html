@@ -107,7 +107,7 @@ button { cursor: pointer; }
 .status[data-state="error"] { color: var(--down); }
 
 /* Conversion slip */
-.slip { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; }
+.slip { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
 .legs { position: relative; }
 .leg {
   position: relative;
@@ -115,23 +115,27 @@ button { cursor: pointer; }
   min-height: 96px; padding: 18px 22px;
 }
 .leg + .leg { border-top: 1px solid var(--line); }
+/* Currency pickers are plain text with a chevron: the code reads as the label. */
 .pick {
-  flex: none; position: relative;
-  width: 136px; min-height: 52px;
+  flex: none;
+  max-width: 48%; min-height: 52px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
-  padding: 6px 28px 6px 12px;
-  background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
+  margin: -4px -8px; padding: 4px 8px;
+  background: none; border: 0; border-radius: 4px;
   text-align: left;
 }
-.pick:hover { border-color: var(--muted); }
-.pick::after {
-  content: ""; position: absolute; right: 12px; top: 50%;
-  width: 6px; height: 6px; margin-top: -5px;
+.pick:hover .code { color: var(--accent); }
+.pick:active { background: var(--accent-soft); }
+.pick .code {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 1.3rem; font-weight: 600; line-height: 1.2; letter-spacing: .01em;
+}
+.pick .code::after {
+  content: ""; width: 6px; height: 6px; margin-top: -4px;
   border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
   transform: rotate(45deg);
 }
-.pick .code { font-size: 1.05rem; font-weight: 600; line-height: 1.2; letter-spacing: .01em; }
-.pick .name { max-width: 100%; font-size: .76rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick .name { max-width: 100%; font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .amount {
   flex: 1; min-width: 0;
   padding: 4px 0;
@@ -149,8 +153,8 @@ button { cursor: pointer; }
 }
 
 .swap {
-  position: absolute; top: 50%; left: calc(22px + 68px); z-index: 2;
-  width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  position: absolute; top: 50%; right: 22px; z-index: 2;
+  width: 44px; height: 44px; margin-top: -22px;
   display: grid; place-items: center;
   background: var(--surface); border: 1px solid var(--line); border-radius: 50%;
   color: var(--muted);
@@ -209,12 +213,25 @@ button { cursor: pointer; }
 .trend.loading { opacity: .35; }
 .trend svg { position: absolute; top: 0; bottom: 0; left: 0; right: 6px; width: calc(100% - 6px); height: 100%; overflow: visible; }
 .trend .line { fill: none; stroke: var(--accent); stroke-width: 1.75; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-.trend .fill-top { stop-color: var(--accent); stop-opacity: .14; }
-.trend .fill-bottom { stop-color: var(--accent); stop-opacity: 0; }
 .trend .end { position: absolute; left: calc(100% - 6px); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); }
 .trend-axis { display: flex; justify-content: space-between; gap: 12px; font-size: .78rem; color: var(--muted); }
 .trend-axis .mid { text-align: center; }
 .empty { padding: 16px 0; font-size: .88rem; color: var(--muted); }
+
+/* Also in: the amount in your other recent currencies */
+.also { display: grid; }
+.also button {
+  display: grid; grid-template-columns: 3.4em minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  min-height: 48px; padding: 0 2px;
+  background: none; border: 0; border-top: 1px solid var(--line);
+  text-align: left;
+}
+.also button:last-child { border-bottom: 1px solid var(--line); }
+.also .c { font-weight: 600; letter-spacing: .01em; }
+.also .n { font-size: .86rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.also .v { font-weight: 500; white-space: nowrap; }
+.also button:hover .v { color: var(--accent); }
+.also button:active { background: var(--accent-soft); }
 
 /* Quick amounts */
 .quick { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -289,8 +306,7 @@ dialog::backdrop { background: var(--backdrop); }
   body { padding-block: 12px 40px; }
   .leg { padding: 16px; gap: 12px; }
   .calc { right: 16px; }
-  .pick { width: 124px; }
-  .swap { left: calc(16px + 62px); }
+  .swap { right: 16px; }
   .rateline { padding-left: 16px; }
   .rate-sub { flex-basis: 100%; order: 3; margin-top: -10px; padding-bottom: 8px; }
   dialog {
@@ -348,6 +364,11 @@ dialog::backdrop { background: var(--backdrop); }
       </label>
     </div>
     <p class="sr-only" id="announce" aria-live="polite"></p>
+  </section>
+
+  <section class="section" id="alsoSection" hidden>
+    <div class="section-head"><h2>Also in</h2></div>
+    <div class="also" id="also"></div>
   </section>
 
   <section class="section" id="trendSection">
@@ -644,6 +665,40 @@ dialog::backdrop { background: var(--backdrop); }
     fitAll();
     store.set('amount', { side: src, value: field(src).value });
     announce();
+    renderAlso();
+  }
+
+  // The "You have" amount in up to four other recently used currencies.
+  function renderAlso() {
+    const codes = state.recent.filter(c => c !== state.from && c !== state.to && state.rates && state.rates[c]).slice(0, 4);
+    $('alsoSection').hidden = codes.length === 0;
+    if (!codes.length) return;
+    const amount = evaluate(field('from').value).value;
+    const rows = codes.map(code => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      const r = effectiveRate(state.from, code);
+      const value = Number.isFinite(amount) && amount >= 0 && Number.isFinite(r) ? fmtMoney(amount * r, code) : '–';
+      for (const [cls, text] of [['c', code], ['n', nameOf(code)], ['v', value]]) {
+        const s = document.createElement('span');
+        s.className = cls;
+        s.textContent = text;
+        b.append(s);
+      }
+      b.setAttribute('aria-label', `${value} in ${nameOf(code)}. Convert to ${nameOf(code)}`);
+      b.addEventListener('click', () => {
+        const previous = state.to;
+        state.to = code;
+        state.recent = [previous, ...state.recent.filter(c => c !== previous)].slice(0, 5);
+        store.set('recent', state.recent);
+        state.edited = 'from';
+        savePair();
+        renderAll();
+        renderTrend();
+      });
+      return b;
+    });
+    $('also').replaceChildren(...rows);
   }
 
   let announceTimer = 0;
@@ -786,8 +841,7 @@ dialog::backdrop { background: var(--backdrop); }
     const y = v => pad + (1 - (v - min) / span) * (H - pad * 2);
     const line = 'M' + vals.map((v, i) => `${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' L');
     el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-        <defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="fill-top"/><stop offset="1" class="fill-bottom"/></linearGradient></defs>
-        <path d="${line} L${W},${H} L0,${H} Z" fill="url(#fade)"/><path class="line" d="${line}"/>
+        <path class="line" d="${line}"/>
       </svg><span class="end" style="top:${(y(vals.at(-1)) / H * 100).toFixed(2)}%"></span>`;
     const change = (vals.at(-1) / vals[0] - 1) * 100;
     const changeEl = $('trendChange');
