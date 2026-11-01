@@ -32,7 +32,8 @@ class MainActivity : ComponentActivity() {
         const val START_URL = "https://$APP_HOST/assets/index.html"
         const val CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
 
-        // Back closes the currency picker if it's open; otherwise it leaves the app.
+        // Back closes the currency picker if it's open; otherwise it backgrounds
+        // the app, so returning doesn't reload the page.
         const val CLOSE_PICKER_JS =
             "(() => { const d = document.querySelector('dialog[open]'); if (d) { d.close(); return true; } return false; })()"
     }
@@ -62,6 +63,8 @@ class MainActivity : ComponentActivity() {
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
             settings.allowContentAccess = false
+            // Follow the phone's font size setting.
+            settings.textZoom = (resources.configuration.fontScale * 100).toInt()
             webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(
                     view: WebView,
@@ -94,7 +97,7 @@ class MainActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 web.evaluateJavascript(CLOSE_PICKER_JS) { closed ->
-                    if (closed != "true") finish()
+                    if (closed != "true") moveTaskToBack(true)
                 }
             }
         })

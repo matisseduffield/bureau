@@ -4,11 +4,16 @@ Live currency converter. The whole converter is one page, [`web/index.html`](web
 the Android app in `app/` wraps it in a WebView and adds self-updates.
 
 ## Features
-- Live mid-market rates from Coinbase, refreshed every minute (ExchangeRate-API as a fallback)
-- Convert in either direction, swap, and search about 160 currencies plus BTC, ETH and SOL
-- 30-day trend from European Central Bank reference rates
-- Pocket table for quick lookups in both directions
-- Remembers the last pair and amount; light and dark themes
+- Live mid-market rates from Coinbase, refreshed every minute, checked against ExchangeRate-API's
+  daily rates (used instead where Coinbase is more than 10% off, and as the fallback)
+- Convert in either direction, swap, and search about 160 currencies plus BTC, ETH and SOL;
+  recently used currencies sit at the top of the picker
+- Simple sums in the amount fields (`12*3.5`, `(40+25)/2`), with + − × ÷ keys above the phone keyboard
+- Optional bank/card fee (0.5–5%) applied to every result, with the mid-market rate still shown
+- 1W / 1M / 1Y trend from European Central Bank reference rates
+- Quick amounts in both directions
+- Remembers the pair, amount, fee and trend range; light and dark themes
+- Hanken Grotesk is bundled in `web/fonts/` (SIL OFL) so the app looks the same offline
 
 ## Run the page
 Open `web/index.html` in a browser, or use the `currency` preview config in

@@ -3,303 +3,382 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#E8ECE5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1412" media="(prefers-color-scheme: dark)">
 <title>Bureau</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: one narrow working column. The conversion slip sits on top, the 30-day trend and pocket tables under it. */
+/* Hanken Grotesk ships with the page (fonts/, SIL OFL) so the app looks the same offline. */
+@font-face {
+  font-family: "Hanken Grotesk";
+  src: url("fonts/hanken-grotesk-latin.woff2") format("woff2");
+  font-weight: 400 600;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  src: url("fonts/hanken-grotesk-latin-ext.woff2") format("woff2");
+  font-weight: 400 600;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Layout: one narrow working column. The conversion slip on top, then the trend, then quick amounts. */
 :root {
   --bg: #E8ECE5;
-  --surface: #F8F9F5;
+  --surface: #F7F8F4;
   --ink: #14211C;
   --muted: #5B6861;
-  --line: #CBD3CA;
+  --faint: #8D9992;
+  --line: #CDD5CC;
   --accent: #2C53C4;
-  --accent-soft: rgba(44, 83, 196, .09);
-  --guilloche: rgba(44, 83, 196, .09);
+  --accent-soft: rgba(44, 83, 196, .08);
   --up: #1D7548;
   --down: #B0392D;
-  --warn: #A26A0B;
-  --font-ui: "Hanken Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-mono: "Spline Sans Mono", "Cascadia Mono", ui-monospace, Consolas, monospace;
+  --warn: #8F5D08;
+  --backdrop: rgba(10, 16, 14, .4);
+  --font: "Hanken Grotesk", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0E1412;
-    --surface: #161E1B;
+    --surface: #18211E;
     --ink: #E4EAE5;
     --muted: #8C9992;
-    --line: #2A3531;
+    --faint: #5F6C66;
+    --line: #2E3A35;
     --accent: #85A2FF;
-    --accent-soft: rgba(133, 162, 255, .12);
-    --guilloche: rgba(133, 162, 255, .06);
+    --accent-soft: rgba(133, 162, 255, .10);
     --up: #5FC890;
     --down: #F08476;
     --warn: #E0AA48;
+    --backdrop: rgba(0, 0, 0, .6);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0E1412;
-  --surface: #161E1B;
+  --surface: #18211E;
   --ink: #E4EAE5;
   --muted: #8C9992;
-  --line: #2A3531;
+  --faint: #5F6C66;
+  --line: #2E3A35;
   --accent: #85A2FF;
-  --accent-soft: rgba(133, 162, 255, .12);
-  --guilloche: rgba(133, 162, 255, .06);
+  --accent-soft: rgba(133, 162, 255, .10);
   --up: #5FC890;
   --down: #F08476;
   --warn: #E0AA48;
+  --backdrop: rgba(0, 0, 0, .6);
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   background: var(--bg);
   color: var(--ink);
-  font: 400 15px/1.5 var(--font-ui);
+  font: 400 15px/1.5 var(--font);
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
-  padding-block: 32px 48px;
+  -webkit-tap-highlight-color: transparent;
+  padding-block: 28px 48px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-button, input { font: inherit; color: inherit; }
+button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.wrap { max-width: 600px; margin: 0 auto; display: grid; gap: 20px; }
+.wrap { max-width: 600px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
 
 /* Top bar */
-.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.mark { font-weight: 700; font-size: 1.35rem; letter-spacing: -.02em; margin: 0; }
-.mark span { color: var(--accent); }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: -12px; }
+.mark { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: -.01em; }
 .status {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: none; border: 0; padding: 4px 0;
-  font-size: .8rem; color: var(--muted);
-  font-variant-numeric: tabular-nums;
+  min-height: 44px; margin-right: -6px; padding: 0 6px;
+  background: none; border: 0;
+  font-size: .82rem; color: var(--muted);
 }
 .status:hover { color: var(--ink); }
-.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--up); flex: none; }
-.status[data-state="live"] .dot { animation: pulse 2.4s ease-in-out infinite; }
-.status[data-state="stale"] .dot { background: var(--warn); }
-.status[data-state="error"] .dot { background: var(--down); }
-.status[data-state="loading"] .dot { background: var(--muted); }
-@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 45%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
+.status[data-state="stale"] { color: var(--warn); }
+.status[data-state="error"] { color: var(--down); }
 
 /* Conversion slip */
-.slip {
-  position: relative; overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-}
-.slip canvas { position: absolute; right: -150px; top: -130px; width: 300px; height: 300px; pointer-events: none; }
+.slip { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; }
+.legs { position: relative; }
 .leg {
   position: relative;
-  display: flex; align-items: center; gap: 14px;
-  padding: 20px 22px;
+  display: flex; align-items: center; gap: 16px;
+  min-height: 96px; padding: 18px 22px;
 }
-.leg + .leg { border-top: 1px dashed var(--line); }
-.leg-label {
-  position: absolute; top: 10px; left: 22px;
-  font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
-}
+.leg + .leg { border-top: 1px solid var(--line); }
 .pick {
-  flex: none;
-  display: flex; flex-direction: column; align-items: flex-start;
-  min-width: 108px; max-width: 46%;
-  margin-top: 14px; padding: 6px 30px 6px 10px;
+  flex: none; position: relative;
+  width: 136px; min-height: 52px;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+  padding: 6px 28px 6px 12px;
   background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
-  text-align: left; position: relative;
+  text-align: left;
 }
-.pick:hover { border-color: var(--accent); }
+.pick:hover { border-color: var(--muted); }
 .pick::after {
-  content: ""; position: absolute; right: 11px; top: 50%;
+  content: ""; position: absolute; right: 12px; top: 50%;
   width: 6px; height: 6px; margin-top: -5px;
   border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
   transform: rotate(45deg);
 }
-.pick .code { font: 500 1.05rem/1.2 var(--font-mono); letter-spacing: .02em; }
-.pick .name { font-size: .74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.pick .code { font-size: 1.05rem; font-weight: 600; line-height: 1.2; letter-spacing: .01em; }
+.pick .name { max-width: 100%; font-size: .76rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .amount {
   flex: 1; min-width: 0;
-  margin-top: 14px;
-  border: 0; background: transparent;
-  font: 600 clamp(1.7rem, 7vw, 2.5rem)/1.1 var(--font-ui);
-  letter-spacing: -.02em;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
   padding: 4px 0;
+  border: 0; background: transparent;
+  font-size: clamp(1.9rem, 8vw, 2.6rem); font-weight: 500; line-height: 1.15; letter-spacing: -.02em;
+  text-align: right;
+  caret-color: var(--accent);
 }
 .amount:focus { outline: none; }
-.leg:focus-within .amount { color: var(--accent); }
-.amount::placeholder { color: var(--line); }
+.amount::placeholder { color: var(--faint); }
+.leg:focus-within { box-shadow: inset 2px 0 0 var(--accent); }
+.calc {
+  position: absolute; right: 22px; bottom: 8px;
+  font-size: .8rem; color: var(--muted);
+}
 
 .swap {
-  position: absolute; left: 50%; top: 50%; z-index: 2;
-  width: 38px; height: 38px; margin: -19px 0 0 -19px;
+  position: absolute; top: 50%; left: calc(22px + 68px); z-index: 2;
+  width: 44px; height: 44px; margin: -22px 0 0 -22px;
   display: grid; place-items: center;
   background: var(--surface); border: 1px solid var(--line); border-radius: 50%;
   color: var(--muted);
-  transition: transform .35s cubic-bezier(.3, .7, .2, 1), color .15s, border-color .15s;
+  transition: color .12s, border-color .12s;
 }
 .swap:hover { color: var(--accent); border-color: var(--accent); }
-.swap.turn { transform: rotate(180deg); }
-.legs { position: relative; }
 
 .rateline {
-  position: relative;
-  display: flex; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap;
-  padding: 12px 22px;
+  display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap;
+  padding: 4px 8px 4px 22px;
   border-top: 1px solid var(--line);
-  background: var(--accent-soft);
-  font: 400 .8rem/1.4 var(--font-mono);
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
+  font-size: .86rem;
 }
-.rateline b { color: var(--ink); font-weight: 500; }
+.rate-main { color: var(--ink); }
+.rate-main b { font-weight: 600; }
+.rate-sub { color: var(--muted); }
+.fee {
+  margin-left: auto; position: relative;
+  display: flex; align-items: center;
+  color: var(--muted);
+}
+.fee select {
+  appearance: none; -webkit-appearance: none;
+  min-height: 44px; padding: 0 30px 0 12px;
+  border: 0; border-radius: 4px; background: transparent;
+  font-size: .86rem; color: inherit;
+}
+.fee select:hover { color: var(--ink); }
+.fee select.on { color: var(--accent); font-weight: 600; }
+.fee::after {
+  content: ""; position: absolute; right: 14px; top: 50%; pointer-events: none;
+  width: 5px; height: 5px; margin-top: -4px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.fee option { color: var(--ink); background: var(--surface); }
 
-/* Sections under the slip */
+/* Sections */
 .section { display: grid; gap: 10px; }
-.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.section h2 { margin: 0; font-size: .72rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-.meta { font: 400 .76rem var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
-.chip { font: 500 .76rem var(--font-mono); padding: 1px 7px; border-radius: 3px; }
-.chip.up { color: var(--up); background: color-mix(in srgb, var(--up) 12%, transparent); }
-.chip.down { color: var(--down); background: color-mix(in srgb, var(--down) 12%, transparent); }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-bottom: -6px; }
+.section h2 { margin: 0; font-size: .95rem; font-weight: 600; line-height: 1.3; }
+.change { margin-left: 8px; font-weight: 600; }
+.change.up { color: var(--up); }
+.change.down { color: var(--down); }
 
-.trend { position: relative; height: 92px; border-bottom: 1px solid var(--line); }
-.trend svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.trend .grid { stroke: var(--line); stroke-dasharray: 2 4; }
+.range { display: flex; margin-right: -10px; }
+.range button {
+  min-width: 44px; min-height: 44px; padding: 0 10px;
+  background: none; border: 0;
+  font-size: .85rem; color: var(--muted);
+}
+.range button:hover { color: var(--ink); }
+.range button[aria-pressed="true"] { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; text-decoration-color: var(--accent); }
+
+.trend { position: relative; height: 116px; border-bottom: 1px solid var(--line); transition: opacity .2s; }
+.trend.loading { opacity: .35; }
+.trend svg { position: absolute; top: 0; bottom: 0; left: 0; right: 6px; width: calc(100% - 6px); height: 100%; overflow: visible; }
 .trend .line { fill: none; stroke: var(--accent); stroke-width: 1.75; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-.trend .area { fill: var(--accent-soft); stroke: none; }
-.trend .end { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--bg); }
-.trend-axis { display: flex; justify-content: space-between; font: 400 .7rem var(--font-mono); color: var(--muted); }
-.empty { font-size: .85rem; color: var(--muted); padding: 14px 0; }
+.trend .fill-top { stop-color: var(--accent); stop-opacity: .14; }
+.trend .fill-bottom { stop-color: var(--accent); stop-opacity: 0; }
+.trend .end { position: absolute; left: calc(100% - 6px); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); }
+.trend-axis { display: flex; justify-content: space-between; gap: 12px; font-size: .78rem; color: var(--muted); }
+.trend-axis .mid { text-align: center; }
+.empty { padding: 16px 0; font-size: .88rem; color: var(--muted); }
 
-/* Pocket tables */
-.pocket { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.pocket table { width: 100%; border-collapse: collapse; font: 400 .85rem/1.3 var(--font-mono); font-variant-numeric: tabular-nums; }
-.pocket caption { text-align: left; font: 500 .76rem var(--font-mono); color: var(--muted); padding-bottom: 6px; }
-.pocket td { padding: 7px 0; border-top: 1px solid var(--line); }
-.pocket td:last-child { text-align: right; }
-.pocket td:first-child { color: var(--muted); }
-.pocket tr { cursor: pointer; }
-.pocket tr:hover td { color: var(--accent); }
-@media (max-width: 460px) { .pocket { grid-template-columns: 1fr; } }
+/* Quick amounts */
+.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.quick-col { display: grid; min-width: 0; }
+.quick-col h3 { margin: 0 0 4px; font-size: .8rem; font-weight: 500; color: var(--muted); }
+.quick-col button {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 2px;
+  background: none; border: 0; border-top: 1px solid var(--line);
+  font-size: .9rem; text-align: left;
+}
+.quick-col button span:first-child { color: var(--muted); }
+.quick-col button span:last-child { font-weight: 500; white-space: nowrap; }
+.quick-col button:hover span:last-child { color: var(--accent); }
+.quick-col button:active { background: var(--accent-soft); }
+@media (max-width: 340px) { .quick { grid-template-columns: 1fr; } }
 
-footer { font-size: .76rem; color: var(--muted); line-height: 1.6; }
-footer a { color: inherit; }
+footer { max-width: 52ch; font-size: .8rem; line-height: 1.6; color: var(--muted); }
+
+/* Operator keys above the phone keyboard (Android's number pad has none) */
+.ops {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  padding: 6px max(10px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
+  gap: 6px;
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+.ops button {
+  min-height: 44px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--bg); font-size: 1.15rem; font-weight: 500;
+}
+.ops button:active { background: var(--accent-soft); }
 
 /* Currency picker */
 dialog {
   width: min(440px, calc(100vw - 32px));
-  max-height: min(560px, calc(100vh - 64px));
-  padding: 0; border: 1px solid var(--line); border-radius: 6px;
+  max-height: min(600px, calc(100dvh - 64px));
+  padding: 0; border: 1px solid var(--line); border-radius: 4px;
   background: var(--surface); color: var(--ink);
-  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .35);
 }
 dialog[open] { display: flex; flex-direction: column; }
-dialog::backdrop { background: rgba(10, 16, 14, .45); }
-.picker-head { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); }
+dialog::backdrop { background: var(--backdrop); }
+.picker-head { display: flex; gap: 4px; padding: 10px 6px 10px 12px; border-bottom: 1px solid var(--line); }
 .picker-head input {
-  flex: 1; min-width: 0; padding: 9px 12px;
+  flex: 1; min-width: 0; min-height: 44px; padding: 0 12px;
   border: 1px solid var(--line); border-radius: 4px; background: var(--bg);
 }
 .picker-head input:focus { outline: none; border-color: var(--accent); }
-.picker-head button { border: 0; background: none; color: var(--muted); padding: 0 6px; font-size: .85rem; }
-.picker-list { list-style: none; margin: 0; padding: 6px 0; overflow-y: auto; }
-.picker-list .group { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 10px 16px 4px; }
+.picker-head button { min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--muted); font-size: .9rem; }
+.picker-head button:hover { color: var(--ink); }
+.picker-list { list-style: none; margin: 0; padding: 4px 0 12px; overflow-y: auto; overscroll-behavior: contain; }
+.picker-list .group { padding: 14px 16px 4px; font-size: .8rem; font-weight: 500; color: var(--muted); }
 .picker-list button {
-  width: 100%; display: grid; grid-template-columns: 52px 1fr auto; align-items: baseline; gap: 10px;
-  padding: 8px 16px; border: 0; background: none; text-align: left;
+  width: 100%; min-height: 48px;
+  display: grid; grid-template-columns: 48px 1fr 18px; align-items: center; gap: 10px;
+  padding: 0 16px; border: 0; background: none; text-align: left;
 }
 .picker-list button:hover, .picker-list button:focus-visible { background: var(--accent-soft); outline: none; }
-.picker-list button[aria-selected="true"] .c { color: var(--accent); }
-.picker-list .c { font: 500 .9rem var(--font-mono); }
-.picker-list .n { font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.picker-list .s { font: 400 .78rem var(--font-mono); color: var(--muted); }
+.picker-list button[aria-current="true"] { background: var(--accent-soft); }
+.picker-list .c { font-weight: 600; letter-spacing: .01em; }
+.picker-list .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.picker-list .tick { color: var(--accent); }
 
-@media (max-width: 460px) {
-  body { padding-block: 20px 40px; }
-  .leg { padding: 18px 16px; gap: 10px; }
-  .leg-label { left: 16px; }
-  .rateline { padding: 10px 16px; }
-  .pick { min-width: 92px; }
-  .swap { left: auto; right: 16px; margin-left: 0; }
+@media (max-width: 520px) {
+  body { padding-block: 12px 40px; }
+  .leg { padding: 16px; gap: 12px; }
+  .calc { right: 16px; }
+  .pick { width: 124px; }
+  .swap { left: calc(16px + 62px); }
+  .rateline { padding-left: 16px; }
+  .rate-sub { flex-basis: 100%; order: 3; margin-top: -10px; padding-bottom: 8px; }
+  dialog {
+    width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
+    margin: 0; border: 0; border-radius: 0;
+  }
 }
-@media (prefers-reduced-motion: reduce) {
-  .swap { transition: none; }
-  .status[data-state="live"] .dot { animation: none; }
-}
+@media (max-width: 360px) { .rate-sub { display: none; } }
+@media (prefers-reduced-motion: reduce) { .trend, .swap { transition: none; } }
 </style>
 </head>
 <body>
 <main class="wrap">
   <header class="top">
-    <h1 class="mark">Bureau<span>.</span></h1>
-    <button class="status" id="status" data-state="loading" type="button" title="Refresh rates now">
-      <span class="dot"></span><span id="statusText">Loading rates…</span>
-    </button>
+    <h1 class="mark">Bureau</h1>
+    <button class="status" id="status" data-state="loading" type="button" title="Refresh rates now">Loading rates…</button>
   </header>
 
   <section class="slip" aria-label="Converter">
-    <canvas id="rosette" width="600" height="600" aria-hidden="true"></canvas>
     <div class="legs">
       <div class="leg">
-        <span class="leg-label">You have</span>
         <button class="pick" id="pickFrom" type="button" aria-haspopup="dialog">
           <span class="code" id="fromCode">USD</span><span class="name" id="fromName">US Dollar</span>
         </button>
-        <input class="amount" id="fromAmount" type="text" inputmode="decimal" autocomplete="off" aria-label="Amount to convert" placeholder="0">
+        <input class="amount" id="fromAmount" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0">
+        <span class="calc" id="fromCalc" hidden></span>
+      </div>
+      <div class="leg">
+        <button class="pick" id="pickTo" type="button" aria-haspopup="dialog">
+          <span class="code" id="toCode">EUR</span><span class="name" id="toName">Euro</span>
+        </button>
+        <input class="amount" id="toAmount" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0">
+        <span class="calc" id="toCalc" hidden></span>
       </div>
       <button class="swap" id="swap" type="button" aria-label="Swap currencies">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v11M2 10l3 3 3-3M11 14V3M8 6l3-3 3 3"/></svg>
       </button>
-      <div class="leg">
-        <span class="leg-label">You get</span>
-        <button class="pick" id="pickTo" type="button" aria-haspopup="dialog">
-          <span class="code" id="toCode">EUR</span><span class="name" id="toName">Euro</span>
-        </button>
-        <input class="amount" id="toAmount" type="text" inputmode="decimal" autocomplete="off" aria-label="Converted amount" placeholder="0">
-      </div>
     </div>
-    <div class="rateline" id="rateline"><span>Waiting for rates</span></div>
+    <div class="rateline">
+      <span class="rate-main" id="rateMain">Waiting for rates</span>
+      <span class="rate-sub" id="rateSub"></span>
+      <label class="fee">
+        <span class="sr-only">Bank or card fee</span>
+        <select id="fee">
+          <option value="0">No fee</option>
+          <option value="0.5">0.5% fee</option>
+          <option value="1">1% fee</option>
+          <option value="1.5">1.5% fee</option>
+          <option value="2">2% fee</option>
+          <option value="2.5">2.5% fee</option>
+          <option value="3">3% fee</option>
+          <option value="4">4% fee</option>
+          <option value="5">5% fee</option>
+        </select>
+      </label>
+    </div>
+    <p class="sr-only" id="announce" aria-live="polite"></p>
   </section>
 
   <section class="section" id="trendSection">
     <div class="section-head">
-      <h2>Last 30 days</h2>
-      <span class="meta" id="trendMeta"></span>
+      <h2>Trend<span class="change" id="trendChange"></span></h2>
+      <div class="range" role="group" aria-label="Trend range" id="range">
+        <button type="button" data-days="7" aria-pressed="false">1W</button>
+        <button type="button" data-days="30" aria-pressed="true">1M</button>
+        <button type="button" data-days="365" aria-pressed="false">1Y</button>
+      </div>
     </div>
     <div class="trend" id="trend"></div>
     <div class="trend-axis" id="trendAxis"></div>
   </section>
 
   <section class="section">
-    <div class="section-head">
-      <h2>Pocket table</h2>
-      <span class="meta">Tap a row to use it</span>
-    </div>
-    <div class="pocket" id="pocket"></div>
+    <div class="section-head"><h2>Quick amounts</h2></div>
+    <div class="quick" id="quick"></div>
   </section>
 
   <footer id="footer">
-    Live rates from Coinbase, refreshed every minute. The 30-day trend uses European Central Bank reference rates, published once each working day. Rates are mid-market; your bank or card will add a margin.
+    Mid-market rates from Coinbase, checked every minute, with ExchangeRate-API as a backup. The trend uses European Central Bank reference rates.
   </footer>
 </main>
+
+<div class="ops" id="ops" hidden>
+  <button type="button" data-op="+" aria-label="Plus">+</button>
+  <button type="button" data-op="−" aria-label="Minus">−</button>
+  <button type="button" data-op="×" aria-label="Times">×</button>
+  <button type="button" data-op="÷" aria-label="Divided by">÷</button>
+</div>
 
 <dialog id="picker" aria-label="Choose a currency">
   <div class="picker-head">
     <input id="pickerSearch" type="search" placeholder="Search by name or code" autocomplete="off" aria-label="Search currencies">
     <button type="button" id="pickerClose">Close</button>
   </div>
-  <ul class="picker-list" id="pickerList" role="listbox"></ul>
+  <ul class="picker-list" id="pickerList"></ul>
 </dialog>
 
 <script>
@@ -307,9 +386,12 @@ dialog::backdrop { background: rgba(10, 16, 14, .45); }
   const $ = id => document.getElementById(id);
   const locale = navigator.language || 'en-US';
   const LIVE_URL = 'https://api.coinbase.com/v2/exchange-rates?currency=USD';
-  const BACKUP_URL = 'https://open.er-api.com/v6/latest/USD';
+  const DAILY_URL = 'https://open.er-api.com/v6/latest/USD';
   const TREND_URL = 'https://api.frankfurter.dev/v1/';
   const REFRESH_MS = 60_000;
+  const DAILY_REFRESH_MS = 60 * 60_000;
+  const TREND_TTL_MS = 6 * 60 * 60_000;
+  const FETCH_TIMEOUT_MS = 8000;
 
   const COMMON = ['USD', 'EUR', 'GBP', 'AUD', 'JPY', 'CAD', 'CHF', 'CNY', 'NZD', 'INR', 'SGD', 'HKD'];
   const CRYPTO = { BTC: 'Bitcoin', ETH: 'Ether', SOL: 'Solana' };
@@ -321,14 +403,22 @@ dialog::backdrop { background: rgba(10, 16, 14, .45); }
     MY: 'MYR', PH: 'PHP', VN: 'VND', TW: 'TWD'
   };
 
-  let names;
-  try { names = new Intl.DisplayNames([locale], { type: 'currency' }); } catch { names = null; }
-  const nameOf = code => CRYPTO[code] || (names && names.of(code)) || code;
-
-  // Locale separators, so typing "1.234,5" works in Germany and "1,234.5" in Australia.
-  const sepParts = new Intl.NumberFormat(locale).formatToParts(12345.6);
+  // Always Latin digits, so whatever we write into a field we can parse back.
+  let fmtLocale = locale;
+  try { fmtLocale = new Intl.Locale(locale, { numberingSystem: 'latn' }).toString(); } catch {}
+  const sepParts = new Intl.NumberFormat(fmtLocale).formatToParts(12345.6);
   const GROUP = (sepParts.find(p => p.type === 'group') || { value: ',' }).value;
-  const DECIMAL = (sepParts.find(p => p.type === 'decimal') || { value: '.' }).value;
+
+  let names = null;
+  try { names = new Intl.DisplayNames([locale], { type: 'currency' }); } catch {}
+  function nameOf(code) {
+    if (CRYPTO[code]) return CRYPTO[code];
+    try { return (names && names.of(code)) || code; } catch { return code; }
+  }
+  let SUPPORTED = null;
+  try { SUPPORTED = new Set(Intl.supportedValuesOf('currency')); } catch {}
+  const isFiat = code => /^[A-Z]{3}$/.test(code) && (SUPPORTED ? SUPPORTED.has(code) : nameOf(code) !== code);
+  const isKnown = code => typeof code === 'string' && (CRYPTO[code] || /^[A-Z]{3}$/.test(code));
 
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem('bureau.' + k)); } catch { return null; } },
@@ -336,247 +426,381 @@ dialog::backdrop { background: rgba(10, 16, 14, .45); }
   };
 
   // ---- state ----
-  const region = (locale.split('-')[1] || '').toUpperCase();
+  let region = '';
+  try { region = new Intl.Locale(locale).maximize().region || ''; } catch { region = (locale.split('-').pop() || '').toUpperCase(); }
   const home = EURO_ZONE.includes(region) ? 'EUR' : (REGION_CURRENCY[region] || 'USD');
   const saved = store.get('pair') || {};
   const state = {
-    from: saved.from || home,
-    to: saved.to || (home === 'USD' ? 'EUR' : 'USD'),
+    from: isKnown(saved.from) ? saved.from : home,
+    to: isKnown(saved.to) ? saved.to : (home === 'USD' ? 'EUR' : 'USD'),
     edited: 'from',
+    fee: Number(store.get('fee')) || 0,
+    days: [7, 30, 365].includes(store.get('days')) ? store.get('days') : 30,
+    recent: (store.get('recent') || []).filter(isKnown).slice(0, 5),
     rates: null,        // units per 1 USD
     updatedAt: 0,
-    source: '',
+    source: '',         // 'live' | 'daily'
     error: false
   };
+  if (state.from === state.to) state.to = state.from === 'USD' ? 'EUR' : 'USD';
+  let daily = store.get('daily');     // { rates, updatedAt, fetchedAt } from the backup source
   const cached = store.get('rates');
-  if (cached && cached.rates) Object.assign(state, { rates: cached.rates, updatedAt: cached.updatedAt, source: cached.source });
+  if (cached && cached.rates && typeof cached.rates === 'object' && Object.keys(cached.rates).length) {
+    Object.assign(state, { rates: cached.rates, updatedAt: cached.updatedAt || 0, source: cached.source === 'daily' ? 'daily' : 'live' });
+  }
 
-  // ---- formatting ----
+  // ---- numbers ----
   function fractionDigits(code) {
     if (CRYPTO[code]) return 8;
     try { return new Intl.NumberFormat('en', { style: 'currency', currency: code }).resolvedOptions().maximumFractionDigits; }
     catch { return 2; }
   }
-  function numberOpts(n, code) {
+  // Currency's own decimals; only amounts that would round to zero get significant digits.
+  function amountOpts(n, code) {
     const abs = Math.abs(n);
     if (CRYPTO[code]) return abs >= 1 ? { minimumFractionDigits: 2, maximumFractionDigits: 6 } : { maximumSignificantDigits: 6 };
-    if (abs > 0 && abs < 1) return { maximumSignificantDigits: 4 };
     const d = fractionDigits(code);
+    if (abs > 0 && abs < Math.pow(10, -d) * 5) return { maximumSignificantDigits: 3 };
     return { minimumFractionDigits: d, maximumFractionDigits: d };
   }
-  const fmtPlain = (n, code) => Number.isFinite(n) ? new Intl.NumberFormat(locale, numberOpts(n, code)).format(n) : '';
-  function fmtMoney(n, code) {
+  const fmtAmount = (n, code) => Number.isFinite(n) ? new Intl.NumberFormat(fmtLocale, amountOpts(n, code)).format(n) : '';
+  function fmtMoney(n, code, opts) {
     if (!Number.isFinite(n)) return '–';
-    if (CRYPTO[code]) return fmtPlain(n, code) + ' ' + code;
-    try { return new Intl.NumberFormat(locale, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', ...numberOpts(n, code) }).format(n); }
-    catch { return fmtPlain(n, code) + ' ' + code; }
+    opts = opts || amountOpts(n, code);
+    if (CRYPTO[code]) return new Intl.NumberFormat(fmtLocale, opts).format(n) + ' ' + code;
+    try { return new Intl.NumberFormat(fmtLocale, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', ...opts }).format(n); }
+    catch { return new Intl.NumberFormat(fmtLocale, opts).format(n) + ' ' + code; }
   }
-  const fmtRate = r => new Intl.NumberFormat(locale, r >= 100 ? { maximumFractionDigits: 2 } : { maximumSignificantDigits: 5 }).format(r);
-  function symbolOf(code) {
-    if (CRYPTO[code]) return '';
-    try {
-      const s = new Intl.NumberFormat(locale, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' })
-        .formatToParts(1).find(p => p.type === 'currency').value;
-      return s === code ? '' : s;
-    } catch { return ''; }
+  const fmtRate = r => new Intl.NumberFormat(fmtLocale, r >= 100 ? { maximumFractionDigits: 2 } : { maximumSignificantDigits: 5 }).format(r);
+
+  // One number as typed: either "." or "," can be the decimal point. When both
+  // appear the last one is; a lone separator is grouping only when it's this
+  // locale's group mark followed by exactly three digits ("1.500" in Germany).
+  function parseNumber(s) {
+    s = s.replace(/['’]/g, '');
+    if (!s) return NaN;
+    const hasDot = s.includes('.'), hasComma = s.includes(',');
+    if (hasDot && hasComma) {
+      const dec = s.lastIndexOf('.') > s.lastIndexOf(',') ? '.' : ',';
+      s = s.split(dec === '.' ? ',' : '.').join('').replace(dec, '.');
+    } else if (hasDot || hasComma) {
+      const ch = hasDot ? '.' : ',';
+      const parts = s.split(ch);
+      if (parts.length > 2) s = parts.join('');
+      else if (ch === GROUP && parts[1].length === 3 && parts[0].length > 0) s = parts.join('');
+      else s = (parts[0] || '0') + '.' + parts[1];
+    }
+    return /^\d*\.?\d+$|^\d+\.$/.test(s) ? parseFloat(s) : NaN;
   }
-  function parseAmount(str) {
-    let s = String(str).replace(/[\s  ]/g, '');
-    if (GROUP !== DECIMAL) s = s.split(GROUP).join('');
-    if (DECIMAL !== '.') s = s.replace(DECIMAL, '.');
-    s = s.replace(/[^0-9.]/g, '');
-    const n = parseFloat(s);
-    return Number.isFinite(n) ? n : NaN;
+
+  // Amount fields accept simple sums such as 12*3.5 or (40+25)/2. Hand-parsed; nothing is eval'd.
+  function evaluate(text) {
+    const src = String(text).replace(/[\s  ]/g, '').replace(/[×xX]/g, '*').replace(/÷/g, '/').replace(/[−–]/g, '-');
+    if (!src) return { value: NaN, isExpr: false };
+    const tokens = src.match(/[0-9.,'’]+|[-+*/()]/g);
+    if (!tokens || tokens.join('') !== src) return { value: NaN, isExpr: false };
+    let i = 0;
+    const peek = () => tokens[i];
+    function factor() {
+      const t = tokens[i++];
+      if (t === '-') return -factor();
+      if (t === '+') return factor();
+      if (t === '(') { const v = expr(); if (tokens[i++] !== ')') return NaN; return v; }
+      return t === undefined ? NaN : parseNumber(t);
+    }
+    function term() {
+      let v = factor();
+      while (peek() === '*' || peek() === '/') { const op = tokens[i++]; const r = factor(); v = op === '*' ? v * r : v / r; }
+      return v;
+    }
+    function expr() {
+      let v = term();
+      while (peek() === '+' || peek() === '-') { const op = tokens[i++]; const r = term(); v = op === '+' ? v + r : v - r; }
+      return v;
+    }
+    const value = expr();
+    const isExpr = tokens.length > 1;
+    return { value: i === tokens.length && Number.isFinite(value) ? value : NaN, isExpr };
   }
 
   // ---- rates ----
-  const rate = (from, to) => (state.rates && state.rates[from] && state.rates[to]) ? state.rates[to] / state.rates[from] : NaN;
+  const rate = (from, to) => (state.rates && state.rates[from] > 0 && state.rates[to] > 0) ? state.rates[to] / state.rates[from] : NaN;
+  const effectiveRate = (from, to) => rate(from, to) * (1 - state.fee / 100);
 
+  async function getJSON(url) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+      if (!res.ok) { const e = new Error('HTTP ' + res.status); e.status = res.status; throw e; }
+      return await res.json();
+    } finally { clearTimeout(timer); }
+  }
   async function fetchLive() {
-    const res = await fetch(LIVE_URL, { cache: 'no-store' });
-    if (!res.ok) throw new Error('live ' + res.status);
-    const json = await res.json();
+    const json = await getJSON(LIVE_URL);
     const out = {};
-    for (const [k, v] of Object.entries(json.data.rates)) out[k] = parseFloat(v);
+    for (const [k, v] of Object.entries((json.data && json.data.rates) || {})) {
+      const n = parseFloat(v);
+      if (n > 0) out[k] = n;
+    }
+    if (!out.EUR) throw new Error('Live rates incomplete');
     out.USD = 1;
-    return { rates: out, updatedAt: Date.now(), source: 'Coinbase' };
+    return out;
   }
-  async function fetchBackup() {
-    const res = await fetch(BACKUP_URL);
-    if (!res.ok) throw new Error('backup ' + res.status);
-    const json = await res.json();
-    return { rates: json.rates, updatedAt: json.time_last_update_unix * 1000, source: 'ExchangeRate-API' };
+  async function fetchDaily() {
+    const json = await getJSON(DAILY_URL);
+    if (json.result !== 'success' || !json.rates || !json.rates.EUR) throw new Error('Daily rates unavailable');
+    return { rates: json.rates, updatedAt: json.time_last_update_unix * 1000, fetchedAt: Date.now() };
   }
+  // Coinbase's live rate wins unless it's more than 10% away from the daily
+  // reference: its quotes for thinly traded currencies (and tickers that clash
+  // with old currency codes) can be far off.
+  function mergeRates(live, ref) {
+    const out = {};
+    if (ref) for (const [k, v] of Object.entries(ref)) if (isFiat(k) && v > 0) out[k] = v;
+    if (live) {
+      for (const [k, v] of Object.entries(live)) {
+        if (CRYPTO[k]) { out[k] = v; continue; }
+        if (!isFiat(k)) continue;
+        if (ref && ref[k] > 0 && Math.abs(v / ref[k] - 1) > 0.1) continue;
+        out[k] = v;
+      }
+    }
+    return out;
+  }
+
   let loading = false;
   async function loadRates() {
     if (loading) return;
     loading = true;
-    try {
-      let result;
-      try { result = await fetchLive(); } catch { result = await fetchBackup(); }
-      Object.assign(state, result, { error: false });
-      store.set('rates', result);
-      buildCurrencyList();
-    } catch {
+    const needDaily = !daily || Date.now() - (daily.fetchedAt || 0) > DAILY_REFRESH_MS;
+    const [live, fresh] = await Promise.allSettled([fetchLive(), needDaily ? fetchDaily() : Promise.resolve(null)]);
+    if (fresh.status === 'fulfilled' && fresh.value) { daily = fresh.value; store.set('daily', daily); }
+    const ref = daily && daily.rates;
+    if (live.status === 'fulfilled') {
+      Object.assign(state, { rates: mergeRates(live.value, ref), updatedAt: Date.now(), source: 'live', error: false });
+    } else if (fresh.status === 'fulfilled' && fresh.value) {
+      Object.assign(state, { rates: mergeRates(null, ref), updatedAt: daily.updatedAt, source: 'daily', error: false });
+    } else {
       state.error = true;
-    } finally {
-      loading = false;
-      renderAll();
     }
+    if (!state.error) store.set('rates', { rates: state.rates, updatedAt: state.updatedAt, source: state.source });
+    loading = false;
+    buildCurrencyList();
+    renderAll();
+    if (trendFailed) renderTrend();
   }
 
   // ---- currency list ----
   let currencies = [];
   function buildCurrencyList() {
     if (!state.rates) return;
-    const list = [];
-    for (const code of Object.keys(state.rates)) {
-      if (CRYPTO[code]) { list.push(code); continue; }
-      if (code.length !== 3 || !/^[A-Z]{3}$/.test(code)) continue;
-      const n = names && names.of(code);
-      if (n && n !== code) list.push(code);
-    }
-    currencies = list.sort((a, b) => nameOf(a).localeCompare(nameOf(b), locale));
+    currencies = Object.keys(state.rates)
+      .filter(c => CRYPTO[c] || isFiat(c))
+      .sort((a, b) => nameOf(a).localeCompare(nameOf(b), locale));
   }
   buildCurrencyList();
 
   // ---- render ----
   function renderPair() {
-    $('fromCode').textContent = state.from;
-    $('fromName').textContent = nameOf(state.from);
-    $('toCode').textContent = state.to;
-    $('toName').textContent = nameOf(state.to);
+    for (const side of ['from', 'to']) {
+      const code = state[side];
+      $(side + 'Code').textContent = code;
+      $(side + 'Name').textContent = nameOf(code);
+      $('pick' + (side === 'from' ? 'From' : 'To')).setAttribute('aria-label', `${side === 'from' ? 'You have' : 'You get'} ${nameOf(code)}. Change currency`);
+      $(side + 'Amount').setAttribute('aria-label', `Amount in ${nameOf(code)}`);
+    }
     document.title = `${state.from} → ${state.to} · Bureau`;
   }
 
+  const field = side => $(side + 'Amount');
+  const other = side => side === 'from' ? 'to' : 'from';
+
+  // Writes only into the field you're not editing, so a refresh never touches what you type.
   function convert() {
-    const r = rate(state.from, state.to);
-    if (state.edited === 'from') {
-      const n = parseAmount($('fromAmount').value);
-      $('toAmount').value = Number.isFinite(n) && Number.isFinite(r) ? fmtPlain(n * r, state.to) : '';
-    } else {
-      const n = parseAmount($('toAmount').value);
-      $('fromAmount').value = Number.isFinite(n) && Number.isFinite(r) ? fmtPlain(n / r, state.from) : '';
-    }
-    store.set('amount', { side: state.edited, value: $(state.edited === 'from' ? 'fromAmount' : 'toAmount').value });
+    const src = state.edited, dst = other(src);
+    const { value, isExpr } = evaluate(field(src).value);
+    const hint = $(src + 'Calc');
+    hint.hidden = !(isExpr && Number.isFinite(value) && value >= 0);
+    if (!hint.hidden) hint.textContent = '= ' + fmtAmount(value, state[src]);
+    $(dst + 'Calc').hidden = true;
+
+    const r = effectiveRate(state.from, state.to);
+    let out = NaN;
+    if (Number.isFinite(value) && value >= 0 && Number.isFinite(r)) out = src === 'from' ? value * r : value / r;
+    field(dst).value = fmtAmount(out, state[dst]);
+    fitAll();
+    store.set('amount', { side: src, value: field(src).value });
+    announce();
   }
+
+  let announceTimer = 0;
+  function announce() {
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(() => {
+      const a = field('from').value, b = field('to').value;
+      $('announce').textContent = a && b ? `${a} ${nameOf(state.from)} is ${b} ${nameOf(state.to)}` : '';
+    }, 700);
+  }
+
+  // Long amounts shrink to fit instead of being cut off.
+  function fit(input) {
+    input.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(input).fontSize);
+    while (input.scrollWidth > input.clientWidth && size > 15) {
+      size *= 0.92;
+      input.style.fontSize = size + 'px';
+    }
+  }
+  const fitAll = () => { fit(field('from')); fit(field('to')); };
 
   function renderRateLine() {
     const r = rate(state.from, state.to);
-    const el = $('rateline');
+    const main = $('rateMain'), sub = $('rateSub');
     if (!Number.isFinite(r)) {
-      el.innerHTML = '';
-      const s = document.createElement('span');
-      s.textContent = state.rates ? `No rate available for ${state.from} → ${state.to}` : 'Waiting for rates';
-      el.append(s);
+      main.textContent = !state.rates ? (state.error ? 'No rates yet. Check your connection.' : 'Waiting for rates')
+        : `No rate for ${state.from} → ${state.to}`;
+      sub.textContent = '';
       return;
     }
-    el.innerHTML = `<span>1 ${state.from} = <b>${fmtRate(r)}</b> ${state.to}</span><span>1 ${state.to} = <b>${fmtRate(1 / r)}</b> ${state.from}</span>`;
+    const eff = effectiveRate(state.from, state.to);
+    main.innerHTML = `1 ${state.from} = <b>${fmtRate(eff)}</b> ${state.to}`;
+    sub.textContent = state.fee ? `Mid-market ${fmtRate(r)}` : `1 ${state.to} = ${fmtRate(1 / r)} ${state.from}`;
+    $('fee').value = String(state.fee);
+    $('fee').classList.toggle('on', state.fee > 0);
   }
 
+  function agoText(ms) {
+    const age = Date.now() - ms;
+    if (age < 60_000) return 'just now';
+    if (age < 3_600_000) return Math.floor(age / 60_000) + ' min ago';
+    if (age < 86_400_000) return Math.floor(age / 3_600_000) + ' h ago';
+    return new Date(ms).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  }
   function renderStatus() {
-    const el = $('status'), text = $('statusText');
+    const el = $('status');
     if (!state.rates) {
       el.dataset.state = state.error ? 'error' : 'loading';
-      text.textContent = state.error ? "Can't reach rate servers. Tap to retry" : 'Loading rates…';
+      el.textContent = state.error ? "Can't reach rates · Retry" : 'Loading rates…';
       return;
     }
-    const age = Date.now() - state.updatedAt;
-    let ago;
-    if (age < 10_000) ago = 'just now';
-    else if (age < 60_000) ago = Math.floor(age / 1000) + 's ago';
-    else if (age < 3_600_000) ago = Math.floor(age / 60_000) + ' min ago';
-    else ago = new Date(state.updatedAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
-    if (state.error) { el.dataset.state = 'error'; text.textContent = `Offline · rates from ${ago}`; }
-    else if (state.source !== 'Coinbase' || age > 180_000) { el.dataset.state = 'stale'; text.textContent = `${state.source} · updated ${ago}`; }
-    else { el.dataset.state = 'live'; text.textContent = `Live · updated ${ago}`; }
+    if (state.error) { el.dataset.state = 'error'; el.textContent = `Offline · rates from ${agoText(state.updatedAt)}`; }
+    else if (state.source === 'daily') { el.dataset.state = 'stale'; el.textContent = `Daily rates · ${agoText(state.updatedAt)}`; }
+    else if (Date.now() - state.updatedAt > 3 * 60_000) { el.dataset.state = 'stale'; el.textContent = `Updated ${agoText(state.updatedAt)}`; }
+    else { el.dataset.state = 'live'; el.textContent = `Updated ${agoText(state.updatedAt)}`; }
   }
 
-  function pocketAmounts(code) {
+  // ---- quick amounts ----
+  function quickAmounts(code) {
     const usdValue = state.rates && state.rates[code] ? 1 / state.rates[code] : 1;
     const k = Math.round(Math.log10(usdValue));
     const mult = Math.abs(k) >= 2 ? Math.pow(10, -k) : 1;
     return [1, 5, 10, 20, 50, 100, 200, 500, 1000].map(a => a * mult);
   }
-  function pocketTable(from, to) {
-    const r = rate(from, to);
-    const t = document.createElement('table');
-    const cap = t.createCaption(); cap.textContent = `${from} → ${to}`;
-    const body = t.createTBody();
-    for (const a of pocketAmounts(from)) {
-      const tr = body.insertRow();
-      tr.insertCell().textContent = fmtMoney(a, from);
-      tr.insertCell().textContent = Number.isFinite(r) ? fmtMoney(a * r, to) : '–';
-      tr.addEventListener('click', () => {
+  function quickColumn(from, to) {
+    const col = document.createElement('div');
+    col.className = 'quick-col';
+    const h = document.createElement('h3');
+    h.textContent = `${from} → ${to}`;
+    col.append(h);
+    const r = effectiveRate(from, to);
+    for (const a of quickAmounts(from)) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      const left = document.createElement('span');
+      left.textContent = fmtMoney(a, from, Number.isInteger(a) ? { maximumFractionDigits: 0 } : undefined);
+      const right = document.createElement('span');
+      right.textContent = Number.isFinite(r) ? fmtMoney(a * r, to) : '–';
+      b.append(left, right);
+      b.setAttribute('aria-label', `Use ${left.textContent}, ${right.textContent}`);
+      b.addEventListener('click', () => {
         if (from !== state.from) swap();
         state.edited = 'from';
-        $('fromAmount').value = fmtPlain(a, state.from);
+        field('from').value = fmtAmount(a, state.from);
         convert();
-        $('fromAmount').focus();
       });
+      col.append(b);
     }
-    return t;
+    return col;
   }
-  function renderPocket() {
-    const el = $('pocket');
-    el.replaceChildren(pocketTable(state.from, state.to), pocketTable(state.to, state.from));
+  function renderQuick() {
+    $('quick').replaceChildren(quickColumn(state.from, state.to), quickColumn(state.to, state.from));
   }
 
-  // ---- 30-day trend (ECB, fiat only) ----
+  // ---- trend (ECB reference rates, fiat only) ----
   const trendCache = new Map();
   let trendToken = 0;
+  let trendFailed = false;
+  function renderRange() {
+    for (const b of $('range').querySelectorAll('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.days) === state.days));
+  }
   async function renderTrend() {
     const token = ++trendToken;
-    const el = $('trend'), meta = $('trendMeta'), axis = $('trendAxis');
-    const key = state.from + state.to;
-    if (state.from === state.to) return showTrendEmpty('Pick two different currencies to see a trend.');
-    let series = trendCache.get(key);
-    if (!series) {
-      const end = new Date(), start = new Date(end - 31 * 864e5);
-      const iso = d => d.toISOString().slice(0, 10);
+    const { from, to, days } = state;
+    renderRange();
+    if (CRYPTO[from] || CRYPTO[to]) return showTrendEmpty('The ECB only publishes rates for national currencies, so there is no trend for crypto.');
+    const key = `${from}${to}${days}`;
+    let entry = trendCache.get(key);
+    if (!entry || Date.now() - entry.at > TREND_TTL_MS) {
+      $('trend').classList.add('loading');
+      const end = new Date(), start = new Date(end - (days + 1) * 864e5);
       try {
-        const res = await fetch(`${TREND_URL}${iso(start)}..?base=${state.from}&symbols=${state.to}`);
-        if (!res.ok) throw new Error();
-        const json = await res.json();
-        series = Object.entries(json.rates).map(([d, v]) => [d, v[state.to]]).filter(p => Number.isFinite(p[1]));
-        if (series.length < 2) throw new Error();
-        trendCache.set(key, series);
-      } catch {
-        if (token === trendToken) showTrendEmpty(`The ECB doesn't publish a reference rate for ${CRYPTO[state.from] || CRYPTO[state.to] ? 'crypto' : 'this pair'}, so there's no trend to show.`);
-        return;
+        const json = await getJSON(`${TREND_URL}${start.toISOString().slice(0, 10)}..?base=${from}&symbols=${to}`);
+        const series = Object.entries(json.rates || {}).map(([d, v]) => [d, v[to]]).filter(p => Number.isFinite(p[1]));
+        entry = { at: Date.now(), series };
+        trendCache.set(key, entry);
+      } catch (e) {
+        if (token !== trendToken) return;
+        const noData = e.status === 404 || e.status === 422;
+        trendFailed = !noData;
+        return showTrendEmpty(noData
+          ? `The ECB doesn't publish reference rates for ${from} → ${to}.`
+          : "Couldn't load the trend. It will try again with the next rate update.");
       }
     }
     if (token !== trendToken) return;
-
+    trendFailed = false;
+    if (entry.series.length < 2) return showTrendEmpty(`The ECB doesn't publish reference rates for ${from} → ${to}.`);
+    drawTrend(entry.series);
+  }
+  function drawTrend(series) {
+    const el = $('trend');
+    el.classList.remove('loading');
     const vals = series.map(p => p[1]);
     const min = Math.min(...vals), max = Math.max(...vals);
     const span = max - min || max * 0.001;
-    const W = 300, H = 92, pad = 8;
+    const W = 300, H = 116, pad = 10;
     const x = i => (i / (vals.length - 1)) * W;
     const y = v => pad + (1 - (v - min) / span) * (H - pad * 2);
-    const pts = vals.map((v, i) => `${x(i).toFixed(2)},${y(v).toFixed(2)}`);
-    const line = 'M' + pts.join(' L');
-    const area = `${line} L${W},${H} L0,${H} Z`;
-    const mid = y((min + max) / 2);
+    const line = 'M' + vals.map((v, i) => `${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' L');
     el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-        <line class="grid" x1="0" x2="${W}" y1="${y(max)}" y2="${y(max)}" vector-effect="non-scaling-stroke"/>
-        <line class="grid" x1="0" x2="${W}" y1="${mid}" y2="${mid}" vector-effect="non-scaling-stroke"/>
-        <line class="grid" x1="0" x2="${W}" y1="${y(min)}" y2="${y(min)}" vector-effect="non-scaling-stroke"/>
-        <path class="area" d="${area}"/><path class="line" d="${line}"/>
-      </svg><span class="end" style="left:100%;top:${(y(vals.at(-1)) / H * 100).toFixed(2)}%"></span>`;
-    el.setAttribute('role', 'img');
+        <defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="fill-top"/><stop offset="1" class="fill-bottom"/></linearGradient></defs>
+        <path d="${line} L${W},${H} L0,${H} Z" fill="url(#fade)"/><path class="line" d="${line}"/>
+      </svg><span class="end" style="top:${(y(vals.at(-1)) / H * 100).toFixed(2)}%"></span>`;
     const change = (vals.at(-1) / vals[0] - 1) * 100;
-    el.setAttribute('aria-label', `${state.from} to ${state.to} over 30 days, from ${fmtRate(vals[0])} to ${fmtRate(vals.at(-1))}`);
-    const sign = change >= 0 ? '+' : '−';
-    meta.innerHTML = `Low ${fmtRate(min)} · High ${fmtRate(max)} <span class="chip ${change >= 0 ? 'up' : 'down'}">${sign}${Math.abs(change).toFixed(2)}%</span>`;
-    const d = s => new Date(s + 'T00:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short' });
-    axis.innerHTML = `<span>${d(series[0][0])}</span><span>${d(series.at(-1)[0])}</span>`;
+    const changeEl = $('trendChange');
+    changeEl.className = 'change ' + (change >= 0 ? 'up' : 'down');
+    changeEl.textContent = `${change >= 0 ? '+' : '−'}${Math.abs(change).toFixed(2)}%`;
+    el.setAttribute('role', 'img');
+    el.setAttribute('aria-label', `${state.from} to ${state.to}: ${fmtRate(vals[0])} to ${fmtRate(vals.at(-1))}, low ${fmtRate(min)}, high ${fmtRate(max)}`);
+    const long = state.days > 60;
+    const d = s => new Date(s + 'T00:00:00').toLocaleDateString(locale, long ? { month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' });
+    $('trendAxis').innerHTML = '';
+    for (const [cls, text] of [['', d(series[0][0])], ['mid', `Low ${fmtRate(min)} · High ${fmtRate(max)}`], ['', d(series.at(-1)[0])]]) {
+      const s = document.createElement('span');
+      if (cls) s.className = cls;
+      s.textContent = text;
+      $('trendAxis').append(s);
+    }
   }
   function showTrendEmpty(msg) {
-    $('trend').innerHTML = `<div class="empty"></div>`;
-    $('trend').firstChild.textContent = msg;
-    $('trend').removeAttribute('role');
-    $('trendMeta').textContent = '';
+    const el = $('trend');
+    el.classList.remove('loading');
+    el.removeAttribute('role');
+    el.removeAttribute('aria-label');
+    el.innerHTML = '<div class="empty"></div>';
+    el.firstChild.textContent = msg;
+    $('trendChange').textContent = '';
     $('trendAxis').innerHTML = '';
   }
 
@@ -585,34 +809,77 @@ dialog::backdrop { background: rgba(10, 16, 14, .45); }
     convert();
     renderRateLine();
     renderStatus();
-    renderPocket();
+    renderQuick();
   }
 
   // ---- interactions ----
-  $('fromAmount').addEventListener('input', () => { state.edited = 'from'; convert(); });
-  $('toAmount').addEventListener('input', () => { state.edited = 'to'; convert(); });
-  for (const id of ['fromAmount', 'toAmount']) {
-    $(id).addEventListener('focus', e => e.target.select());
-    $(id).addEventListener('blur', e => {
-      const n = parseAmount(e.target.value);
-      if (Number.isFinite(n)) e.target.value = fmtPlain(n, id === 'fromAmount' ? state.from : state.to);
+  for (const side of ['from', 'to']) {
+    const input = field(side);
+    input.addEventListener('focus', () => {
+      state.edited = side;
+      input.select();
+      showOps(true);
+    });
+    input.addEventListener('input', () => { state.edited = side; convert(); });
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+    input.addEventListener('blur', () => {
+      showOps(false);
+      // Tidy what was typed (grouping, or the result of a sum) without rounding it.
+      const { value } = evaluate(input.value);
+      if (Number.isFinite(value) && value >= 0) {
+        const d = fractionDigits(state[side]);
+        input.value = new Intl.NumberFormat(fmtLocale, { minimumFractionDigits: d, maximumFractionDigits: Math.max(d, 8) }).format(value);
+        convert();
+      }
     });
   }
 
-  function savePair() { store.set('pair', { from: state.from, to: state.to }); }
+  // Operator keys: only on touch screens, only while an amount is being edited.
+  const coarse = matchMedia('(pointer: coarse)');
+  let opsTimer = 0;
+  function showOps(on) {
+    clearTimeout(opsTimer);
+    if (on) { if (coarse.matches) $('ops').hidden = false; }
+    else opsTimer = setTimeout(() => { $('ops').hidden = true; }, 120);
+  }
+  $('ops').addEventListener('pointerdown', e => e.preventDefault());   // keep the keyboard up
+  $('ops').addEventListener('click', e => {
+    const b = e.target.closest('button[data-op]');
+    if (!b) return;
+    const input = field(state.edited);
+    if (document.activeElement !== input) input.focus();
+    const start = input.selectionStart ?? input.value.length, end = input.selectionEnd ?? input.value.length;
+    input.setRangeText(b.dataset.op, start, end, 'end');
+    input.dispatchEvent(new Event('input'));
+  });
+
+  function savePair() {
+    store.set('pair', { from: state.from, to: state.to });
+  }
   function swap() {
     [state.from, state.to] = [state.to, state.from];
-    const f = $('fromAmount').value;
-    $('fromAmount').value = $('toAmount').value;
-    $('toAmount').value = f;
-    state.edited = 'from';
+    const f = field('from').value;
+    field('from').value = field('to').value;
+    field('to').value = f;
+    state.edited = other(state.edited);
     savePair();
     renderAll();
     renderTrend();
   }
-  $('swap').addEventListener('click', () => { $('swap').classList.toggle('turn'); swap(); });
-
+  $('swap').addEventListener('click', swap);
   $('status').addEventListener('click', loadRates);
+  $('fee').addEventListener('change', e => {
+    state.fee = Number(e.target.value) || 0;
+    store.set('fee', state.fee);
+    renderAll();
+  });
+  $('range').addEventListener('click', e => {
+    const b = e.target.closest('button[data-days]');
+    if (!b) return;
+    state.days = Number(b.dataset.days);
+    store.set('days', state.days);
+    renderTrend();
+  });
 
   // ---- picker ----
   const dlg = $('picker');
@@ -625,56 +892,66 @@ dialog::backdrop { background: rgba(10, 16, 14, .45); }
     $('pickerSearch').focus();
   }
   function itemButton(code) {
-    const current = state[pickingSide];
     const li = document.createElement('li');
     const b = document.createElement('button');
     b.type = 'button';
-    b.setAttribute('role', 'option');
-    b.setAttribute('aria-selected', String(code === current));
     b.dataset.code = code;
+    const current = code === state[pickingSide];
+    if (current) b.setAttribute('aria-current', 'true');
     const c = document.createElement('span'); c.className = 'c'; c.textContent = code;
     const n = document.createElement('span'); n.className = 'n'; n.textContent = nameOf(code);
-    const s = document.createElement('span'); s.className = 's'; s.textContent = symbolOf(code);
-    b.append(c, n, s);
+    const t = document.createElement('span'); t.className = 'tick'; t.setAttribute('aria-hidden', 'true'); t.textContent = current ? '✓' : '';
+    b.append(c, n, t);
     li.append(b);
     return li;
   }
-  function groupLabel(text) {
-    const li = document.createElement('li'); li.className = 'group'; li.textContent = text; li.setAttribute('role', 'presentation');
-    return li;
+  function group(label, codes) {
+    if (!codes.length) return [];
+    const li = document.createElement('li');
+    li.className = 'group';
+    li.textContent = label;
+    return [li, ...codes.map(itemButton)];
   }
   function renderPickerList(q) {
     const list = $('pickerList');
-    list.replaceChildren();
     const all = currencies.length ? currencies : COMMON;
     q = q.trim().toLowerCase();
     if (!q) {
-      list.append(groupLabel('Common'));
-      COMMON.filter(c => all.includes(c)).forEach(c => list.append(itemButton(c)));
-      const crypto = Object.keys(CRYPTO).filter(c => all.includes(c));
-      if (crypto.length) { list.append(groupLabel('Crypto')); crypto.forEach(c => list.append(itemButton(c))); }
-      list.append(groupLabel('All currencies'));
-      all.filter(c => !CRYPTO[c]).forEach(c => list.append(itemButton(c)));
+      const recent = state.recent.filter(c => all.includes(c));
+      const common = COMMON.filter(c => all.includes(c) && !recent.includes(c));
+      const crypto = Object.keys(CRYPTO).filter(c => all.includes(c) && !recent.includes(c));
+      const rest = currencies.filter(c => !CRYPTO[c]);
+      list.replaceChildren(
+        ...group('Recent', recent),
+        ...group('Common', common),
+        ...group('Crypto', crypto),
+        ...group('All currencies', rest)
+      );
       return;
     }
     const hits = all
       .map(c => {
         const name = nameOf(c).toLowerCase(), code = c.toLowerCase();
-        const score = code === q ? 0 : code.startsWith(q) ? 1 : name.startsWith(q) ? 2 : name.includes(q) ? 3 : code.includes(q) ? 4 : -1;
+        const score = code === q ? 0 : code.startsWith(q) ? 1 : name.startsWith(q) ? 2 : name.includes(q) ? 3 : -1;
         return [c, score];
       })
       .filter(([, s]) => s >= 0)
       .sort((a, b) => a[1] - b[1]);
     if (!hits.length) {
-      const li = groupLabel(`Nothing matches “${q}”`); list.append(li); return;
+      const li = document.createElement('li');
+      li.className = 'group';
+      li.textContent = `Nothing matches “${q}”`;
+      list.replaceChildren(li);
+      return;
     }
-    hits.forEach(([c]) => list.append(itemButton(c)));
+    list.replaceChildren(...hits.map(([c]) => itemButton(c)));
   }
   function choose(code) {
-    const other = pickingSide === 'from' ? 'to' : 'from';
-    if (code === state[other]) state[other] = state[pickingSide];
+    const otherSide = other(pickingSide);
+    if (code === state[otherSide]) state[otherSide] = state[pickingSide];
     state[pickingSide] = code;
-    state.edited = 'from';
+    state.recent = [code, ...state.recent.filter(c => c !== code)].slice(0, 5);
+    store.set('recent', state.recent);
     savePair();
     dlg.close();
     renderAll();
@@ -703,45 +980,25 @@ dialog::backdrop { background: rgba(10, 16, 14, .45); }
     if (next) next.focus();
   });
 
-  // ---- banknote rosette behind the slip ----
-  function drawRosette() {
-    const cv = $('rosette'), ctx = cv.getContext('2d');
-    const color = getComputedStyle(document.documentElement).getPropertyValue('--guilloche').trim();
-    ctx.clearRect(0, 0, cv.width, cv.height);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-    const cx = cv.width / 2, cy = cv.height / 2;
-    for (let ring = 0; ring < 3; ring++) {
-      const R = 210 - ring * 52, r = 38 + ring * 9, d = 62 - ring * 12;
-      ctx.beginPath();
-      for (let t = 0; t <= Math.PI * 2 * r / 2 + 0.01; t += 0.02) {
-        const k = (R - r) / r;
-        const px = cx + (R - r) * Math.cos(t) + d * Math.cos(k * t);
-        const py = cy + (R - r) * Math.sin(t) - d * Math.sin(k * t);
-        t === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-      }
-      ctx.stroke();
-    }
-  }
-  drawRosette();
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawRosette);
-
   // ---- boot ----
   const savedAmount = store.get('amount');
-  if (savedAmount && savedAmount.value) {
+  if (savedAmount && typeof savedAmount.value === 'string' && savedAmount.value) {
     state.edited = savedAmount.side === 'to' ? 'to' : 'from';
-    $(state.edited === 'from' ? 'fromAmount' : 'toAmount').value = savedAmount.value;
+    field(state.edited).value = savedAmount.value;
   } else {
-    $('fromAmount').value = fmtPlain(100, state.from);
+    field('from').value = fmtAmount(100, state.from);
   }
   renderAll();
   renderTrend();
   loadRates();
   setInterval(() => { if (!document.hidden) loadRates(); }, REFRESH_MS);
-  setInterval(renderStatus, 1000);
+  setInterval(renderStatus, 15_000);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && Date.now() - state.updatedAt > REFRESH_MS) loadRates();
   });
+  addEventListener('online', loadRates);
+  addEventListener('resize', fitAll);
+  if (document.fonts) document.fonts.ready.then(fitAll);
 })();
 </script>
 </body>
