@@ -119,36 +119,42 @@ button { cursor: pointer; }
 .status[data-state="stale"] { color: var(--warn); }
 .status[data-state="error"] { color: var(--down); }
 
-/* Update card (only inside the app, when a new version is published) */
+/* Update card (only inside the app, when a new version is published):
+   icon + title, what's new, then two equal buttons or a progress bar. */
 .update {
-  position: relative; overflow: hidden;
-  display: grid; gap: 10px;
-  padding: 16px 18px 6px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  display: grid; gap: 16px;
+  padding: 18px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
 }
-.update-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.update-text { min-width: 0; }
 .update p { margin: 0; }
-.update-title { font-weight: 600; }
+.update-head { display: flex; align-items: center; gap: 14px; }
+.update-icon {
+  flex: none; display: grid; place-items: center;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent);
+}
+.update-text { min-width: 0; }
+.update-title { font-weight: 600; line-height: 1.3; }
 .update-sub { font-size: .84rem; color: var(--muted); }
-.update-go {
-  flex: none; min-height: 40px; min-width: 96px; padding: 0 18px;
-  border: 0; border-radius: 4px;
-  background: var(--accent); color: var(--accent-ink);
-  font-weight: 600;
+.update-new { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+.update-label { font-size: .78rem; font-weight: 500; color: var(--muted); }
+.update-notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: .9rem; line-height: 1.4; }
+.update-notes li { position: relative; padding-left: 16px; }
+.update-notes li::before { content: ""; position: absolute; left: 3px; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.update-msg { font-size: .86rem; line-height: 1.45; color: var(--muted); }
+.update-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.update-actions button {
+  min-height: 46px; border-radius: 6px;
+  font-size: .95rem; font-weight: 600;
 }
-.update-go:hover { filter: brightness(1.08); }
-.update-go:disabled { background: var(--line); color: var(--muted); cursor: default; filter: none; }
-.update-notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: .86rem; color: var(--muted); }
-.update-notes li { position: relative; padding-left: 14px; }
-.update-notes li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
-.update-later {
-  justify-self: start; min-height: 40px; margin-left: -2px; padding: 0 2px;
-  border: 0; background: none; color: var(--muted); font-size: .84rem;
-}
-.update-later:hover { color: var(--ink); }
-.update-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--accent-soft); }
-.update-bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.btn-secondary { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+.btn-secondary:hover { border-color: var(--muted); }
+.btn-primary { background: var(--accent); border: 1px solid var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.08); }
+.update-progress { display: flex; align-items: center; gap: 12px; min-height: 46px; }
+.update-track { flex: 1; height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; }
+.update-track span { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--accent); transition: width .2s; }
+.update-pct { min-width: 3.2ch; text-align: right; font-size: .86rem; font-weight: 600; }
 
 /* Conversion slip */
 .slip { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
@@ -386,15 +392,27 @@ dialog::backdrop { background: var(--backdrop); }
 
   <section class="update" id="updateCard" aria-label="App update" hidden>
     <div class="update-head">
+      <span class="update-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v9M5 8.5 9 12.5l4-4M4 15h10"/></svg>
+      </span>
       <div class="update-text">
-        <p class="update-title" id="updateTitle"></p>
-        <p class="update-sub" id="updateSub" aria-live="polite"></p>
+        <p class="update-title" id="updateTitle">Update available</p>
+        <p class="update-sub" id="updateSub"></p>
       </div>
-      <button class="update-go" id="updateGo" type="button">Update</button>
     </div>
-    <ul class="update-notes" id="updateNotes"></ul>
-    <button class="update-later" id="updateLater" type="button">Not now</button>
-    <div class="update-bar" id="updateBarWrap" hidden><span id="updateBar"></span></div>
+    <div class="update-new" id="updateNew">
+      <p class="update-label">What's new</p>
+      <ul class="update-notes" id="updateNotes"></ul>
+    </div>
+    <p class="update-msg" id="updateMsg" aria-live="polite" hidden></p>
+    <div class="update-progress" id="updateProgress" hidden>
+      <div class="update-track"><span id="updateBar"></span></div>
+      <span class="update-pct" id="updatePct">0%</span>
+    </div>
+    <div class="update-actions" id="updateActions">
+      <button class="btn-secondary" id="updateLater" type="button">Not now</button>
+      <button class="btn-primary" id="updateGo" type="button">Update</button>
+    </div>
   </section>
 
   <section class="slip" aria-label="Converter">
@@ -999,41 +1017,38 @@ dialog::backdrop { background: var(--backdrop); }
 
   // The update card. The app sends: available (version, notes, size),
   // downloading (progress 0..1), installing, and failed (message).
-  let updateVersion = '';
+  let updateVersion = '', updateSize = 0;
   function showUpdate(m) {
-    const card = $('updateCard'), go = $('updateGo'), sub = $('updateSub');
-    const barWrap = $('updateBarWrap');
-    card.hidden = false;
+    const show = (id, on) => { $(id).hidden = !on; };
+    $('updateCard').hidden = false;
     if (m.state === 'available') {
       updateVersion = m.version || updateVersion;
-      $('updateTitle').textContent = `Bureau ${updateVersion} is ready`;
-      const size = m.size > 0 ? `${(m.size / 1e6).toFixed(1)} MB · ` : '';
-      sub.textContent = `${size}Keeps your settings`;
+      updateSize = m.size > 0 ? m.size : updateSize;
       const notes = Array.isArray(m.notes) ? m.notes.filter(n => typeof n === 'string' && n).slice(0, 5) : [];
       $('updateNotes').replaceChildren(...notes.map(n => { const li = document.createElement('li'); li.textContent = n; return li; }));
-      $('updateNotes').hidden = notes.length === 0;
-      go.hidden = false; go.disabled = false; go.textContent = 'Update';
-      $('updateLater').hidden = false;
-      barWrap.hidden = true;
-    } else if (m.state === 'downloading') {
-      const pct = Math.round(Math.max(0, Math.min(1, m.progress || 0)) * 100);
-      $('updateTitle').textContent = `Downloading Bureau ${updateVersion}`;
-      go.disabled = true; go.textContent = `${pct}%`;
-      sub.textContent = 'This takes a few seconds';
-      $('updateLater').hidden = true;
-      barWrap.hidden = false;
-      $('updateBar').style.width = pct + '%';
-    } else if (m.state === 'installing') {
-      $('updateTitle').textContent = `Installing Bureau ${updateVersion}`;
-      go.hidden = true;
-      $('updateBar').style.width = '100%';
-      sub.textContent = 'Confirm on the next screen. The first time, Android asks you to allow installs from Bureau: turn it on, then go back.';
-    } else if (m.state === 'failed') {
-      $('updateTitle').textContent = `Bureau ${updateVersion} didn't install`;
-      go.hidden = false; go.disabled = false; go.textContent = 'Try again';
-      $('updateLater').hidden = false;
-      barWrap.hidden = true;
-      sub.textContent = m.message || "The update didn't finish.";
+      show('updateNew', notes.length > 0);
+    }
+    const sub = [`Bureau ${updateVersion}`, updateSize ? `${(updateSize / 1e6).toFixed(1)} MB` : ''].filter(Boolean).join(' · ');
+    const pct = Math.round(Math.max(0, Math.min(1, m.progress || 0)) * 100);
+    const view = {
+      available: { title: 'Update available', msg: '', actions: true, progress: false, go: 'Update' },
+      downloading: { title: 'Downloading update', msg: '', actions: false, progress: true },
+      installing: { title: 'Installing update', actions: false, progress: true,
+        msg: 'Confirm on the next screen. The first time, Android asks you to allow installs from Bureau. Turn it on, then go back.' },
+      failed: { title: "Update didn't finish", msg: m.message || 'Something went wrong. Try again.', actions: true, progress: false, go: 'Try again' },
+    }[m.state];
+    if (!view) return;
+    $('updateTitle').textContent = view.title;
+    $('updateSub').textContent = sub;
+    $('updateMsg').textContent = view.msg;
+    show('updateMsg', !!view.msg);
+    show('updateActions', view.actions);
+    show('updateProgress', view.progress);
+    if (view.go) $('updateGo').textContent = view.go;
+    if (view.progress) {
+      const p = m.state === 'installing' ? 100 : pct;
+      $('updateBar').style.width = p + '%';
+      $('updatePct').textContent = p + '%';
     }
   }
 
