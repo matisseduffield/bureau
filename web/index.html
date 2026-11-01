@@ -250,6 +250,13 @@ button { cursor: pointer; }
 .trend .end { position: absolute; left: calc(100% - 6px); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); }
 .trend-axis { display: flex; justify-content: space-between; gap: 12px; font-size: .78rem; color: var(--muted); }
 .trend-axis .mid { text-align: center; }
+.trend-axis .mid.active { color: var(--ink); font-weight: 500; }
+.trend { touch-action: pan-y; }
+.trend .probe-line { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -.5px; background: var(--muted); opacity: .5; pointer-events: none; }
+.trend .probe-dot {
+  position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 3px var(--bg); pointer-events: none;
+}
 .empty { padding: 16px 0; font-size: .88rem; color: var(--muted); }
 
 /* Also in: the amount in your other recent currencies */
@@ -889,7 +896,8 @@ dialog::backdrop { background: var(--backdrop); }
     const line = 'M' + vals.map((v, i) => `${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' L');
     el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
         <path class="line" d="${line}"/>
-      </svg><span class="end" style="top:${(y(vals.at(-1)) / H * 100).toFixed(2)}%"></span>`;
+      </svg><span class="end" style="top:${(y(vals.at(-1)) / H * 100).toFixed(2)}%"></span>
+      <span class="probe-line" hidden></span><span class="probe-dot" hidden></span>`;
     const change = (vals.at(-1) / vals[0] - 1) * 100;
     const changeEl = $('trendChange');
     changeEl.className = 'change ' + (change >= 0 ? 'up' : 'down');
@@ -905,8 +913,46 @@ dialog::backdrop { background: var(--backdrop); }
       s.textContent = text;
       $('trendAxis').append(s);
     }
+    scrub = { series, y, H, rest: `Low ${fmtRate(min)} · High ${fmtRate(max)}` };
   }
+
+  // Touch or hover the chart to read the rate on a given day. The reading
+  // replaces the low/high line under the chart until you let go.
+  let scrub = null;
+  function scrubAt(clientX) {
+    const el = $('trend');
+    if (!scrub || !el.querySelector('svg')) return;
+    const rect = el.getBoundingClientRect();
+    const width = rect.width - 6;
+    const n = scrub.series.length;
+    const i = Math.round(Math.max(0, Math.min(1, (clientX - rect.left) / width)) * (n - 1));
+    const [date, value] = scrub.series[i];
+    const left = (i / (n - 1)) * width;
+    const top = scrub.y(value) / scrub.H * 100;
+    const lineEl = el.querySelector('.probe-line'), dot = el.querySelector('.probe-dot');
+    lineEl.hidden = dot.hidden = false;
+    lineEl.style.left = left + 'px';
+    dot.style.left = left + 'px';
+    dot.style.top = top + '%';
+    const mid = $('trendAxis').querySelector('.mid');
+    if (mid) {
+      mid.classList.add('active');
+      const day = new Date(date + 'T00:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short', year: state.days > 60 ? 'numeric' : undefined });
+      mid.textContent = `${day} · ${fmtRate(value)}`;
+    }
+  }
+  function endScrub() {
+    const el = $('trend');
+    el.querySelectorAll('.probe-line, .probe-dot').forEach(p => { p.hidden = true; });
+    const mid = $('trendAxis').querySelector('.mid');
+    if (mid && scrub) { mid.classList.remove('active'); mid.textContent = scrub.rest; }
+  }
+  $('trend').addEventListener('pointerdown', e => scrubAt(e.clientX));
+  $('trend').addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) scrubAt(e.clientX); });
+  for (const type of ['pointerup', 'pointerleave', 'pointercancel']) $('trend').addEventListener(type, endScrub);
+
   function showTrendEmpty(msg) {
+    scrub = null;
     const el = $('trend');
     el.classList.remove('loading');
     el.removeAttribute('role');
@@ -1080,7 +1126,13 @@ dialog::backdrop { background: var(--backdrop); }
     renderTrend();
   }
   $('swap').addEventListener('click', swap);
-  $('status').addEventListener('click', loadRates);
+  $('status').addEventListener('click', () => {
+    if (loading) return;
+    const el = $('status');
+    el.dataset.state = 'loading';
+    el.textContent = 'Updating…';
+    loadRates();
+  });
   $('fee').addEventListener('change', e => {
     state.fee = Number(e.target.value) || 0;
     store.set('fee', state.fee);
