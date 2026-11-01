@@ -53,7 +53,20 @@ inside the app. The app talks to the page through a WebView message listener lim
 to its own asset origin (`window.bureauApp`): the page reports the pair (for the
 widget) and whether the currency picker is open (so Back closes it).
 
-Publishing an update = push a `v*` tag, e.g. `git tag v1.1.0 && git push origin v1.1.0`.
+New updates show as a card at the top of the page (version, what's new, size,
+then download progress) with one Update button; Android's own confirm screen
+follows. WebViews without the message bridge get a system dialog instead.
+
+Publishing an update = push an annotated `v*` tag whose message lists what's new
+as `- ` lines; those lines become the card's notes and the releases README:
+
+```
+git tag -a v1.5.0 -m "Bureau 1.5.0" -m "- First change" -m "- Second change"
+git push origin v1.5.0
+```
+
+New installs: `https://raw.githubusercontent.com/matisseduffield/bureau-releases/main/Bureau.apk`
+always serves the latest build.
 The version name and code come from the tag (`1.1.0` → versionCode `10100`).
 
 - `applicationId` com.matisseduffield.bureau · minSdk 27 · target/compile SDK 36

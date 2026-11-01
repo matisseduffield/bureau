@@ -31,6 +31,8 @@ object UpdateManager {
         val apkUrl: String,
         val sizeBytes: Long,
         val sha256: String,
+        /** Short "what's new" lines from the release's tag message. */
+        val notes: List<String> = emptyList(),
     )
 
     /** Outcome of a check — distinguishes "up to date" from "couldn't check". */
@@ -61,6 +63,9 @@ object UpdateManager {
                 apkUrl = root.getString("apk"),
                 sizeBytes = root.optLong("size", -1L),
                 sha256 = root.getString("sha256").lowercase(),
+                notes = root.optJSONArray("notes")?.let { arr ->
+                    (0 until arr.length()).mapNotNull { arr.optString(it).takeIf(String::isNotBlank) }
+                } ?: emptyList(),
             )
             if (info.versionCode > BuildConfig.VERSION_CODE) CheckResult.Available(info) else CheckResult.UpToDate
         } catch (e: Exception) {

@@ -92,35 +92,53 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         env:
           DEPLOY_KEY: ${{ secrets.RELEASES_DEPLOY_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           install -m 600 /dev/null "$RUNNER_TEMP/deploy_key"
           printf '%s\n' "$DEPLOY_KEY" > "$RUNNER_TEMP/deploy_key"
           export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 
+          # "What's new" comes from the annotated tag's message: its "- " lines,
+          # or failing that its first line. (Lightweight tags fall back to the
+          # commit message.) The app shows these in its update card.
+          TAG_SHA=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$GITHUB_REF_NAME" -q .object.sha)
+          if [[ "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$GITHUB_REF_NAME" -q .object.type)" == "tag" ]]; then
+            MESSAGE=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_SHA" -q .message)
+          else
+            MESSAGE=$(git log -1 --format=%B)
+          fi
+          NOTES=$(printf '%s\n' "$MESSAGE" | { grep -v -i '^co-authored-by' || true; } | sed -n 's/^- //p' | head -5)
+          if [[ -z "$NOTES" ]]; then NOTES=$(printf '%s\n' "$MESSAGE" | head -1); fi
+
           RAW="https://raw.githubusercontent.com/matisseduffield/bureau-releases/main"
-          mkdir pub && cp "$APK_NAME" pub/
+          mkdir pub && cp "$APK_NAME" pub/ && cp "$APK_NAME" pub/Bureau.apk
           cd pub
           SHA=$(sha256sum "$APK_NAME" | cut -d' ' -f1)
           SIZE=$(stat -c%s "$APK_NAME")
-          cat > latest.json <<JSON
+          printf '%s\n' "$NOTES" | jq -R 'select(length > 0)' | jq -s \
+            --argjson code "$VERSION_CODE" --arg name "$VERSION_NAME" --arg apk "$RAW/$APK_NAME" \
+            --argjson size "$SIZE" --arg sha "$SHA" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{versionCode: $code, versionName: $name, apk: $apk, size: $size, sha256: $sha, publishedAt: $at, notes: .}' \
+            > latest.json
+          cat latest.json
+
           {
-            "versionCode": $VERSION_CODE,
-            "versionName": "$VERSION_NAME",
-            "apk": "$RAW/$APK_NAME",
-            "size": $SIZE,
-            "sha256": "$SHA",
-            "publishedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          }
-          JSON
-          cat > README.md <<MD
-          # Bureau releases
-
-          Signed Android builds of Bureau, a live currency converter. Only the
-          newest build is kept here; installed copies update themselves from it.
-
-          Latest: **$VERSION_NAME** · [$APK_NAME]($RAW/$APK_NAME)
-          MD
+            echo "# Bureau releases"
+            echo
+            echo "Signed Android builds of Bureau, a live currency converter. Installed"
+            echo "copies update themselves from here."
+            echo
+            echo "**[Download Bureau $VERSION_NAME]($RAW/Bureau.apk)**"
+            echo
+            echo "On your phone: open the link, then open the downloaded file and allow"
+            echo "the install when Android asks. You only do this once; after that the app"
+            echo "offers updates itself."
+            echo
+            echo "## What's new in $VERSION_NAME"
+            echo
+            printf '%s\n' "$NOTES" | sed 's/^/- /'
+          } > README.md
 
           # One orphan commit, force-pushed, so old APKs don't pile up in history.
           git init -q -b main

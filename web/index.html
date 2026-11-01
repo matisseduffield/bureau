@@ -33,6 +33,7 @@
   --line: #CDD5CC;
   --accent: #2C53C4;
   --accent-soft: rgba(44, 83, 196, .08);
+  --accent-ink: #FFFFFF;
   --up: #1D7548;
   --down: #B0392D;
   --warn: #8F5D08;
@@ -50,6 +51,7 @@
     --line: #2E3A35;
     --accent: #85A2FF;
     --accent-soft: rgba(133, 162, 255, .10);
+    --accent-ink: #0E1412;
     --up: #5FC890;
     --down: #F08476;
     --warn: #E0AA48;
@@ -66,6 +68,7 @@
   --line: #2E3A35;
   --accent: #85A2FF;
   --accent-soft: rgba(133, 162, 255, .10);
+  --accent-ink: #0E1412;
   --up: #5FC890;
   --down: #F08476;
   --warn: #E0AA48;
@@ -105,6 +108,37 @@ button { cursor: pointer; }
 .status:hover { color: var(--ink); }
 .status[data-state="stale"] { color: var(--warn); }
 .status[data-state="error"] { color: var(--down); }
+
+/* Update card (only inside the app, when a new version is published) */
+.update {
+  position: relative; overflow: hidden;
+  display: grid; gap: 10px;
+  padding: 16px 18px 6px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+}
+.update-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.update-text { min-width: 0; }
+.update p { margin: 0; }
+.update-title { font-weight: 600; }
+.update-sub { font-size: .84rem; color: var(--muted); }
+.update-go {
+  flex: none; min-height: 40px; min-width: 96px; padding: 0 18px;
+  border: 0; border-radius: 4px;
+  background: var(--accent); color: var(--accent-ink);
+  font-weight: 600;
+}
+.update-go:hover { filter: brightness(1.08); }
+.update-go:disabled { background: var(--line); color: var(--muted); cursor: default; filter: none; }
+.update-notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: .86rem; color: var(--muted); }
+.update-notes li { position: relative; padding-left: 14px; }
+.update-notes li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+.update-later {
+  justify-self: start; min-height: 40px; margin-left: -2px; padding: 0 2px;
+  border: 0; background: none; color: var(--muted); font-size: .84rem;
+}
+.update-later:hover { color: var(--ink); }
+.update-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--accent-soft); }
+.update-bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 
 /* Conversion slip */
 .slip { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
@@ -324,6 +358,19 @@ dialog::backdrop { background: var(--backdrop); }
     <h1 class="mark">Bureau</h1>
     <button class="status" id="status" data-state="loading" type="button" title="Refresh rates now">Loading rates…</button>
   </header>
+
+  <section class="update" id="updateCard" aria-label="App update" hidden>
+    <div class="update-head">
+      <div class="update-text">
+        <p class="update-title" id="updateTitle"></p>
+        <p class="update-sub" id="updateSub" aria-live="polite"></p>
+      </div>
+      <button class="update-go" id="updateGo" type="button">Update</button>
+    </div>
+    <ul class="update-notes" id="updateNotes"></ul>
+    <button class="update-later" id="updateLater" type="button">Not now</button>
+    <div class="update-bar" id="updateBarWrap" hidden><span id="updateBar"></span></div>
+  </section>
 
   <section class="slip" aria-label="Converter">
     <div class="legs">
@@ -907,13 +954,60 @@ dialog::backdrop { background: var(--backdrop); }
       } else if (m.type === 'updateStatus') {
         $('updateStatus').textContent = m.text;
         $('checkUpdate').disabled = false;
+      } else if (m.type === 'update') {
+        showUpdate(m);
       }
     };
+    $('updateGo').addEventListener('click', () => {
+      showUpdate({ state: 'downloading', progress: 0 });
+      toApp({ type: 'installUpdate' });
+    });
+    $('updateLater').addEventListener('click', () => { $('updateCard').hidden = true; });
     $('checkUpdate').addEventListener('click', () => {
       $('checkUpdate').disabled = true;
       $('updateStatus').textContent = 'Checking…';
       toApp({ type: 'checkUpdate' });
     });
+  }
+
+  // The update card. The app sends: available (version, notes, size),
+  // downloading (progress 0..1), installing, and failed (message).
+  let updateVersion = '';
+  function showUpdate(m) {
+    const card = $('updateCard'), go = $('updateGo'), sub = $('updateSub');
+    const barWrap = $('updateBarWrap');
+    card.hidden = false;
+    if (m.state === 'available') {
+      updateVersion = m.version || updateVersion;
+      $('updateTitle').textContent = `Bureau ${updateVersion} is ready`;
+      const size = m.size > 0 ? `${(m.size / 1e6).toFixed(1)} MB · ` : '';
+      sub.textContent = `${size}Keeps your settings`;
+      const notes = Array.isArray(m.notes) ? m.notes.filter(n => typeof n === 'string' && n).slice(0, 5) : [];
+      $('updateNotes').replaceChildren(...notes.map(n => { const li = document.createElement('li'); li.textContent = n; return li; }));
+      $('updateNotes').hidden = notes.length === 0;
+      go.hidden = false; go.disabled = false; go.textContent = 'Update';
+      $('updateLater').hidden = false;
+      barWrap.hidden = true;
+    } else if (m.state === 'downloading') {
+      const pct = Math.round(Math.max(0, Math.min(1, m.progress || 0)) * 100);
+      $('updateTitle').textContent = `Downloading Bureau ${updateVersion}`;
+      go.disabled = true; go.textContent = `${pct}%`;
+      sub.textContent = 'This takes a few seconds';
+      $('updateLater').hidden = true;
+      barWrap.hidden = false;
+      $('updateBar').style.width = pct + '%';
+    } else if (m.state === 'installing') {
+      $('updateTitle').textContent = `Installing Bureau ${updateVersion}`;
+      go.hidden = true;
+      $('updateBar').style.width = '100%';
+      sub.textContent = 'Confirm on the next screen. The first time, Android asks you to allow installs from Bureau: turn it on, then go back.';
+    } else if (m.state === 'failed') {
+      $('updateTitle').textContent = `Bureau ${updateVersion} didn't install`;
+      go.hidden = false; go.disabled = false; go.textContent = 'Try again';
+      $('updateLater').hidden = false;
+      barWrap.hidden = true;
+      sub.textContent = m.message || "The update didn't finish.";
+    }
   }
 
   // Rates bundled into the app at release time, so a first launch with no

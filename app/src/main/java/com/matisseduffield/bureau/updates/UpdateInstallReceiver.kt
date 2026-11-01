@@ -31,7 +31,9 @@ class UpdateInstallReceiver : BroadcastReceiver() {
                 UpdateManager.installError.value = null
             }
             PackageInstaller.STATUS_FAILURE_ABORTED -> {
-                // User cancelled the confirm dialog — not an error.
+                // User cancelled the confirm screen. Not an error, but the
+                // update card needs to leave its "installing" state.
+                UpdateManager.installError.value = "Update cancelled"
             }
             else -> {
                 val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)

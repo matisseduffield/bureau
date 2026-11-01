@@ -28,6 +28,7 @@ import com.matisseduffield.bureau.updates.UpdateManager
 import com.matisseduffield.bureau.widget.RateWidget
 import com.matisseduffield.bureau.widget.WidgetStore
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -53,6 +54,9 @@ class MainActivity : ComponentActivity() {
     private var lastUpdateCheck = 0L
     private var updatePromptOpen = false
     private var page: JavaScriptReplyProxy? = null
+    private val bridgeSupported by lazy { WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) }
+    private var pendingUpdate: UpdateManager.UpdateInfo? = null
+    private var installing = false
 
     // With the bridge, Back is only intercepted while the currency picker is
     // open, so the system's predictive back gesture works everywhere else.
@@ -133,7 +137,12 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             UpdateManager.installError.collect { message ->
                 if (message != null) {
-                    Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                    if (installing) {
+                        installing = false
+                        sendUpdateState("failed") { put("message", message) }
+                    } else {
+                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                    }
                     UpdateManager.installError.value = null
                 }
             }
@@ -156,6 +165,7 @@ class MainActivity : ComponentActivity() {
             "hello" -> {
                 page = reply
                 send(JSONObject().put("type", "info").put("version", BuildConfig.VERSION_NAME))
+                pendingUpdate?.let { sendUpdateCard(it) }
             }
             "picker" -> closePicker.isEnabled = msg.optBoolean("open")
             "pair" -> {
@@ -171,6 +181,58 @@ class MainActivity : ComponentActivity() {
                 }
             }
             "checkUpdate" -> checkForUpdateNow()
+            "installUpdate" -> pendingUpdate?.let { installFromCard(it) }
+        }
+    }
+
+    // ---- update card ----
+    // With the bridge, updates appear as a card in the page; the system dialog
+    // below is only the fallback for WebViews without it.
+
+    private fun onUpdateAvailable(info: UpdateManager.UpdateInfo) {
+        if (!bridgeSupported) {
+            if (!updatePromptOpen) offerUpdate(info)
+            return
+        }
+        pendingUpdate = info
+        sendUpdateCard(info) // no-op until the page has said hello; "hello" sends it then
+    }
+
+    private fun sendUpdateCard(info: UpdateManager.UpdateInfo) {
+        if (installing) return
+        send(
+            JSONObject()
+                .put("type", "update")
+                .put("state", "available")
+                .put("version", info.versionName)
+                .put("size", info.sizeBytes)
+                .put("notes", JSONArray(info.notes)),
+        )
+    }
+
+    private fun sendUpdateState(state: String, extra: JSONObject.() -> Unit = {}) {
+        runOnUiThread { send(JSONObject().put("type", "update").put("state", state).apply(extra)) }
+    }
+
+    private fun installFromCard(info: UpdateManager.UpdateInfo) {
+        if (installing) return
+        installing = true
+        lifecycleScope.launch {
+            try {
+                var lastPct = -1
+                val apk = UpdateManager.download(this@MainActivity, info) { fraction ->
+                    val pct = (fraction * 100).toInt()
+                    if (pct != lastPct) {
+                        lastPct = pct
+                        sendUpdateState("downloading") { put("progress", fraction.toDouble()) }
+                    }
+                }
+                sendUpdateState("installing")
+                UpdateManager.install(this@MainActivity, apk)
+            } catch (e: Exception) {
+                installing = false
+                sendUpdateState("failed") { put("message", e.message ?: "The download didn't finish.") }
+            }
         }
     }
 
@@ -190,7 +252,7 @@ class MainActivity : ComponentActivity() {
             when (val result = UpdateManager.check()) {
                 is UpdateManager.CheckResult.Available -> {
                     sendUpdateStatus("Version ${result.info.versionName} is available")
-                    if (!updatePromptOpen) offerUpdate(result.info)
+                    onUpdateAvailable(result.info)
                 }
                 UpdateManager.CheckResult.UpToDate -> sendUpdateStatus("You have the latest version")
                 is UpdateManager.CheckResult.Failed -> sendUpdateStatus("Couldn't check: ${result.message}")
@@ -204,7 +266,7 @@ class MainActivity : ComponentActivity() {
         lastUpdateCheck = now
         lifecycleScope.launch {
             val result = UpdateManager.check()
-            if (result is UpdateManager.CheckResult.Available && !isFinishing) offerUpdate(result.info)
+            if (result is UpdateManager.CheckResult.Available && !isFinishing) onUpdateAvailable(result.info)
         }
     }
 
