@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -180,6 +181,11 @@ class MainActivity : ComponentActivity() {
                     RateWidget.updateAll(this)
                 }
             }
+            // System tap feedback; Android skips it if touch feedback is off.
+            "haptic" -> web.performHapticFeedback(
+                if (msg.optString("kind") == "tick") HapticFeedbackConstants.CLOCK_TICK
+                else HapticFeedbackConstants.VIRTUAL_KEY,
+            )
             "checkUpdate" -> checkForUpdateNow()
             "installUpdate" -> pendingUpdate?.let { installFromCard(it) }
         }

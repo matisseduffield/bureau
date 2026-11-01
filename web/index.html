@@ -222,6 +222,7 @@ button { cursor: pointer; }
   transition: color .12s, border-color .12s;
 }
 .swap:hover { color: var(--accent); border-color: var(--accent); }
+.swap svg { transition: transform .28s cubic-bezier(.2, .7, .2, 1); }
 
 .rateline {
   display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap;
@@ -346,6 +347,17 @@ dialog {
 }
 dialog[open] { display: flex; flex-direction: column; }
 dialog::backdrop { background: var(--backdrop); }
+/* The picker eases in: a short rise and fade, with the backdrop fading behind it. */
+dialog, dialog::backdrop {
+  transition: opacity .18s ease-out, transform .22s cubic-bezier(.2, .7, .2, 1), overlay .22s allow-discrete, display .22s allow-discrete;
+  opacity: 0;
+}
+dialog { transform: translateY(12px); }
+dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
+@starting-style {
+  dialog[open], dialog[open]::backdrop { opacity: 0; }
+  dialog[open] { transform: translateY(12px); }
+}
 .picker-head { display: flex; gap: 4px; padding: 10px 6px 10px 12px; border-bottom: 1px solid var(--line); }
 .picker-head input {
   flex: 1; min-width: 0; min-height: 44px; padding: 0 12px;
@@ -381,7 +393,10 @@ dialog::backdrop { background: var(--backdrop); }
   }
 }
 @media (max-width: 360px) { .rate-sub { display: none; } }
-@media (prefers-reduced-motion: reduce) { .trend, .swap { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .trend, .swap, .swap svg, dialog, dialog::backdrop { transition: none; }
+  dialog { transform: none; }
+}
 </style>
 </head>
 <body>
@@ -711,6 +726,7 @@ dialog::backdrop { background: var(--backdrop); }
       }
       b.setAttribute('aria-label', `${value} in ${nameOf(code)}. Convert to ${nameOf(code)}`);
       b.addEventListener('click', () => {
+        haptic();
         const previous = state.to;
         state.to = code;
         state.recent = [previous, ...state.recent.filter(c => c !== previous)].slice(0, 5);
@@ -807,6 +823,7 @@ dialog::backdrop { background: var(--backdrop); }
       b.append(left, right);
       b.setAttribute('aria-label', `Use ${left.textContent}, ${right.textContent}`);
       b.addEventListener('click', () => {
+        haptic();
         if (from !== state.from) swap();
         state.edited = 'from';
         field('from').value = fmtAmount(a, state.from);
@@ -842,7 +859,7 @@ dialog::backdrop { background: var(--backdrop); }
     if (CRYPTO[from] || CRYPTO[to]) return showTrendEmpty('The ECB only publishes rates for national currencies, so there is no trend for crypto.');
     const key = `${from}${to}${days}`;
     let entry = trendCache.get(key);
-    if (entry && entry.series.length >= 2) drawTrend(entry.series);
+    if (entry && entry.series.length >= 2) drawTrend(entry.series, key);
     if (!entry || Date.now() - entry.at > TREND_TTL_MS) {
       if (!entry) $('trend').classList.add('loading');
       const end = new Date(), start = new Date(end - (days + 1) * 864e5);
@@ -863,14 +880,18 @@ dialog::backdrop { background: var(--backdrop); }
       if (token !== trendToken) return;
       trendFailed = false;
       if (entry.series.length < 2) return showTrendEmpty(`The ECB doesn't publish reference rates for ${from} → ${to}.`);
-      drawTrend(entry.series);
+      drawTrend(entry.series, key);
     } else if (entry.series.length < 2) {
       showTrendEmpty(`The ECB doesn't publish reference rates for ${from} → ${to}.`);
     }
   }
-  function drawTrend(series) {
+  // A new pair or range fades in; a quiet refresh of the same chart doesn't.
+  let drawnKey = '';
+  function drawTrend(series, key) {
     const el = $('trend');
     el.classList.remove('loading');
+    const fresh = key !== drawnKey;
+    drawnKey = key;
     const vals = series.map(p => p[1]);
     const min = Math.min(...vals), max = Math.max(...vals);
     const span = max - min || max * 0.001;
@@ -882,6 +903,9 @@ dialog::backdrop { background: var(--backdrop); }
         <path class="line" d="${line}"/>
       </svg><span class="end" style="top:${(y(vals.at(-1)) / H * 100).toFixed(2)}%"></span>
       <span class="probe-line" hidden></span><span class="probe-dot" hidden></span>`;
+    if (fresh && !reduceMotion.matches && el.animate) {
+      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' });
+    }
     const change = (vals.at(-1) / vals[0] - 1) * 100;
     const changeEl = $('trendChange');
     changeEl.className = 'change ' + (change >= 0 ? 'up' : 'down');
@@ -937,6 +961,7 @@ dialog::backdrop { background: var(--backdrop); }
 
   function showTrendEmpty(msg) {
     scrub = null;
+    drawnKey = '';
     const el = $('trend');
     el.classList.remove('loading');
     el.removeAttribute('role');
@@ -965,6 +990,10 @@ dialog::backdrop { background: var(--backdrop); }
     if (!app) return;
     try { app.postMessage(JSON.stringify(msg)); } catch {}
   }
+  // A light vibration on taps, as native Android controls give: "tick" for
+  // small steps (keys, ranges), "tap" for actions. Follows the phone's
+  // touch feedback setting.
+  const haptic = (kind = 'tap') => toApp({ type: 'haptic', kind });
   let pairTimer = 0;
   function tellAppPair() {
     if (!app) return;
@@ -1117,6 +1146,7 @@ dialog::backdrop { background: var(--backdrop); }
   $('ops').addEventListener('click', e => {
     const b = e.target.closest('button[data-op]');
     if (!b) return;
+    haptic('tick');
     const input = field(state.edited);
     if (document.activeElement !== input) input.focus();
     const start = input.selectionStart ?? input.value.length, end = input.selectionEnd ?? input.value.length;
@@ -1138,9 +1168,12 @@ dialog::backdrop { background: var(--backdrop); }
     renderTrend();
     slideLegs();
   }
-  // The two rows trade places: each slides in from where the other was.
+  // The two rows trade places: each slides in from where the other was,
+  // and the arrows turn half a turn with them.
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  let swapTurns = 0;
   function slideLegs() {
+    $('swap').firstElementChild.style.transform = `rotate(${++swapTurns * 180}deg)`;
     if (reduceMotion.matches || !Element.prototype.animate) return;
     const legs = document.querySelectorAll('.leg');
     const shift = legs[0].offsetHeight * 0.35;
@@ -1154,7 +1187,7 @@ dialog::backdrop { background: var(--backdrop); }
       }
     });
   }
-  $('swap').addEventListener('click', swap);
+  $('swap').addEventListener('click', () => { haptic(); swap(); });
   $('status').addEventListener('click', () => {
     if (loading) return;
     $('status').textContent = 'Checking…';
@@ -1167,7 +1200,8 @@ dialog::backdrop { background: var(--backdrop); }
   });
   $('range').addEventListener('click', e => {
     const b = e.target.closest('button[data-days]');
-    if (!b) return;
+    if (!b || Number(b.dataset.days) === state.days) return;
+    haptic('tick');
     state.days = Number(b.dataset.days);
     store.set('days', state.days);
     renderTrend();
@@ -1263,6 +1297,7 @@ dialog::backdrop { background: var(--backdrop); }
     return list;
   }
   function choose(code) {
+    haptic();
     const otherSide = other(pickingSide);
     if (code === state[otherSide]) state[otherSide] = state[pickingSide];
     state[pickingSide] = code;
