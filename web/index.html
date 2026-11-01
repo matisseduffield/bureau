@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bureau</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow working column. The conversion slip sits on top, the 30-day trend and pocket tables under it. */
+:root {
+  --bg: #E8ECE5;
+  --surface: #F8F9F5;
+  --ink: #14211C;
+  --muted: #5B6861;
+  --line: #CBD3CA;
+  --accent: #2C53C4;
+  --accent-soft: rgba(44, 83, 196, .09);
+  --guilloche: rgba(44, 83, 196, .09);
+  --up: #1D7548;
+  --down: #B0392D;
+  --warn: #A26A0B;
+  --font-ui: "Hanken Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "Spline Sans Mono", "Cascadia Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1412;
+    --surface: #161E1B;
+    --ink: #E4EAE5;
+    --muted: #8C9992;
+    --line: #2A3531;
+    --accent: #85A2FF;
+    --accent-soft: rgba(133, 162, 255, .12);
+    --guilloche: rgba(133, 162, 255, .06);
+    --up: #5FC890;
+    --down: #F08476;
+    --warn: #E0AA48;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1412;
+  --surface: #161E1B;
+  --ink: #E4EAE5;
+  --muted: #8C9992;
+  --line: #2A3531;
+  --accent: #85A2FF;
+  --accent-soft: rgba(133, 162, 255, .12);
+  --guilloche: rgba(133, 162, 255, .06);
+  --up: #5FC890;
+  --down: #F08476;
+  --warn: #E0AA48;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 15px/1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  padding-block: 32px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 600px; margin: 0 auto; display: grid; gap: 20px; }
+
+/* Top bar */
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.mark { font-weight: 700; font-size: 1.35rem; letter-spacing: -.02em; margin: 0; }
+.mark span { color: var(--accent); }
+.status {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: none; border: 0; padding: 4px 0;
+  font-size: .8rem; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.status:hover { color: var(--ink); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--up); flex: none; }
+.status[data-state="live"] .dot { animation: pulse 2.4s ease-in-out infinite; }
+.status[data-state="stale"] .dot { background: var(--warn); }
+.status[data-state="error"] .dot { background: var(--down); }
+.status[data-state="loading"] .dot { background: var(--muted); }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 45%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
+
+/* Conversion slip */
+.slip {
+  position: relative; overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.slip canvas { position: absolute; right: -150px; top: -130px; width: 300px; height: 300px; pointer-events: none; }
+.leg {
+  position: relative;
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 22px;
+}
+.leg + .leg { border-top: 1px dashed var(--line); }
+.leg-label {
+  position: absolute; top: 10px; left: 22px;
+  font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+}
+.pick {
+  flex: none;
+  display: flex; flex-direction: column; align-items: flex-start;
+  min-width: 108px; max-width: 46%;
+  margin-top: 14px; padding: 6px 30px 6px 10px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 4px;
+  text-align: left; position: relative;
+}
+.pick:hover { border-color: var(--accent); }
+.pick::after {
+  content: ""; position: absolute; right: 11px; top: 50%;
+  width: 6px; height: 6px; margin-top: -5px;
+  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+}
+.pick .code { font: 500 1.05rem/1.2 var(--font-mono); letter-spacing: .02em; }
+.pick .name { font-size: .74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.amount {
+  flex: 1; min-width: 0;
+  margin-top: 14px;
+  border: 0; background: transparent;
+  font: 600 clamp(1.7rem, 7vw, 2.5rem)/1.1 var(--font-ui);
+  letter-spacing: -.02em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 0;
+}
+.amount:focus { outline: none; }
+.leg:focus-within .amount { color: var(--accent); }
+.amount::placeholder { color: var(--line); }
+
+.swap {
+  position: absolute; left: 50%; top: 50%; z-index: 2;
+  width: 38px; height: 38px; margin: -19px 0 0 -19px;
+  display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 50%;
+  color: var(--muted);
+  transition: transform .35s cubic-bezier(.3, .7, .2, 1), color .15s, border-color .15s;
+}
+.swap:hover { color: var(--accent); border-color: var(--accent); }
+.swap.turn { transform: rotate(180deg); }
+.legs { position: relative; }
+
+.rateline {
+  position: relative;
+  display: flex; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap;
+  padding: 12px 22px;
+  border-top: 1px solid var(--line);
+  background: var(--accent-soft);
+  font: 400 .8rem/1.4 var(--font-mono);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.rateline b { color: var(--ink); font-weight: 500; }
+
+/* Sections under the slip */
+.section { display: grid; gap: 10px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.section h2 { margin: 0; font-size: .72rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.meta { font: 400 .76rem var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip { font: 500 .76rem var(--font-mono); padding: 1px 7px; border-radius: 3px; }
+.chip.up { color: var(--up); background: color-mix(in srgb, var(--up) 12%, transparent); }
+.chip.down { color: var(--down); background: color-mix(in srgb, var(--down) 12%, transparent); }
+
+.trend { position: relative; height: 92px; border-bottom: 1px solid var(--line); }
+.trend svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.trend .grid { stroke: var(--line); stroke-dasharray: 2 4; }
+.trend .line { fill: none; stroke: var(--accent); stroke-width: 1.75; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.trend .area { fill: var(--accent-soft); stroke: none; }
+.trend .end { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--bg); }
+.trend-axis { display: flex; justify-content: space-between; font: 400 .7rem var(--font-mono); color: var(--muted); }
+.empty { font-size: .85rem; color: var(--muted); padding: 14px 0; }
+
+/* Pocket tables */
+.pocket { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.pocket table { width: 100%; border-collapse: collapse; font: 400 .85rem/1.3 var(--font-mono); font-variant-numeric: tabular-nums; }
+.pocket caption { text-align: left; font: 500 .76rem var(--font-mono); color: var(--muted); padding-bottom: 6px; }
+.pocket td { padding: 7px 0; border-top: 1px solid var(--line); }
+.pocket td:last-child { text-align: right; }
+.pocket td:first-child { color: var(--muted); }
+.pocket tr { cursor: pointer; }
+.pocket tr:hover td { color: var(--accent); }
+@media (max-width: 460px) { .pocket { grid-template-columns: 1fr; } }
+
+footer { font-size: .76rem; color: var(--muted); line-height: 1.6; }
+footer a { color: inherit; }
+
+/* Currency picker */
+dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: min(560px, calc(100vh - 64px));
+  padding: 0; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surface); color: var(--ink);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .35);
+}
+dialog[open] { display: flex; flex-direction: column; }
+dialog::backdrop { background: rgba(10, 16, 14, .45); }
+.picker-head { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); }
+.picker-head input {
+  flex: 1; min-width: 0; padding: 9px 12px;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--bg);
+}
+.picker-head input:focus { outline: none; border-color: var(--accent); }
+.picker-head button { border: 0; background: none; color: var(--muted); padding: 0 6px; font-size: .85rem; }
+.picker-list { list-style: none; margin: 0; padding: 6px 0; overflow-y: auto; }
+.picker-list .group { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 10px 16px 4px; }
+.picker-list button {
+  width: 100%; display: grid; grid-template-columns: 52px 1fr auto; align-items: baseline; gap: 10px;
+  padding: 8px 16px; border: 0; background: none; text-align: left;
+}
+.picker-list button:hover, .picker-list button:focus-visible { background: var(--accent-soft); outline: none; }
+.picker-list button[aria-selected="true"] .c { color: var(--accent); }
+.picker-list .c { font: 500 .9rem var(--font-mono); }
+.picker-list .n { font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.picker-list .s { font: 400 .78rem var(--font-mono); color: var(--muted); }
+
+@media (max-width: 460px) {
+  body { padding-block: 20px 40px; }
+  .leg { padding: 18px 16px; gap: 10px; }
+  .leg-label { left: 16px; }
+  .rateline { padding: 10px 16px; }
+  .pick { min-width: 92px; }
+  .swap { left: auto; right: 16px; margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .swap { transition: none; }
+  .status[data-state="live"] .dot { animation: none; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <h1 class="mark">Bureau<span>.</span></h1>
+    <button class="status" id="status" data-state="loading" type="button" title="Refresh rates now">
+      <span class="dot"></span><span id="statusText">Loading rates…</span>
+    </button>
+  </header>
+
+  <section class="slip" aria-label="Converter">
+    <canvas id="rosette" width="600" height="600" aria-hidden="true"></canvas>
+    <div class="legs">
+      <div class="leg">
+        <span class="leg-label">You have</span>
+        <button class="pick" id="pickFrom" type="button" aria-haspopup="dialog">
+          <span class="code" id="fromCode">USD</span><span class="name" id="fromName">US Dollar</span>
+        </button>
+        <input class="amount" id="fromAmount" type="text" inputmode="decimal" autocomplete="off" aria-label="Amount to convert" placeholder="0">
+      </div>
+      <button class="swap" id="swap" type="button" aria-label="Swap currencies">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v11M2 10l3 3 3-3M11 14V3M8 6l3-3 3 3"/></svg>
+      </button>
+      <div class="leg">
+        <span class="leg-label">You get</span>
+        <button class="pick" id="pickTo" type="button" aria-haspopup="dialog">
+          <span class="code" id="toCode">EUR</span><span class="name" id="toName">Euro</span>
+        </button>
+        <input class="amount" id="toAmount" type="text" inputmode="decimal" autocomplete="off" aria-label="Converted amount" placeholder="0">
+      </div>
+    </div>
+    <div class="rateline" id="rateline"><span>Waiting for rates</span></div>
+  </section>
+
+  <section class="section" id="trendSection">
+    <div class="section-head">
+      <h2>Last 30 days</h2>
+      <span class="meta" id="trendMeta"></span>
+    </div>
+    <div class="trend" id="trend"></div>
+    <div class="trend-axis" id="trendAxis"></div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>Pocket table</h2>
+      <span class="meta">Tap a row to use it</span>
+    </div>
+    <div class="pocket" id="pocket"></div>
+  </section>
+
+  <footer id="footer">
+    Live rates from Coinbase, refreshed every minute. The 30-day trend uses European Central Bank reference rates, published once each working day. Rates are mid-market; your bank or card will add a margin.
+  </footer>
+</main>
+
+<dialog id="picker" aria-label="Choose a currency">
+  <div class="picker-head">
+    <input id="pickerSearch" type="search" placeholder="Search by name or code" autocomplete="off" aria-label="Search currencies">
+    <button type="button" id="pickerClose">Close</button>
+  </div>
+  <ul class="picker-list" id="pickerList" role="listbox"></ul>
+</dialog>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const locale = navigator.language || 'en-US';
+  const LIVE_URL = 'https://api.coinbase.com/v2/exchange-rates?currency=USD';
+  const BACKUP_URL = 'https://open.er-api.com/v6/latest/USD';
+  const TREND_URL = 'https://api.frankfurter.dev/v1/';
+  const REFRESH_MS = 60_000;
+
+  const COMMON = ['USD', 'EUR', 'GBP', 'AUD', 'JPY', 'CAD', 'CHF', 'CNY', 'NZD', 'INR', 'SGD', 'HKD'];
+  const CRYPTO = { BTC: 'Bitcoin', ETH: 'Ether', SOL: 'Solana' };
+  const EURO_ZONE = 'AT BE CY DE EE ES FI FR GR HR IE IT LT LU LV MT NL PT SI SK'.split(' ');
+  const REGION_CURRENCY = {
+    US: 'USD', GB: 'GBP', AU: 'AUD', NZ: 'NZD', CA: 'CAD', JP: 'JPY', CN: 'CNY', IN: 'INR', CH: 'CHF',
+    SE: 'SEK', NO: 'NOK', DK: 'DKK', PL: 'PLN', CZ: 'CZK', HU: 'HUF', SG: 'SGD', HK: 'HKD', KR: 'KRW',
+    ZA: 'ZAR', BR: 'BRL', MX: 'MXN', TR: 'TRY', IL: 'ILS', AE: 'AED', SA: 'SAR', TH: 'THB', ID: 'IDR',
+    MY: 'MYR', PH: 'PHP', VN: 'VND', TW: 'TWD'
+  };
+
+  let names;
+  try { names = new Intl.DisplayNames([locale], { type: 'currency' }); } catch { names = null; }
+  const nameOf = code => CRYPTO[code] || (names && names.of(code)) || code;
+
+  // Locale separators, so typing "1.234,5" works in Germany and "1,234.5" in Australia.
+  const sepParts = new Intl.NumberFormat(locale).formatToParts(12345.6);
+  const GROUP = (sepParts.find(p => p.type === 'group') || { value: ',' }).value;
+  const DECIMAL = (sepParts.find(p => p.type === 'decimal') || { value: '.' }).value;
+
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem('bureau.' + k)); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem('bureau.' + k, JSON.stringify(v)); } catch {} }
+  };
+
+  // ---- state ----
+  const region = (locale.split('-')[1] || '').toUpperCase();
+  const home = EURO_ZONE.includes(region) ? 'EUR' : (REGION_CURRENCY[region] || 'USD');
+  const saved = store.get('pair') || {};
+  const state = {
+    from: saved.from || home,
+    to: saved.to || (home === 'USD' ? 'EUR' : 'USD'),
+    edited: 'from',
+    rates: null,        // units per 1 USD
+    updatedAt: 0,
+    source: '',
+    error: false
+  };
+  const cached = store.get('rates');
+  if (cached && cached.rates) Object.assign(state, { rates: cached.rates, updatedAt: cached.updatedAt, source: cached.source });
+
+  // ---- formatting ----
+  function fractionDigits(code) {
+    if (CRYPTO[code]) return 8;
+    try { return new Intl.NumberFormat('en', { style: 'currency', currency: code }).resolvedOptions().maximumFractionDigits; }
+    catch { return 2; }
+  }
+  function numberOpts(n, code) {
+    const abs = Math.abs(n);
+    if (CRYPTO[code]) return abs >= 1 ? { minimumFractionDigits: 2, maximumFractionDigits: 6 } : { maximumSignificantDigits: 6 };
+    if (abs > 0 && abs < 1) return { maximumSignificantDigits: 4 };
+    const d = fractionDigits(code);
+    return { minimumFractionDigits: d, maximumFractionDigits: d };
+  }
+  const fmtPlain = (n, code) => Number.isFinite(n) ? new Intl.NumberFormat(locale, numberOpts(n, code)).format(n) : '';
+  function fmtMoney(n, code) {
+    if (!Number.isFinite(n)) return '–';
+    if (CRYPTO[code]) return fmtPlain(n, code) + ' ' + code;
+    try { return new Intl.NumberFormat(locale, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', ...numberOpts(n, code) }).format(n); }
+    catch { return fmtPlain(n, code) + ' ' + code; }
+  }
+  const fmtRate = r => new Intl.NumberFormat(locale, r >= 100 ? { maximumFractionDigits: 2 } : { maximumSignificantDigits: 5 }).format(r);
+  function symbolOf(code) {
+    if (CRYPTO[code]) return '';
+    try {
+      const s = new Intl.NumberFormat(locale, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' })
+        .formatToParts(1).find(p => p.type === 'currency').value;
+      return s === code ? '' : s;
+    } catch { return ''; }
+  }
+  function parseAmount(str) {
+    let s = String(str).replace(/[\s  ]/g, '');
+    if (GROUP !== DECIMAL) s = s.split(GROUP).join('');
+    if (DECIMAL !== '.') s = s.replace(DECIMAL, '.');
+    s = s.replace(/[^0-9.]/g, '');
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  // ---- rates ----
+  const rate = (from, to) => (state.rates && state.rates[from] && state.rates[to]) ? state.rates[to] / state.rates[from] : NaN;
+
+  async function fetchLive() {
+    const res = await fetch(LIVE_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('live ' + res.status);
+    const json = await res.json();
+    const out = {};
+    for (const [k, v] of Object.entries(json.data.rates)) out[k] = parseFloat(v);
+    out.USD = 1;
+    return { rates: out, updatedAt: Date.now(), source: 'Coinbase' };
+  }
+  async function fetchBackup() {
+    const res = await fetch(BACKUP_URL);
+    if (!res.ok) throw new Error('backup ' + res.status);
+    const json = await res.json();
+    return { rates: json.rates, updatedAt: json.time_last_update_unix * 1000, source: 'ExchangeRate-API' };
+  }
+  let loading = false;
+  async function loadRates() {
+    if (loading) return;
+    loading = true;
+    try {
+      let result;
+      try { result = await fetchLive(); } catch { result = await fetchBackup(); }
+      Object.assign(state, result, { error: false });
+      store.set('rates', result);
+      buildCurrencyList();
+    } catch {
+      state.error = true;
+    } finally {
+      loading = false;
+      renderAll();
+    }
+  }
+
+  // ---- currency list ----
+  let currencies = [];
+  function buildCurrencyList() {
+    if (!state.rates) return;
+    const list = [];
+    for (const code of Object.keys(state.rates)) {
+      if (CRYPTO[code]) { list.push(code); continue; }
+      if (code.length !== 3 || !/^[A-Z]{3}$/.test(code)) continue;
+      const n = names && names.of(code);
+      if (n && n !== code) list.push(code);
+    }
+    currencies = list.sort((a, b) => nameOf(a).localeCompare(nameOf(b), locale));
+  }
+  buildCurrencyList();
+
+  // ---- render ----
+  function renderPair() {
+    $('fromCode').textContent = state.from;
+    $('fromName').textContent = nameOf(state.from);
+    $('toCode').textContent = state.to;
+    $('toName').textContent = nameOf(state.to);
+    document.title = `${state.from} → ${state.to} · Bureau`;
+  }
+
+  function convert() {
+    const r = rate(state.from, state.to);
+    if (state.edited === 'from') {
+      const n = parseAmount($('fromAmount').value);
+      $('toAmount').value = Number.isFinite(n) && Number.isFinite(r) ? fmtPlain(n * r, state.to) : '';
+    } else {
+      const n = parseAmount($('toAmount').value);
+      $('fromAmount').value = Number.isFinite(n) && Number.isFinite(r) ? fmtPlain(n / r, state.from) : '';
+    }
+    store.set('amount', { side: state.edited, value: $(state.edited === 'from' ? 'fromAmount' : 'toAmount').value });
+  }
+
+  function renderRateLine() {
+    const r = rate(state.from, state.to);
+    const el = $('rateline');
+    if (!Number.isFinite(r)) {
+      el.innerHTML = '';
+      const s = document.createElement('span');
+      s.textContent = state.rates ? `No rate available for ${state.from} → ${state.to}` : 'Waiting for rates';
+      el.append(s);
+      return;
+    }
+    el.innerHTML = `<span>1 ${state.from} = <b>${fmtRate(r)}</b> ${state.to}</span><span>1 ${state.to} = <b>${fmtRate(1 / r)}</b> ${state.from}</span>`;
+  }
+
+  function renderStatus() {
+    const el = $('status'), text = $('statusText');
+    if (!state.rates) {
+      el.dataset.state = state.error ? 'error' : 'loading';
+      text.textContent = state.error ? "Can't reach rate servers. Tap to retry" : 'Loading rates…';
+      return;
+    }
+    const age = Date.now() - state.updatedAt;
+    let ago;
+    if (age < 10_000) ago = 'just now';
+    else if (age < 60_000) ago = Math.floor(age / 1000) + 's ago';
+    else if (age < 3_600_000) ago = Math.floor(age / 60_000) + ' min ago';
+    else ago = new Date(state.updatedAt).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
+    if (state.error) { el.dataset.state = 'error'; text.textContent = `Offline · rates from ${ago}`; }
+    else if (state.source !== 'Coinbase' || age > 180_000) { el.dataset.state = 'stale'; text.textContent = `${state.source} · updated ${ago}`; }
+    else { el.dataset.state = 'live'; text.textContent = `Live · updated ${ago}`; }
+  }
+
+  function pocketAmounts(code) {
+    const usdValue = state.rates && state.rates[code] ? 1 / state.rates[code] : 1;
+    const k = Math.round(Math.log10(usdValue));
+    const mult = Math.abs(k) >= 2 ? Math.pow(10, -k) : 1;
+    return [1, 5, 10, 20, 50, 100, 200, 500, 1000].map(a => a * mult);
+  }
+  function pocketTable(from, to) {
+    const r = rate(from, to);
+    const t = document.createElement('table');
+    const cap = t.createCaption(); cap.textContent = `${from} → ${to}`;
+    const body = t.createTBody();
+    for (const a of pocketAmounts(from)) {
+      const tr = body.insertRow();
+      tr.insertCell().textContent = fmtMoney(a, from);
+      tr.insertCell().textContent = Number.isFinite(r) ? fmtMoney(a * r, to) : '–';
+      tr.addEventListener('click', () => {
+        if (from !== state.from) swap();
+        state.edited = 'from';
+        $('fromAmount').value = fmtPlain(a, state.from);
+        convert();
+        $('fromAmount').focus();
+      });
+    }
+    return t;
+  }
+  function renderPocket() {
+    const el = $('pocket');
+    el.replaceChildren(pocketTable(state.from, state.to), pocketTable(state.to, state.from));
+  }
+
+  // ---- 30-day trend (ECB, fiat only) ----
+  const trendCache = new Map();
+  let trendToken = 0;
+  async function renderTrend() {
+    const token = ++trendToken;
+    const el = $('trend'), meta = $('trendMeta'), axis = $('trendAxis');
+    const key = state.from + state.to;
+    if (state.from === state.to) return showTrendEmpty('Pick two different currencies to see a trend.');
+    let series = trendCache.get(key);
+    if (!series) {
+      const end = new Date(), start = new Date(end - 31 * 864e5);
+      const iso = d => d.toISOString().slice(0, 10);
+      try {
+        const res = await fetch(`${TREND_URL}${iso(start)}..?base=${state.from}&symbols=${state.to}`);
+        if (!res.ok) throw new Error();
+        const json = await res.json();
+        series = Object.entries(json.rates).map(([d, v]) => [d, v[state.to]]).filter(p => Number.isFinite(p[1]));
+        if (series.length < 2) throw new Error();
+        trendCache.set(key, series);
+      } catch {
+        if (token === trendToken) showTrendEmpty(`The ECB doesn't publish a reference rate for ${CRYPTO[state.from] || CRYPTO[state.to] ? 'crypto' : 'this pair'}, so there's no trend to show.`);
+        return;
+      }
+    }
+    if (token !== trendToken) return;
+
+    const vals = series.map(p => p[1]);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const span = max - min || max * 0.001;
+    const W = 300, H = 92, pad = 8;
+    const x = i => (i / (vals.length - 1)) * W;
+    const y = v => pad + (1 - (v - min) / span) * (H - pad * 2);
+    const pts = vals.map((v, i) => `${x(i).toFixed(2)},${y(v).toFixed(2)}`);
+    const line = 'M' + pts.join(' L');
+    const area = `${line} L${W},${H} L0,${H} Z`;
+    const mid = y((min + max) / 2);
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+        <line class="grid" x1="0" x2="${W}" y1="${y(max)}" y2="${y(max)}" vector-effect="non-scaling-stroke"/>
+        <line class="grid" x1="0" x2="${W}" y1="${mid}" y2="${mid}" vector-effect="non-scaling-stroke"/>
+        <line class="grid" x1="0" x2="${W}" y1="${y(min)}" y2="${y(min)}" vector-effect="non-scaling-stroke"/>
+        <path class="area" d="${area}"/><path class="line" d="${line}"/>
+      </svg><span class="end" style="left:100%;top:${(y(vals.at(-1)) / H * 100).toFixed(2)}%"></span>`;
+    el.setAttribute('role', 'img');
+    const change = (vals.at(-1) / vals[0] - 1) * 100;
+    el.setAttribute('aria-label', `${state.from} to ${state.to} over 30 days, from ${fmtRate(vals[0])} to ${fmtRate(vals.at(-1))}`);
+    const sign = change >= 0 ? '+' : '−';
+    meta.innerHTML = `Low ${fmtRate(min)} · High ${fmtRate(max)} <span class="chip ${change >= 0 ? 'up' : 'down'}">${sign}${Math.abs(change).toFixed(2)}%</span>`;
+    const d = s => new Date(s + 'T00:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+    axis.innerHTML = `<span>${d(series[0][0])}</span><span>${d(series.at(-1)[0])}</span>`;
+  }
+  function showTrendEmpty(msg) {
+    $('trend').innerHTML = `<div class="empty"></div>`;
+    $('trend').firstChild.textContent = msg;
+    $('trend').removeAttribute('role');
+    $('trendMeta').textContent = '';
+    $('trendAxis').innerHTML = '';
+  }
+
+  function renderAll() {
+    renderPair();
+    convert();
+    renderRateLine();
+    renderStatus();
+    renderPocket();
+  }
+
+  // ---- interactions ----
+  $('fromAmount').addEventListener('input', () => { state.edited = 'from'; convert(); });
+  $('toAmount').addEventListener('input', () => { state.edited = 'to'; convert(); });
+  for (const id of ['fromAmount', 'toAmount']) {
+    $(id).addEventListener('focus', e => e.target.select());
+    $(id).addEventListener('blur', e => {
+      const n = parseAmount(e.target.value);
+      if (Number.isFinite(n)) e.target.value = fmtPlain(n, id === 'fromAmount' ? state.from : state.to);
+    });
+  }
+
+  function savePair() { store.set('pair', { from: state.from, to: state.to }); }
+  function swap() {
+    [state.from, state.to] = [state.to, state.from];
+    const f = $('fromAmount').value;
+    $('fromAmount').value = $('toAmount').value;
+    $('toAmount').value = f;
+    state.edited = 'from';
+    savePair();
+    renderAll();
+    renderTrend();
+  }
+  $('swap').addEventListener('click', () => { $('swap').classList.toggle('turn'); swap(); });
+
+  $('status').addEventListener('click', loadRates);
+
+  // ---- picker ----
+  const dlg = $('picker');
+  let pickingSide = 'from';
+  function openPicker(side) {
+    pickingSide = side;
+    $('pickerSearch').value = '';
+    renderPickerList('');
+    dlg.showModal();
+    $('pickerSearch').focus();
+  }
+  function itemButton(code) {
+    const current = state[pickingSide];
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'option');
+    b.setAttribute('aria-selected', String(code === current));
+    b.dataset.code = code;
+    const c = document.createElement('span'); c.className = 'c'; c.textContent = code;
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = nameOf(code);
+    const s = document.createElement('span'); s.className = 's'; s.textContent = symbolOf(code);
+    b.append(c, n, s);
+    li.append(b);
+    return li;
+  }
+  function groupLabel(text) {
+    const li = document.createElement('li'); li.className = 'group'; li.textContent = text; li.setAttribute('role', 'presentation');
+    return li;
+  }
+  function renderPickerList(q) {
+    const list = $('pickerList');
+    list.replaceChildren();
+    const all = currencies.length ? currencies : COMMON;
+    q = q.trim().toLowerCase();
+    if (!q) {
+      list.append(groupLabel('Common'));
+      COMMON.filter(c => all.includes(c)).forEach(c => list.append(itemButton(c)));
+      const crypto = Object.keys(CRYPTO).filter(c => all.includes(c));
+      if (crypto.length) { list.append(groupLabel('Crypto')); crypto.forEach(c => list.append(itemButton(c))); }
+      list.append(groupLabel('All currencies'));
+      all.filter(c => !CRYPTO[c]).forEach(c => list.append(itemButton(c)));
+      return;
+    }
+    const hits = all
+      .map(c => {
+        const name = nameOf(c).toLowerCase(), code = c.toLowerCase();
+        const score = code === q ? 0 : code.startsWith(q) ? 1 : name.startsWith(q) ? 2 : name.includes(q) ? 3 : code.includes(q) ? 4 : -1;
+        return [c, score];
+      })
+      .filter(([, s]) => s >= 0)
+      .sort((a, b) => a[1] - b[1]);
+    if (!hits.length) {
+      const li = groupLabel(`Nothing matches “${q}”`); list.append(li); return;
+    }
+    hits.forEach(([c]) => list.append(itemButton(c)));
+  }
+  function choose(code) {
+    const other = pickingSide === 'from' ? 'to' : 'from';
+    if (code === state[other]) state[other] = state[pickingSide];
+    state[pickingSide] = code;
+    state.edited = 'from';
+    savePair();
+    dlg.close();
+    renderAll();
+    renderTrend();
+  }
+  $('pickFrom').addEventListener('click', () => openPicker('from'));
+  $('pickTo').addEventListener('click', () => openPicker('to'));
+  $('pickerClose').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', e => {
+    if (e.target === dlg) return dlg.close();
+    const b = e.target.closest('button[data-code]');
+    if (b) choose(b.dataset.code);
+  });
+  $('pickerSearch').addEventListener('input', e => renderPickerList(e.target.value));
+  $('pickerSearch').addEventListener('keydown', e => {
+    const first = $('pickerList').querySelector('button[data-code]');
+    if (e.key === 'Enter' && first) { e.preventDefault(); choose(first.dataset.code); }
+    if (e.key === 'ArrowDown' && first) { e.preventDefault(); first.focus(); }
+  });
+  $('pickerList').addEventListener('keydown', e => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const btns = [...$('pickerList').querySelectorAll('button[data-code]')];
+    const i = btns.indexOf(document.activeElement);
+    const next = e.key === 'ArrowDown' ? btns[i + 1] : (i <= 0 ? $('pickerSearch') : btns[i - 1]);
+    if (next) next.focus();
+  });
+
+  // ---- banknote rosette behind the slip ----
+  function drawRosette() {
+    const cv = $('rosette'), ctx = cv.getContext('2d');
+    const color = getComputedStyle(document.documentElement).getPropertyValue('--guilloche').trim();
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    const cx = cv.width / 2, cy = cv.height / 2;
+    for (let ring = 0; ring < 3; ring++) {
+      const R = 210 - ring * 52, r = 38 + ring * 9, d = 62 - ring * 12;
+      ctx.beginPath();
+      for (let t = 0; t <= Math.PI * 2 * r / 2 + 0.01; t += 0.02) {
+        const k = (R - r) / r;
+        const px = cx + (R - r) * Math.cos(t) + d * Math.cos(k * t);
+        const py = cy + (R - r) * Math.sin(t) - d * Math.sin(k * t);
+        t === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+  }
+  drawRosette();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawRosette);
+
+  // ---- boot ----
+  const savedAmount = store.get('amount');
+  if (savedAmount && savedAmount.value) {
+    state.edited = savedAmount.side === 'to' ? 'to' : 'from';
+    $(state.edited === 'from' ? 'fromAmount' : 'toAmount').value = savedAmount.value;
+  } else {
+    $('fromAmount').value = fmtPlain(100, state.from);
+  }
+  renderAll();
+  renderTrend();
+  loadRates();
+  setInterval(() => { if (!document.hidden) loadRates(); }, REFRESH_MS);
+  setInterval(renderStatus, 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - state.updatedAt > REFRESH_MS) loadRates();
+  });
+})();
+</script>
+</body>
+</html>
