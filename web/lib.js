@@ -86,7 +86,65 @@
     return out;
   }
 
-  const lib = { CRYPTO, fractionDigits, amountOpts, parseNumber, evaluate, mergeRates };
+  // Countries that use each currency (ISO 4217 code: ISO 3166 regions, two
+  // letters each), from the datasets/country-codes table. Lets the picker
+  // find a currency by country: "Thailand" finds THB.
+  const REGIONS = (
+    'AED:AE AFN:AF ALL:AL AMD:AM AOA:AO ARS:AR AUD:AUCCCXHMKINFNRTV AWG:AW AZN:AZ BAM:BA BBD:BB ' +
+    'BDT:BD BHD:BH BIF:BI BMD:BM BND:BN BOB:BO BRL:BR BSD:BS BTN:BT BWP:BW BYN:BY BZD:BZ CAD:CA ' +
+    'CDF:CD CHF:CHLI CLP:CL CNY:CN COP:CO CRC:CR CUP:CU CVE:CV CZK:CZ DJF:DJ DKK:DKFOGL DOP:DO DZD:DZ ' +
+    'EGP:EG ERN:ER ETB:ET ' +
+    'EUR:ADATAXBEBGBLCYDEEEESFIFRGFGPGRHRIEITLTLULVMCMEMFMQMTNLPMPTRESISKSMTFVAYT FJD:FJ FKP:FK ' +
+    'GBP:GBGGIMJE GEL:GE GHS:GH GIP:GI GMD:GM GNF:GN GTQ:GT GYD:GY HKD:HK HNL:HN HTG:HT HUF:HU IDR:ID ' +
+    'ILS:IL INR:BTIN IQD:IQ IRR:IR ISK:IS JMD:JM JOD:JO JPY:JP KES:KE KGS:KG KHR:KH KMF:KM KPW:KP ' +
+    'KRW:KR KWD:KW KYD:KY KZT:KZ LAK:LA LBP:LB LKR:LK LRD:LR LSL:LS LYD:LY MAD:EHMA MDL:MD MGA:MG ' +
+    'MKD:MK MMK:MM MNT:MN MOP:MO MRU:MR MUR:MU MVR:MV MWK:MW MXN:MX MYR:MY MZN:MZ NAD:NA NGN:NG ' +
+    'NIO:NI NOK:BVNOSJ NPR:NP NZD:CKNUNZPNTK OMR:OM PAB:PA PEN:PE PGK:PG PHP:PH PKR:PK PLN:PL PYG:PY ' +
+    'QAR:QA RON:RO RSD:RS RUB:RU RWF:RW SAR:SA SBD:SB SCR:SC SDG:SD SEK:SE SGD:SG SHP:SH SLE:SL ' +
+    'SOS:SO SRD:SR SSP:SS STN:ST SVC:SV SYP:SY SZL:SZ THB:TH TJS:TJ TMT:TM TND:TN TOP:TO TRY:TR ' +
+    'TTD:TT TWD:TW TZS:TZ UAH:UA UGX:UG USD:ASBQECFMGUHTIOMHMPPAPRPWSVTCTLUMUSVGVI UYU:UY UZS:UZ ' +
+    'VED:VE VES:VE VND:VN VUV:VU WST:WS XAF:CFCGCMGAGQTD XCD:AGAIDMGDKNLCMSVC XCG:CWSX ' +
+    'XOF:BFBJCIGWMLNESNTG XPF:NCPFWF YER:YE ZAR:LSNAZA ZMW:ZM ZWG:ZW'
+  );
+  const regionTable = {};
+  for (const part of REGIONS.split(' ')) {
+    const [code, regs] = part.split(':');
+    regionTable[code] = regs.match(/../g);
+  }
+  const regionsOf = code => regionTable[code] || [];
+
+  // Everyday names people type that aren't the official country name.
+  const REGION_ALIASES = {
+    GB: ['UK', 'Britain', 'England', 'Scotland', 'Wales'],
+    US: ['USA', 'America'],
+    AE: ['UAE', 'Dubai', 'Abu Dhabi'],
+    NL: ['Holland'],
+    ID: ['Bali'],
+    CZ: ['Czech Republic'],
+  };
+
+  // How well a search matches a currency: lower is better, null is no match.
+  // `places` are country names for the currency; a country match carries
+  // the name as a hint, unless the currency's own name already says it.
+  function searchScore(query, code, name, places) {
+    const q = query.trim().toLowerCase();
+    if (!q) return null;
+    const c = code.toLowerCase(), n = name.toLowerCase();
+    const wordStart = text => text.toLowerCase().split(/[\s-]+/).some(w => w.startsWith(q));
+    const hintFor = place => (n.includes(place.toLowerCase()) ? undefined : place);
+    if (c === q) return { score: 0 };
+    if (c.startsWith(q)) return { score: 1 };
+    for (const place of places) if (place.toLowerCase() === q) return { score: 1.5, hint: hintFor(place) };
+    if (n.startsWith(q)) return { score: 2 };
+    for (const place of places) if (place.toLowerCase().startsWith(q)) return { score: 2.5, hint: hintFor(place) };
+    if (wordStart(name)) return { score: 3 };
+    for (const place of places) if (wordStart(place)) return { score: 3.5, hint: hintFor(place) };
+    // Countries only match from the start of a word: "yen" shouldn't find Jan Mayen.
+    if (n.includes(q)) return { score: 4 };
+    return null;
+  }
+
+  const lib = { CRYPTO, fractionDigits, amountOpts, parseNumber, evaluate, mergeRates, regionsOf, REGION_ALIASES, searchScore };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);

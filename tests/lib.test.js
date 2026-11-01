@@ -59,3 +59,32 @@ test('formatting follows each currency\'s decimals', () => {
   assert.deepEqual(amountOpts(0.004, 'USD'), { maximumSignificantDigits: 3 });
   assert.deepEqual(amountOpts(0.0012, 'BTC'), { maximumSignificantDigits: 6 });
 });
+
+test('currencies can be found by country', () => {
+  const { regionsOf, searchScore, REGION_ALIASES } = require('../web/lib.js');
+  assert.deepEqual(regionsOf('JPY'), ['JP']);
+  assert.ok(regionsOf('EUR').includes('DE') && regionsOf('EUR').includes('FR'));
+  assert.ok(regionsOf('USD').includes('US') && regionsOf('USD').includes('EC'));
+  assert.deepEqual(regionsOf('BTC'), []);
+  assert.ok(REGION_ALIASES.GB.includes('UK'));
+
+  // code beats name beats country; a country match names the country
+  assert.equal(searchScore('thb', 'THB', 'Thai Baht', ['Thailand']).score, 0);
+  assert.equal(searchScore('th', 'THB', 'Thai Baht', ['Thailand']).score, 1);
+  assert.deepEqual(searchScore('thail', 'THB', 'Thai Baht', ['Thailand']), { score: 2.5, hint: 'Thailand' });
+  // exact country match; no hint because the currency's name already says it
+  assert.deepEqual(searchScore('vietnam', 'VND', 'Vietnamese Dong', ['Vietnam']), { score: 1.5, hint: undefined });
+  assert.deepEqual(searchScore('mexico', 'MXN', 'Mexican Peso', ['Mexico']), { score: 1.5, hint: 'Mexico' });
+  assert.deepEqual(searchScore('mexi', 'MXN', 'Mexican Peso', ['Mexico']), { score: 2 });
+  assert.deepEqual(searchScore('germany', 'EUR', 'Euro', ['Germany', 'France']), { score: 1.5, hint: 'Germany' });
+  assert.deepEqual(searchScore('fra', 'EUR', 'Euro', ['Germany', 'France']), { score: 2.5, hint: 'France' });
+  assert.equal(searchScore('dollar', 'AUD', 'Australian Dollar', ['Australia']).score, 3);
+  assert.deepEqual(searchScore('zealand', 'NZD', 'New Zealand Dollar', ['New Zealand']), { score: 3 });
+  // an exact country or alias beats a currency name that merely starts the same
+  assert.ok(searchScore('uk', 'GBP', 'British Pound', ['United Kingdom', 'UK']).score
+    < searchScore('uk', 'UAH', 'Ukrainian Hryvnia', ['Ukraine']).score);
+  // country names match from word starts only
+  assert.equal(searchScore('yen', 'NOK', 'Norwegian Krone', ['Norway', 'Svalbard & Jan Mayen']), null);
+  assert.equal(searchScore('xyz', 'JPY', 'Japanese Yen', ['Japan']), null);
+  assert.equal(searchScore('  ', 'JPY', 'Japanese Yen', ['Japan']), null);
+});
