@@ -1,0 +1,89 @@
+package com.matisseduffield.bureau.widget
+
+import android.app.PendingIntent
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.text.format.DateFormat
+import android.text.format.DateUtils
+import android.widget.RemoteViews
+import com.matisseduffield.bureau.MainActivity
+import com.matisseduffield.bureau.R
+import java.math.BigDecimal
+import java.math.MathContext
+import java.text.NumberFormat
+import java.util.Date
+import kotlin.concurrent.thread
+
+/**
+ * Home-screen widget: the app's current pair and rate. Draws the stored rate
+ * immediately, then fetches a fresh one (every 30 minutes via
+ * updatePeriodMillis, and whenever the app changes the pair).
+ */
+class RateWidget : AppWidgetProvider() {
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
+        render(context, manager, ids)
+        val pending = goAsync()
+        thread {
+            try {
+                if (WidgetStore.refresh(context)) render(context, manager, ids)
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
+    companion object {
+        fun updateAll(context: Context) {
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(ComponentName(context, RateWidget::class.java))
+            if (ids.isNotEmpty()) render(context, manager, ids)
+        }
+
+        private fun render(context: Context, manager: AppWidgetManager, ids: IntArray) {
+            val views = RemoteViews(context.packageName, R.layout.widget_rate)
+            val pair = WidgetStore.load(context)
+            if (pair == null || pair.rate <= 0) {
+                views.setTextViewText(R.id.widget_pair, context.getString(R.string.app_name))
+                views.setTextViewText(R.id.widget_rate, "–")
+                views.setTextViewText(R.id.widget_meta, context.getString(R.string.widget_setup))
+            } else {
+                views.setTextViewText(R.id.widget_pair, "1 ${pair.from} in ${pair.to}")
+                views.setTextViewText(R.id.widget_rate, formatRate(pair.effectiveRate))
+                views.setTextViewText(R.id.widget_meta, meta(context, pair))
+            }
+            val open = PendingIntent.getActivity(
+                context,
+                0,
+                Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            views.setOnClickPendingIntent(R.id.widget_root, open)
+            manager.updateAppWidget(ids, views)
+        }
+
+        private fun meta(context: Context, pair: WidgetStore.Pair): String {
+            val time = when {
+                pair.updatedAt <= 0 -> ""
+                DateUtils.isToday(pair.updatedAt) -> DateFormat.getTimeFormat(context).format(Date(pair.updatedAt))
+                else -> DateFormat.getMediumDateFormat(context).format(Date(pair.updatedAt))
+            }
+            val fee = if (pair.fee > 0) "After ${NumberFormat.getNumberInstance().format(pair.fee)}% fee" else "Updated"
+            return if (time.isEmpty()) fee else "$fee · $time"
+        }
+
+        /** Same rounding as the page: 2 decimals from 100 up, else 5 significant digits. */
+        private fun formatRate(rate: Double): String {
+            val nf = NumberFormat.getNumberInstance()
+            if (rate >= 100) {
+                nf.maximumFractionDigits = 2
+                return nf.format(rate)
+            }
+            val rounded = BigDecimal(rate).round(MathContext(5)).stripTrailingZeros()
+            nf.maximumFractionDigits = maxOf(0, rounded.scale())
+            return nf.format(rounded)
+        }
+    }
+}

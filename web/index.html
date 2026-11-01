@@ -233,6 +233,13 @@ button { cursor: pointer; }
 @media (max-width: 340px) { .quick { grid-template-columns: 1fr; } }
 
 footer { max-width: 52ch; font-size: .8rem; line-height: 1.6; color: var(--muted); }
+footer p { margin: 0; }
+.app-info { display: flex; align-items: center; flex-wrap: wrap; gap: 0 12px; margin-top: 8px; }
+.app-info button {
+  min-height: 44px; padding: 0; border: 0; background: none;
+  color: var(--accent); font-size: inherit; font-weight: 500;
+}
+.app-info button:disabled { color: var(--muted); cursor: default; }
 
 /* Operator keys above the phone keyboard (Android's number pad has none) */
 .ops {
@@ -362,7 +369,12 @@ dialog::backdrop { background: var(--backdrop); }
   </section>
 
   <footer id="footer">
-    Mid-market rates from Coinbase, checked every minute, with ExchangeRate-API as a backup. The trend uses European Central Bank reference rates.
+    <p>Mid-market rates from Coinbase, checked every minute, with ExchangeRate-API as a backup. The trend uses European Central Bank reference rates.</p>
+    <p class="app-info" id="appInfo" hidden>
+      <span>Bureau <span id="appVersion"></span></span>
+      <button type="button" id="checkUpdate">Check for updates</button>
+      <span id="updateStatus" aria-live="polite"></span>
+    </p>
   </footer>
 </main>
 
@@ -810,6 +822,59 @@ dialog::backdrop { background: var(--backdrop); }
     renderRateLine();
     renderStatus();
     renderQuick();
+    tellAppPair();
+  }
+
+  // ---- Android app bridge (absent in a browser) ----
+  // The app injects window.bureauApp for its own origin only. It uses the pair
+  // for the home-screen widget, the picker state for the Back gesture, and
+  // answers with its version and update checks.
+  const app = window.bureauApp || null;
+  function toApp(msg) {
+    if (!app) return;
+    try { app.postMessage(JSON.stringify(msg)); } catch {}
+  }
+  let pairTimer = 0;
+  function tellAppPair() {
+    if (!app) return;
+    clearTimeout(pairTimer);
+    pairTimer = setTimeout(() => {
+      const r = rate(state.from, state.to);
+      if (Number.isFinite(r)) toApp({ type: 'pair', from: state.from, to: state.to, fee: state.fee, rate: r, updatedAt: state.updatedAt });
+    }, 400);
+  }
+  if (app) {
+    app.onmessage = e => {
+      let m;
+      try { m = JSON.parse(e.data); } catch { return; }
+      if (m.type === 'info') {
+        $('appVersion').textContent = m.version;
+        $('appInfo').hidden = false;
+      } else if (m.type === 'updateStatus') {
+        $('updateStatus').textContent = m.text;
+        $('checkUpdate').disabled = false;
+      }
+    };
+    $('checkUpdate').addEventListener('click', () => {
+      $('checkUpdate').disabled = true;
+      $('updateStatus').textContent = 'Checking…';
+      toApp({ type: 'checkUpdate' });
+    });
+  }
+
+  // Rates bundled into the app at release time, so a first launch with no
+  // signal still converts. Missing in the browser build, which is fine.
+  async function loadSnapshot() {
+    if (state.rates) return;
+    try {
+      const json = await getJSON('snapshot.json');
+      if (json.result !== 'success' || !json.rates || !json.rates.EUR || state.rates) return;
+      const snap = { rates: json.rates, updatedAt: json.time_last_update_unix * 1000, fetchedAt: 0 };
+      if (!daily) daily = snap;
+      Object.assign(state, { rates: mergeRates(null, snap.rates), updatedAt: snap.updatedAt, source: 'daily' });
+      buildCurrencyList();
+      renderAll();
+    } catch {}
   }
 
   // ---- interactions ----
@@ -890,7 +955,9 @@ dialog::backdrop { background: var(--backdrop); }
     renderPickerList('');
     dlg.showModal();
     $('pickerSearch').focus();
+    toApp({ type: 'picker', open: true });
   }
+  dlg.addEventListener('close', () => toApp({ type: 'picker', open: false }));
   function itemButton(code) {
     const li = document.createElement('li');
     const b = document.createElement('button');
@@ -990,6 +1057,8 @@ dialog::backdrop { background: var(--backdrop); }
   }
   renderAll();
   renderTrend();
+  toApp({ type: 'hello' });
+  loadSnapshot();
   loadRates();
   setInterval(() => { if (!document.hidden) loadRates(); }, REFRESH_MS);
   setInterval(renderStatus, 15_000);

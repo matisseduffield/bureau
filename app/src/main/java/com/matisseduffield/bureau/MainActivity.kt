@@ -1,5 +1,6 @@
 package com.matisseduffield.bureau
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.Configuration
@@ -13,27 +14,37 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.webkit.JavaScriptReplyProxy
+import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.matisseduffield.bureau.updates.UpdateManager
+import com.matisseduffield.bureau.widget.RateWidget
+import com.matisseduffield.bureau.widget.WidgetStore
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 /**
  * Hosts web/index.html (bundled as assets) in a WebView. The asset loader
  * serves it from a real https origin, so localStorage and the rate APIs'
- * CORS behave exactly as they do in a browser.
+ * CORS behave exactly as they do in a browser. A message bridge, limited to
+ * that origin, lets the page drive the Back gesture, the home-screen widget
+ * and on-demand update checks.
  */
 class MainActivity : ComponentActivity() {
     private companion object {
         const val APP_HOST = WebViewAssetLoader.DEFAULT_DOMAIN
-        const val START_URL = "https://$APP_HOST/assets/index.html"
+        const val APP_ORIGIN = "https://$APP_HOST"
+        const val START_URL = "$APP_ORIGIN/assets/index.html"
+        const val BRIDGE_NAME = "bureauApp"
         const val CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
 
-        // Back closes the currency picker if it's open; otherwise it backgrounds
-        // the app, so returning doesn't reload the page.
         const val CLOSE_PICKER_JS =
             "(() => { const d = document.querySelector('dialog[open]'); if (d) { d.close(); return true; } return false; })()"
     }
@@ -41,6 +52,15 @@ class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
     private var lastUpdateCheck = 0L
     private var updatePromptOpen = false
+    private var page: JavaScriptReplyProxy? = null
+
+    // With the bridge, Back is only intercepted while the currency picker is
+    // open, so the system's predictive back gesture works everywhere else.
+    private val closePicker = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            web.evaluateJavascript(CLOSE_PICKER_JS, null)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,15 +112,23 @@ class MainActivity : ComponentActivity() {
             WindowInsetsCompat.CONSUMED
         }
         setContentView(root)
-        web.loadUrl(START_URL)
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                web.evaluateJavascript(CLOSE_PICKER_JS) { closed ->
-                    if (closed != "true") moveTaskToBack(true)
-                }
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(web, BRIDGE_NAME, setOf(APP_ORIGIN)) { _, message, origin, isMainFrame, reply ->
+                if (isMainFrame && origin == APP_ORIGIN.toUri()) onPageMessage(message, reply)
             }
-        })
+            onBackPressedDispatcher.addCallback(this, closePicker)
+        } else {
+            // Older WebView without the bridge: always ask the page first.
+            onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    web.evaluateJavascript(CLOSE_PICKER_JS) { closed ->
+                        if (closed != "true") moveTaskToBack(true)
+                    }
+                }
+            })
+        }
+        web.loadUrl(START_URL)
 
         lifecycleScope.launch {
             UpdateManager.installError.collect { message ->
@@ -120,6 +148,54 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         web.destroy()
         super.onDestroy()
+    }
+
+    private fun onPageMessage(message: WebMessageCompat, reply: JavaScriptReplyProxy) {
+        val msg = runCatching { JSONObject(message.data ?: return) }.getOrNull() ?: return
+        when (msg.optString("type")) {
+            "hello" -> {
+                page = reply
+                send(JSONObject().put("type", "info").put("version", BuildConfig.VERSION_NAME))
+            }
+            "picker" -> closePicker.isEnabled = msg.optBoolean("open")
+            "pair" -> {
+                val from = msg.optString("from")
+                val to = msg.optString("to")
+                val rate = msg.optDouble("rate")
+                if (from.isNotBlank() && to.isNotBlank() && rate.isFinite() && rate > 0) {
+                    WidgetStore.save(
+                        this,
+                        WidgetStore.Pair(from, to, msg.optDouble("fee", 0.0), rate, msg.optLong("updatedAt")),
+                    )
+                    RateWidget.updateAll(this)
+                }
+            }
+            "checkUpdate" -> checkForUpdateNow()
+        }
+    }
+
+    // Only reachable when WEB_MESSAGE_LISTENER is supported: [page] is set by a bridge message.
+    @SuppressLint("RequiresFeature")
+    private fun send(json: JSONObject) {
+        runCatching { page?.postMessage(json.toString()) }
+    }
+
+    private fun sendUpdateStatus(text: String) {
+        send(JSONObject().put("type", "updateStatus").put("text", text))
+    }
+
+    private fun checkForUpdateNow() {
+        lastUpdateCheck = System.currentTimeMillis()
+        lifecycleScope.launch {
+            when (val result = UpdateManager.check()) {
+                is UpdateManager.CheckResult.Available -> {
+                    sendUpdateStatus("Version ${result.info.versionName} is available")
+                    if (!updatePromptOpen) offerUpdate(result.info)
+                }
+                UpdateManager.CheckResult.UpToDate -> sendUpdateStatus("You have the latest version")
+                is UpdateManager.CheckResult.Failed -> sendUpdateStatus("Couldn't check: ${result.message}")
+            }
+        }
     }
 
     private fun maybeCheckForUpdate() {

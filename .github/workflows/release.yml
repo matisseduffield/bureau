@@ -53,6 +53,14 @@ jobs:
             echo "VERSION_CODE=$(( ${MA:-0} * 10000 + ${MI:-0} * 100 + ${PA:-0} ))" >> "$GITHUB_ENV"
           fi
 
+      - name: Bundle a rates snapshot for offline first launch
+        run: |
+          # Best effort: the page works without it, it just needs a signal on first open.
+          if ! curl -sf --max-time 20 https://open.er-api.com/v6/latest/USD -o web/snapshot.json \
+              || ! grep -q '"result":"success"' web/snapshot.json; then
+            rm -f web/snapshot.json
+          fi
+
       - name: Build signed APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}

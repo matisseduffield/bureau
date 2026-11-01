@@ -13,6 +13,8 @@ the Android app in `app/` wraps it in a WebView and adds self-updates.
 - 1W / 1M / 1Y trend from European Central Bank reference rates
 - Quick amounts in both directions
 - Remembers the pair, amount, fee and trend range; light and dark themes
+- Home-screen widget with the current pair's rate (refreshes every 30 minutes and whenever the app is used)
+- Works offline from the first launch: release builds bundle a rates snapshot (`web/snapshot.json`, generated in CI)
 - Hanken Grotesk is bundled in `web/fonts/` (SIL OFL) so the app looks the same offline
 
 ## Run the page
@@ -44,6 +46,11 @@ also publishes the APK and a `latest.json` to the public
 using a deploy key (`RELEASES_DEPLOY_KEY` secret here, write-enabled deploy
 key there). The app checks that file on launch (then at most every 6 hours),
 verifies the download's SHA-256, and installs it over itself.
+
+The page shows the installed version and a "Check for updates" button when it runs
+inside the app. The app talks to the page through a WebView message listener limited
+to its own asset origin (`window.bureauApp`): the page reports the pair (for the
+widget) and whether the currency picker is open (so Back closes it).
 
 Publishing an update = push a `v*` tag, e.g. `git tag v1.1.0 && git push origin v1.1.0`.
 The version name and code come from the tag (`1.1.0` → versionCode `10100`).
