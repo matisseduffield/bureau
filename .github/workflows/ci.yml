@@ -18,6 +18,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Page logic tests
+        run: node --test "tests/*.test.js"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:

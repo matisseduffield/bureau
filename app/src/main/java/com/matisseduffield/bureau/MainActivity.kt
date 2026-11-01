@@ -242,8 +242,9 @@ class MainActivity : ComponentActivity() {
         runCatching { page?.postMessage(json.toString()) }
     }
 
-    private fun sendUpdateStatus(text: String) {
-        send(JSONObject().put("type", "updateStatus").put("text", text))
+    /** Result of a check the page asked for: "available", "latest" or "failed". */
+    private fun sendUpdateStatus(state: String) {
+        send(JSONObject().put("type", "updateStatus").put("state", state))
     }
 
     private fun checkForUpdateNow() {
@@ -251,11 +252,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             when (val result = UpdateManager.check()) {
                 is UpdateManager.CheckResult.Available -> {
-                    sendUpdateStatus("Version ${result.info.versionName} is available")
+                    sendUpdateStatus("available")
                     onUpdateAvailable(result.info)
                 }
-                UpdateManager.CheckResult.UpToDate -> sendUpdateStatus("You have the latest version")
-                is UpdateManager.CheckResult.Failed -> sendUpdateStatus("Couldn't check: ${result.message}")
+                UpdateManager.CheckResult.UpToDate -> sendUpdateStatus("latest")
+                is UpdateManager.CheckResult.Failed -> sendUpdateStatus("failed")
             }
         }
     }

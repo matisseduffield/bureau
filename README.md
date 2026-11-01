@@ -22,6 +22,14 @@ the Android app in `app/` wraps it in a WebView and adds self-updates.
 Open `web/index.html` in a browser, or use the `currency` preview config in
 `../.claude/launch.json` (serves `web/` on port 5180).
 
+## Tests
+The page's pure logic (number parsing, sums, formatting options, rate merging)
+lives in `web/lib.js` and is tested on every push:
+
+```
+node --test "tests/*.test.js"
+```
+
 ## Build the app
 Toolchain lives in `C:\Users\matisse\android-toolchain\` (JDK 17, Android SDK 36, Gradle 8.14.2):
 
@@ -48,8 +56,7 @@ using a deploy key (`RELEASES_DEPLOY_KEY` secret here, write-enabled deploy
 key there). The app checks that file on launch (then at most every 6 hours),
 verifies the download's SHA-256, and installs it over itself.
 
-The page shows the installed version and a "Check for updates" button when it runs
-inside the app. The app talks to the page through a WebView message listener limited
+Inside the app the version shows at the top right; tapping it checks for updates. The app talks to the page through a WebView message listener limited
 to its own asset origin (`window.bureauApp`): the page reports the pair (for the
 widget) and whether the currency picker is open (so Back closes it).
 

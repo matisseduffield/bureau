@@ -98,13 +98,23 @@ button { cursor: pointer; }
 .wrap { max-width: 600px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
 
 /* Top bar */
-.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: -12px; }
-.mark { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: -.01em; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: -8px; }
+.brand { display: grid; justify-items: start; }
+.mark { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
+/* Rates freshness under the name; tap to refresh */
 .status {
-  min-height: 44px; margin-right: -6px; padding: 0 6px;
+  min-height: 28px; margin: -2px 0 0 -6px; padding: 0 6px;
+  background: none; border: 0;
+  font-size: .8rem; color: var(--muted);
+}
+/* App version, top right; tap to check for updates */
+.version {
+  min-height: 44px; margin-right: -8px; padding: 0 8px;
   background: none; border: 0;
   font-size: .82rem; color: var(--muted);
 }
+.version:hover { color: var(--ink); }
+.version[data-state="available"] { color: var(--accent); font-weight: 600; }
 .status:hover { color: var(--ink); }
 .status[data-state="stale"] { color: var(--warn); }
 .status[data-state="error"] { color: var(--down); }
@@ -170,6 +180,19 @@ button { cursor: pointer; }
   transform: rotate(45deg);
 }
 .pick .name { max-width: 100%; font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The amount sizes to its text so the muted symbol can sit right beside it. */
+.amount-wrap {
+  flex: 1; min-width: 0;
+  display: flex; justify-content: flex-end; align-items: baseline; gap: 6px;
+  cursor: text;
+}
+.sym { flex: none; font-size: clamp(1.15rem, 5vw, 1.5rem); color: var(--faint); }
+.sym:empty { display: none; }
+.amount-wrap .amount { flex: 0 1 auto; min-width: 1ch; field-sizing: content; }
+@supports not (field-sizing: content) {
+  .sym { display: none; }
+  .amount-wrap .amount { flex: 1; }
+}
 .amount {
   flex: 1; min-width: 0;
   padding: 4px 0;
@@ -290,14 +313,6 @@ button { cursor: pointer; }
 .quick-col button:active { background: var(--accent-soft); }
 @media (max-width: 340px) { .quick { grid-template-columns: 1fr; } }
 
-footer { max-width: 52ch; font-size: .8rem; line-height: 1.6; color: var(--muted); }
-footer p { margin: 0; }
-.app-info { display: flex; align-items: center; flex-wrap: wrap; gap: 0 12px; margin-top: 8px; }
-.app-info button {
-  min-height: 44px; padding: 0; border: 0; background: none;
-  color: var(--accent); font-size: inherit; font-weight: 500;
-}
-.app-info button:disabled { color: var(--muted); cursor: default; }
 
 /* Operator keys above the phone keyboard (Android's number pad has none) */
 .ops {
@@ -362,8 +377,11 @@ dialog::backdrop { background: var(--backdrop); }
 <body>
 <main class="wrap">
   <header class="top">
-    <h1 class="mark">Bureau</h1>
-    <button class="status" id="status" data-state="loading" type="button" title="Refresh rates now">Loading rates…</button>
+    <div class="brand">
+      <h1 class="mark">Bureau</h1>
+      <button class="status" id="status" data-state="loading" type="button" title="Refresh rates now">Loading rates…</button>
+    </div>
+    <button class="version" id="version" type="button" title="Check for updates" aria-live="polite" hidden></button>
   </header>
 
   <section class="update" id="updateCard" aria-label="App update" hidden>
@@ -385,14 +403,14 @@ dialog::backdrop { background: var(--backdrop); }
         <button class="pick" id="pickFrom" type="button" aria-haspopup="dialog">
           <span class="code" id="fromCode">USD</span><span class="name" id="fromName">US Dollar</span>
         </button>
-        <input class="amount" id="fromAmount" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0">
+        <div class="amount-wrap" id="fromWrap"><span class="sym" id="fromSym" aria-hidden="true"></span><input class="amount" id="fromAmount" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0"></div>
         <span class="calc" id="fromCalc" hidden></span>
       </div>
       <div class="leg">
         <button class="pick" id="pickTo" type="button" aria-haspopup="dialog">
           <span class="code" id="toCode">EUR</span><span class="name" id="toName">Euro</span>
         </button>
-        <input class="amount" id="toAmount" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0">
+        <div class="amount-wrap" id="toWrap"><span class="sym" id="toSym" aria-hidden="true"></span><input class="amount" id="toAmount" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0"></div>
         <span class="calc" id="toCalc" hidden></span>
       </div>
       <button class="swap" id="swap" type="button" aria-label="Swap currencies">
@@ -443,14 +461,6 @@ dialog::backdrop { background: var(--backdrop); }
     <div class="quick" id="quick"></div>
   </section>
 
-  <footer id="footer">
-    <p>Mid-market rates from Coinbase, checked every minute, with ExchangeRate-API as a backup. The trend uses European Central Bank reference rates.</p>
-    <p class="app-info" id="appInfo" hidden>
-      <span>Bureau <span id="appVersion"></span></span>
-      <button type="button" id="checkUpdate">Check for updates</button>
-      <span id="updateStatus" aria-live="polite"></span>
-    </p>
-  </footer>
 </main>
 
 <div class="ops" id="ops" hidden>
@@ -468,6 +478,7 @@ dialog::backdrop { background: var(--backdrop); }
   <ul class="picker-list" id="pickerList"></ul>
 </dialog>
 
+<script src="lib.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -481,7 +492,7 @@ dialog::backdrop { background: var(--backdrop); }
   const FETCH_TIMEOUT_MS = 8000;
 
   const COMMON = ['USD', 'EUR', 'GBP', 'AUD', 'JPY', 'CAD', 'CHF', 'CNY', 'NZD', 'INR', 'SGD', 'HKD'];
-  const CRYPTO = { BTC: 'Bitcoin', ETH: 'Ether', SOL: 'Solana' };
+  const { CRYPTO } = BureauLib;
   const EURO_ZONE = 'AT BE CY DE EE ES FI FR GR HR IE IT LT LU LV MT NL PT SI SK'.split(' ');
   const REGION_CURRENCY = {
     US: 'USD', GB: 'GBP', AU: 'AUD', NZ: 'NZD', CA: 'CAD', JP: 'JPY', CN: 'CNY', IN: 'INR', CH: 'CHF',
@@ -537,19 +548,10 @@ dialog::backdrop { background: var(--backdrop); }
   }
 
   // ---- numbers ----
-  function fractionDigits(code) {
-    if (CRYPTO[code]) return 8;
-    try { return new Intl.NumberFormat('en', { style: 'currency', currency: code }).resolvedOptions().maximumFractionDigits; }
-    catch { return 2; }
-  }
-  // Currency's own decimals; only amounts that would round to zero get significant digits.
-  function amountOpts(n, code) {
-    const abs = Math.abs(n);
-    if (CRYPTO[code]) return abs >= 1 ? { minimumFractionDigits: 2, maximumFractionDigits: 6 } : { maximumSignificantDigits: 6 };
-    const d = fractionDigits(code);
-    if (abs > 0 && abs < Math.pow(10, -d) * 5) return { maximumSignificantDigits: 3 };
-    return { minimumFractionDigits: d, maximumFractionDigits: d };
-  }
+  // Pure helpers live in lib.js (tested in CI); these bind them to this locale.
+  const { fractionDigits, amountOpts } = BureauLib;
+  const parseNumber = s => BureauLib.parseNumber(s, GROUP);
+  const evaluate = text => BureauLib.evaluate(text, GROUP);
   const fmtAmount = (n, code) => Number.isFinite(n) ? new Intl.NumberFormat(fmtLocale, amountOpts(n, code)).format(n) : '';
   function fmtMoney(n, code, opts) {
     if (!Number.isFinite(n)) return '–';
@@ -559,56 +561,6 @@ dialog::backdrop { background: var(--backdrop); }
     catch { return new Intl.NumberFormat(fmtLocale, opts).format(n) + ' ' + code; }
   }
   const fmtRate = r => new Intl.NumberFormat(fmtLocale, r >= 100 ? { maximumFractionDigits: 2 } : { maximumSignificantDigits: 5 }).format(r);
-
-  // One number as typed: either "." or "," can be the decimal point. When both
-  // appear the last one is; a lone separator is grouping only when it's this
-  // locale's group mark followed by exactly three digits ("1.500" in Germany).
-  function parseNumber(s) {
-    s = s.replace(/['’]/g, '');
-    if (!s) return NaN;
-    const hasDot = s.includes('.'), hasComma = s.includes(',');
-    if (hasDot && hasComma) {
-      const dec = s.lastIndexOf('.') > s.lastIndexOf(',') ? '.' : ',';
-      s = s.split(dec === '.' ? ',' : '.').join('').replace(dec, '.');
-    } else if (hasDot || hasComma) {
-      const ch = hasDot ? '.' : ',';
-      const parts = s.split(ch);
-      if (parts.length > 2) s = parts.join('');
-      else if (ch === GROUP && parts[1].length === 3 && parts[0].length > 0) s = parts.join('');
-      else s = (parts[0] || '0') + '.' + parts[1];
-    }
-    return /^\d*\.?\d+$|^\d+\.$/.test(s) ? parseFloat(s) : NaN;
-  }
-
-  // Amount fields accept simple sums such as 12*3.5 or (40+25)/2. Hand-parsed; nothing is eval'd.
-  function evaluate(text) {
-    const src = String(text).replace(/[\s  ]/g, '').replace(/[×xX]/g, '*').replace(/÷/g, '/').replace(/[−–]/g, '-');
-    if (!src) return { value: NaN, isExpr: false };
-    const tokens = src.match(/[0-9.,'’]+|[-+*/()]/g);
-    if (!tokens || tokens.join('') !== src) return { value: NaN, isExpr: false };
-    let i = 0;
-    const peek = () => tokens[i];
-    function factor() {
-      const t = tokens[i++];
-      if (t === '-') return -factor();
-      if (t === '+') return factor();
-      if (t === '(') { const v = expr(); if (tokens[i++] !== ')') return NaN; return v; }
-      return t === undefined ? NaN : parseNumber(t);
-    }
-    function term() {
-      let v = factor();
-      while (peek() === '*' || peek() === '/') { const op = tokens[i++]; const r = factor(); v = op === '*' ? v * r : v / r; }
-      return v;
-    }
-    function expr() {
-      let v = term();
-      while (peek() === '+' || peek() === '-') { const op = tokens[i++]; const r = term(); v = op === '+' ? v + r : v - r; }
-      return v;
-    }
-    const value = expr();
-    const isExpr = tokens.length > 1;
-    return { value: i === tokens.length && Number.isFinite(value) ? value : NaN, isExpr };
-  }
 
   // ---- rates ----
   const rate = (from, to) => (state.rates && state.rates[from] > 0 && state.rates[to] > 0) ? state.rates[to] / state.rates[from] : NaN;
@@ -639,22 +591,7 @@ dialog::backdrop { background: var(--backdrop); }
     if (json.result !== 'success' || !json.rates || !json.rates.EUR) throw new Error('Daily rates unavailable');
     return { rates: json.rates, updatedAt: json.time_last_update_unix * 1000, fetchedAt: Date.now() };
   }
-  // Coinbase's live rate wins unless it's more than 10% away from the daily
-  // reference: its quotes for thinly traded currencies (and tickers that clash
-  // with old currency codes) can be far off.
-  function mergeRates(live, ref) {
-    const out = {};
-    if (ref) for (const [k, v] of Object.entries(ref)) if (isFiat(k) && v > 0) out[k] = v;
-    if (live) {
-      for (const [k, v] of Object.entries(live)) {
-        if (CRYPTO[k]) { out[k] = v; continue; }
-        if (!isFiat(k)) continue;
-        if (ref && ref[k] > 0 && Math.abs(v / ref[k] - 1) > 0.1) continue;
-        out[k] = v;
-      }
-    }
-    return out;
-  }
+  const mergeRates = (live, ref) => BureauLib.mergeRates(live, ref, isFiat);
 
   let loading = false;
   async function loadRates() {
@@ -689,11 +626,22 @@ dialog::backdrop { background: var(--backdrop); }
   buildCurrencyList();
 
   // ---- render ----
+  // £, $, € and so on; nothing for crypto or where the symbol is just the code.
+  function symbolOf(code) {
+    if (CRYPTO[code]) return '';
+    try {
+      const part = new Intl.NumberFormat(fmtLocale, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' })
+        .formatToParts(1).find(p => p.type === 'currency');
+      return part && part.value !== code ? part.value : '';
+    } catch { return ''; }
+  }
+
   function renderPair() {
     for (const side of ['from', 'to']) {
       const code = state[side];
       $(side + 'Code').textContent = code;
       $(side + 'Name').textContent = nameOf(code);
+      $(side + 'Sym').textContent = symbolOf(code);
       $('pick' + (side === 'from' ? 'From' : 'To')).setAttribute('aria-label', `${side === 'from' ? 'You have' : 'You get'} ${nameOf(code)}. Change currency`);
       $(side + 'Amount').setAttribute('aria-label', `Amount in ${nameOf(code)}`);
     }
@@ -849,7 +797,15 @@ dialog::backdrop { background: var(--backdrop); }
   }
 
   // ---- trend (ECB reference rates, fiat only) ----
-  const trendCache = new Map();
+  // Trend series are kept on the device (the last few pairs and ranges), so
+  // the chart draws at once on launch and refreshes quietly behind it.
+  const trendCache = new Map(Object.entries(store.get('trend') || {}).filter(([, e]) => e && Array.isArray(e.series)));
+  function saveTrend(key, entry) {
+    trendCache.delete(key);
+    trendCache.set(key, entry);
+    while (trendCache.size > 8) trendCache.delete(trendCache.keys().next().value);
+    store.set('trend', Object.fromEntries(trendCache));
+  }
   let trendToken = 0;
   let trendFailed = false;
   function renderRange() {
@@ -862,27 +818,31 @@ dialog::backdrop { background: var(--backdrop); }
     if (CRYPTO[from] || CRYPTO[to]) return showTrendEmpty('The ECB only publishes rates for national currencies, so there is no trend for crypto.');
     const key = `${from}${to}${days}`;
     let entry = trendCache.get(key);
+    if (entry && entry.series.length >= 2) drawTrend(entry.series);
     if (!entry || Date.now() - entry.at > TREND_TTL_MS) {
-      $('trend').classList.add('loading');
+      if (!entry) $('trend').classList.add('loading');
       const end = new Date(), start = new Date(end - (days + 1) * 864e5);
       try {
         const json = await getJSON(`${TREND_URL}${start.toISOString().slice(0, 10)}..?base=${from}&symbols=${to}`);
         const series = Object.entries(json.rates || {}).map(([d, v]) => [d, v[to]]).filter(p => Number.isFinite(p[1]));
         entry = { at: Date.now(), series };
-        trendCache.set(key, entry);
+        saveTrend(key, entry);
       } catch (e) {
         if (token !== trendToken) return;
         const noData = e.status === 404 || e.status === 422;
         trendFailed = !noData;
+        if (entry && !noData) return; // keep showing the saved chart
         return showTrendEmpty(noData
           ? `The ECB doesn't publish reference rates for ${from} → ${to}.`
           : "Couldn't load the trend. It will try again with the next rate update.");
       }
+      if (token !== trendToken) return;
+      trendFailed = false;
+      if (entry.series.length < 2) return showTrendEmpty(`The ECB doesn't publish reference rates for ${from} → ${to}.`);
+      drawTrend(entry.series);
+    } else if (entry.series.length < 2) {
+      showTrendEmpty(`The ECB doesn't publish reference rates for ${from} → ${to}.`);
     }
-    if (token !== trendToken) return;
-    trendFailed = false;
-    if (entry.series.length < 2) return showTrendEmpty(`The ECB doesn't publish reference rates for ${from} → ${to}.`);
-    drawTrend(entry.series);
   }
   function drawTrend(series) {
     const el = $('trend');
@@ -995,12 +955,15 @@ dialog::backdrop { background: var(--backdrop); }
       let m;
       try { m = JSON.parse(e.data); } catch { return; }
       if (m.type === 'info') {
-        $('appVersion').textContent = m.version;
-        $('appInfo').hidden = false;
+        appVersion = m.version;
+        $('version').hidden = false;
+        if (!updateReady) showVersion(`v${appVersion}`);
       } else if (m.type === 'updateStatus') {
-        $('updateStatus').textContent = m.text;
-        $('checkUpdate').disabled = false;
+        if (m.state === 'available') return markUpdateReady();
+        showVersion(m.state === 'latest' ? 'Up to date' : "Couldn't check");
+        versionTimer = setTimeout(() => showVersion(`v${appVersion}`), 2500);
       } else if (m.type === 'update') {
+        if (m.state === 'available') markUpdateReady();
         showUpdate(m);
       }
     };
@@ -1009,11 +972,29 @@ dialog::backdrop { background: var(--backdrop); }
       toApp({ type: 'installUpdate' });
     });
     $('updateLater').addEventListener('click', () => { $('updateCard').hidden = true; });
-    $('checkUpdate').addEventListener('click', () => {
-      $('checkUpdate').disabled = true;
-      $('updateStatus').textContent = 'Checking…';
+    // Tapping the version checks for updates; once one is known it reopens the card.
+    $('version').addEventListener('click', () => {
+      if (updateReady && $('updateCard').hidden) {
+        $('updateCard').hidden = false;
+        scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      if (updateReady) return;
+      showVersion('Checking…');
       toApp({ type: 'checkUpdate' });
     });
+  }
+
+  // ---- version, top right ----
+  let appVersion = '', updateReady = false, versionTimer = 0;
+  function showVersion(text, state) {
+    clearTimeout(versionTimer);
+    $('version').textContent = text;
+    $('version').dataset.state = state || '';
+  }
+  function markUpdateReady() {
+    updateReady = true;
+    showVersion('Update available', 'available');
   }
 
   // The update card. The app sends: available (version, notes, size),
@@ -1074,6 +1055,8 @@ dialog::backdrop { background: var(--backdrop); }
   // ---- interactions ----
   for (const side of ['from', 'to']) {
     const input = field(side);
+    // The input is only as wide as its text, so a tap anywhere in the amount area focuses it.
+    $(side + 'Wrap').addEventListener('click', e => { if (e.target !== input) input.focus(); });
     input.addEventListener('focus', () => {
       state.edited = side;
       input.select();
@@ -1124,6 +1107,23 @@ dialog::backdrop { background: var(--backdrop); }
     savePair();
     renderAll();
     renderTrend();
+    slideLegs();
+  }
+  // The two rows trade places: each slides in from where the other was.
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  function slideLegs() {
+    if (reduceMotion.matches || !Element.prototype.animate) return;
+    const legs = document.querySelectorAll('.leg');
+    const shift = legs[0].offsetHeight * 0.35;
+    legs.forEach((leg, i) => {
+      const from = i === 0 ? shift : -shift;
+      for (const el of leg.querySelectorAll('.pick, .amount-wrap')) {
+        el.animate(
+          [{ transform: `translateY(${from}px)`, opacity: 0 }, { transform: 'none', opacity: 1 }],
+          { duration: 220, easing: 'cubic-bezier(.2, .7, .2, 1)' },
+        );
+      }
+    });
   }
   $('swap').addEventListener('click', swap);
   $('status').addEventListener('click', () => {
