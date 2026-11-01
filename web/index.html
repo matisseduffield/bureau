@@ -116,8 +116,6 @@ button { cursor: pointer; }
 .version:hover { color: var(--ink); }
 .version[data-state="available"] { color: var(--accent); font-weight: 600; }
 .status:hover { color: var(--ink); }
-.status[data-state="stale"] { color: var(--warn); }
-.status[data-state="error"] { color: var(--down); }
 
 /* Update card (only inside the app, when a new version is published):
    icon + title, what's new, then two equal buttons or a progress bar. */
@@ -385,7 +383,7 @@ dialog::backdrop { background: var(--backdrop); }
   <header class="top">
     <div class="brand">
       <h1 class="mark">Bureau</h1>
-      <button class="status" id="status" data-state="loading" type="button" title="Refresh rates now">Loading rates…</button>
+      <button class="status" id="status" type="button" title="Try to refresh rates" hidden></button>
     </div>
     <button class="version" id="version" type="button" title="Check for updates" aria-live="polite" hidden></button>
   </header>
@@ -757,24 +755,26 @@ dialog::backdrop { background: var(--backdrop); }
     $('fee').classList.toggle('on', state.fee > 0);
   }
 
-  function agoText(ms) {
-    const age = Date.now() - ms;
-    if (age < 60_000) return 'just now';
-    if (age < 3_600_000) return Math.floor(age / 60_000) + ' min ago';
-    if (age < 86_400_000) return Math.floor(age / 3_600_000) + ' h ago';
-    return new Date(ms).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  // "14:05" today, otherwise "2 Nov, 14:05".
+  function whenText(ms) {
+    const d = new Date(ms);
+    const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    return d.toDateString() === new Date().toDateString()
+      ? time
+      : `${d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}, ${time}`;
   }
+  // Rates are saved on the device after every refresh, so the app keeps
+  // working offline. While rates are live this line stays hidden; it only
+  // says when the rates in use are from once they aren't current.
   function renderStatus() {
     const el = $('status');
-    if (!state.rates) {
-      el.dataset.state = state.error ? 'error' : 'loading';
-      el.textContent = state.error ? "Can't reach rates · Retry" : 'Loading rates…';
-      return;
-    }
-    if (state.error) { el.dataset.state = 'error'; el.textContent = `Offline · rates from ${agoText(state.updatedAt)}`; }
-    else if (state.source === 'daily') { el.dataset.state = 'stale'; el.textContent = `Daily rates · ${agoText(state.updatedAt)}`; }
-    else if (Date.now() - state.updatedAt > 3 * 60_000) { el.dataset.state = 'stale'; el.textContent = `Updated ${agoText(state.updatedAt)}`; }
-    else { el.dataset.state = 'live'; el.textContent = `Updated ${agoText(state.updatedAt)}`; }
+    let text = '';
+    if (!state.rates) text = state.error ? 'Offline · no saved rates yet' : '';
+    else if (state.error) text = `Offline · rates from ${whenText(state.updatedAt)}`;
+    else if (state.source === 'daily') text = `Daily rates from ${whenText(state.updatedAt)}`;
+    else if (Date.now() - state.updatedAt > 10 * 60_000) text = `Rates from ${whenText(state.updatedAt)}`;
+    el.textContent = text;
+    el.hidden = !text;
   }
 
   // ---- quick amounts ----
@@ -1143,9 +1143,7 @@ dialog::backdrop { background: var(--backdrop); }
   $('swap').addEventListener('click', swap);
   $('status').addEventListener('click', () => {
     if (loading) return;
-    const el = $('status');
-    el.dataset.state = 'loading';
-    el.textContent = 'Updating…';
+    $('status').textContent = 'Checking…';
     loadRates();
   });
   $('fee').addEventListener('change', e => {
