@@ -22,7 +22,12 @@ import java.security.MessageDigest
  * installed app, so data is preserved and nothing unsigned can install.
  */
 object UpdateManager {
-    private const val LATEST_URL =
+    // The API always returns the current file; raw.githubusercontent.com can
+    // serve a copy up to ~5 minutes old, so it is only the fallback (the API
+    // allows 60 unauthenticated requests an hour per IP).
+    private const val LATEST_API =
+        "https://api.github.com/repos/matisseduffield/bureau-releases/contents/latest.json"
+    private const val LATEST_RAW =
         "https://raw.githubusercontent.com/matisseduffield/bureau-releases/main/latest.json"
 
     data class UpdateInfo(
@@ -45,18 +50,30 @@ object UpdateManager {
     /** Terminal install-failure message from [UpdateInstallReceiver], shown by the activity. */
     val installError = MutableStateFlow<String?>(null)
 
-    suspend fun check(): CheckResult = withContext(Dispatchers.IO) {
-        // The query string sidesteps raw.githubusercontent.com's 5-minute cache.
-        val url = URL("$LATEST_URL?t=${System.currentTimeMillis()}")
-        val conn = (url.openConnection() as HttpURLConnection).apply {
-            connectTimeout = 10_000
-            readTimeout = 15_000
-            useCaches = false
+    /** Reads latest.json, preferring the always-current API. Null if neither source answered. */
+    private fun fetchLatest(): String? {
+        for ((url, accept) in listOf(LATEST_API to "application/vnd.github.raw+json", LATEST_RAW to "*/*")) {
+            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 10_000
+                readTimeout = 15_000
+                useCaches = false
+                setRequestProperty("Accept", accept)
+            }
+            try {
+                if (conn.responseCode == 200) return conn.inputStream.bufferedReader().readText()
+            } catch (_: Exception) {
+                // try the next source
+            } finally {
+                conn.disconnect()
+            }
         }
+        return null
+    }
+
+    suspend fun check(): CheckResult = withContext(Dispatchers.IO) {
         try {
-            val code = conn.responseCode
-            if (code != 200) return@withContext CheckResult.Failed("Couldn't reach GitHub (HTTP $code)")
-            val root = JSONObject(conn.inputStream.bufferedReader().readText())
+            val text = fetchLatest() ?: return@withContext CheckResult.Failed("Couldn't reach GitHub")
+            val root = JSONObject(text)
             val info = UpdateInfo(
                 versionCode = root.getInt("versionCode"),
                 versionName = root.getString("versionName"),
@@ -70,8 +87,6 @@ object UpdateManager {
             if (info.versionCode > BuildConfig.VERSION_CODE) CheckResult.Available(info) else CheckResult.UpToDate
         } catch (e: Exception) {
             CheckResult.Failed(e.message ?: "Update check failed")
-        } finally {
-            conn.disconnect()
         }
     }
 
