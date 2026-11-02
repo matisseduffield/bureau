@@ -14,10 +14,17 @@
     catch { return 2; }
   }
 
+  // Decimals for a coin worth `usdPrice`: enough to show about a cent, so a
+  // stablecoin reads 327.49 and Bitcoin 0.0012834 (2 to 8 places).
+  function cryptoDigits(usdPrice) {
+    if (!(usdPrice > 0)) return 6;
+    return Math.min(8, Math.max(2, Math.ceil(Math.log10(usdPrice)) + 2));
+  }
+
   // Currency's own decimals; only amounts that would round to zero get significant digits.
-  function amountOpts(n, code) {
+  function amountOpts(n, code, usdPrice) {
     const abs = Math.abs(n);
-    if (CRYPTO[code]) return abs >= 1 ? { minimumFractionDigits: 2, maximumFractionDigits: 6 } : { maximumSignificantDigits: 6 };
+    if (CRYPTO[code]) return abs >= 1 ? { minimumFractionDigits: 2, maximumFractionDigits: cryptoDigits(usdPrice) } : { maximumSignificantDigits: 6 };
     const d = fractionDigits(code);
     if (abs > 0 && abs < Math.pow(10, -d) * 5) return { maximumSignificantDigits: 3 };
     return { minimumFractionDigits: d, maximumFractionDigits: d };
@@ -175,7 +182,7 @@
     return out;
   }
 
-  const lib = { CRYPTO, fractionDigits, amountOpts, parseNumber, evaluate, mergeRates, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  const lib = { CRYPTO, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);

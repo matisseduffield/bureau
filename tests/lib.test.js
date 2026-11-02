@@ -58,6 +58,15 @@ test('formatting follows each currency\'s decimals', () => {
   assert.deepEqual(amountOpts(0.47, 'GBP'), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   assert.deepEqual(amountOpts(0.004, 'USD'), { maximumSignificantDigits: 3 });
   assert.deepEqual(amountOpts(0.0012, 'BTC'), { maximumSignificantDigits: 6 });
+  // coins show about a cent's worth of decimals
+  const { cryptoDigits } = require('../web/lib.js');
+  assert.equal(cryptoDigits(1), 2);        // USDT
+  assert.equal(cryptoDigits(0.075), 2);    // DOGE
+  assert.equal(cryptoDigits(94), 4);       // SOL
+  assert.equal(cryptoDigits(2268), 6);     // ETH
+  assert.equal(cryptoDigits(77930), 7);    // BTC
+  assert.equal(cryptoDigits(undefined), 6);
+  assert.deepEqual(amountOpts(327.487641, 'USDT', 1), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 });
 
 test('trend sampling covers the range and ends yesterday', () => {

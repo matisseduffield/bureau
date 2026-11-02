@@ -28,7 +28,9 @@ import androidx.webkit.WebViewFeature
 import com.matisseduffield.bureau.updates.UpdateManager
 import com.matisseduffield.bureau.widget.RateWidget
 import com.matisseduffield.bureau.widget.WidgetStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -138,6 +140,11 @@ class MainActivity : ComponentActivity() {
         }
         web.loadUrl(START_URL)
 
+        // A downloaded update has done its job once the new version is running.
+        if (savedInstanceState == null) {
+            lifecycleScope.launch(Dispatchers.IO) { File(cacheDir, "updates").deleteRecursively() }
+        }
+
         lifecycleScope.launch {
             UpdateManager.installError.collect { message ->
                 if (message != null) {
@@ -153,9 +160,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Out of sight, the page's timers and rate polling stop entirely; they
+    // resume (and refresh stale rates) as soon as the app is back.
     override fun onResume() {
         super.onResume()
+        web.onResume()
+        web.resumeTimers()
         maybeCheckForUpdate()
+    }
+
+    override fun onPause() {
+        web.onPause()
+        web.pauseTimers()
+        super.onPause()
     }
 
     override fun onDestroy() {

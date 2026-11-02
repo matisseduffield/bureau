@@ -49,10 +49,16 @@ object WidgetStore {
         }
     }
 
+    // Coins the page offers; their prices swing too much for the outlier check.
+    private val CRYPTO = setOf("BTC", "ETH", "USDT", "XRP", "BNB", "SOL", "USDC", "DOGE", "ADA", "LTC")
+    private const val DAY_MS = 24 * 60 * 60 * 1000L
+
     /**
      * Fetches a fresh live rate for the stored pair. Blocking: call off the
-     * main thread. A quote more than 10% away from the last one is ignored,
-     * matching the page, which distrusts Coinbase's outliers.
+     * main thread. For currencies, a quote more than 10% away from a rate
+     * stored in the last day is ignored, matching the page, which distrusts
+     * Coinbase's outliers. Older rates aren't a fair yardstick (a currency
+     * can really move 10% in weeks), so the widget never gets stuck on one.
      */
     fun refresh(context: Context): Boolean {
         val pair = load(context) ?: return false
@@ -70,7 +76,10 @@ object WidgetStore {
             val to = perUsd(pair.to) ?: return false
             if (from <= 0 || to <= 0) return false
             val fresh = to / from
-            if (pair.rate > 0 && abs(fresh / pair.rate - 1) > 0.1) return false
+            val check = pair.rate > 0 &&
+                pair.from !in CRYPTO && pair.to !in CRYPTO &&
+                System.currentTimeMillis() - pair.updatedAt < DAY_MS
+            if (check && abs(fresh / pair.rate - 1) > 0.1) return false
             save(context, pair.copy(rate = fresh, updatedAt = System.currentTimeMillis()))
             true
         } catch (e: Exception) {

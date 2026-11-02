@@ -563,9 +563,15 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 
   let names = null;
   try { names = new Intl.DisplayNames([locale], { type: 'currency' }); } catch {}
+  const nameCache = new Map();
   function nameOf(code) {
     if (CRYPTO[code]) return CRYPTO[code];
-    try { return (names && names.of(code)) || code; } catch { return code; }
+    let n = nameCache.get(code);
+    if (n === undefined) {
+      try { n = (names && names.of(code)) || code; } catch { n = code; }
+      nameCache.set(code, n);
+    }
+    return n;
   }
   let SUPPORTED = null;
   try { SUPPORTED = new Set(Intl.supportedValuesOf('currency')); } catch {}
@@ -603,18 +609,37 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 
   // ---- numbers ----
   // Pure helpers live in lib.js (tested in CI); these bind them to this locale.
-  const { fractionDigits, amountOpts } = BureauLib;
+  const { fractionDigits } = BureauLib;
+  // Coins get decimals to suit their price (see cryptoDigits).
+  const usdPrice = code => (state.rates && state.rates[code] > 0 ? 1 / state.rates[code] : undefined);
+  const amountOpts = (n, code) => BureauLib.amountOpts(n, code, usdPrice(code));
   const parseNumber = s => BureauLib.parseNumber(s, GROUP);
   const evaluate = text => BureauLib.evaluate(text, GROUP);
-  const fmtAmount = (n, code) => Number.isFinite(n) ? new Intl.NumberFormat(fmtLocale, amountOpts(n, code)).format(n) : '';
+  // Building a formatter is far slower than using one, and a render formats
+  // dozens of numbers with a handful of option sets, so each set is built once.
+  const formatters = new Map();
+  function nf(opts) {
+    const key = JSON.stringify(opts);
+    let f = formatters.get(key);
+    if (!f) { f = new Intl.NumberFormat(fmtLocale, opts); formatters.set(key, f); }
+    return f;
+  }
+  const dateFormatters = new Map();
+  function df(opts) {
+    const key = JSON.stringify(opts);
+    let f = dateFormatters.get(key);
+    if (!f) { f = new Intl.DateTimeFormat(locale, opts); dateFormatters.set(key, f); }
+    return f;
+  }
+  const fmtAmount = (n, code) => Number.isFinite(n) ? nf(amountOpts(n, code)).format(n) : '';
   function fmtMoney(n, code, opts) {
     if (!Number.isFinite(n)) return '–';
     opts = opts || amountOpts(n, code);
-    if (CRYPTO[code]) return new Intl.NumberFormat(fmtLocale, opts).format(n) + ' ' + code;
-    try { return new Intl.NumberFormat(fmtLocale, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', ...opts }).format(n); }
-    catch { return new Intl.NumberFormat(fmtLocale, opts).format(n) + ' ' + code; }
+    if (CRYPTO[code]) return nf(opts).format(n) + ' ' + code;
+    try { return nf({ style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', ...opts }).format(n); }
+    catch { return nf(opts).format(n) + ' ' + code; }
   }
-  const fmtRate = r => new Intl.NumberFormat(fmtLocale, r >= 100 ? { maximumFractionDigits: 2 } : { maximumSignificantDigits: 5 }).format(r);
+  const fmtRate = r => nf(r >= 100 ? { maximumFractionDigits: 2 } : { maximumSignificantDigits: 5 }).format(r);
 
   // ---- rates ----
   const rate = (from, to) => (state.rates && state.rates[from] > 0 && state.rates[to] > 0) ? state.rates[to] / state.rates[from] : NaN;
@@ -670,12 +695,16 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   }
 
   // ---- currency list ----
-  let currencies = [];
+  // Rebuilt only when the set of currencies changes, not on every refresh.
+  let currencies = [], currencySet = '';
+  const collator = new Intl.Collator(locale);
   function buildCurrencyList() {
     if (!state.rates) return;
-    currencies = Object.keys(state.rates)
-      .filter(c => CRYPTO[c] || isFiat(c))
-      .sort((a, b) => nameOf(a).localeCompare(nameOf(b), locale));
+    const codes = Object.keys(state.rates).filter(c => CRYPTO[c] || isFiat(c));
+    const set = codes.sort().join();
+    if (set === currencySet) return;
+    currencySet = set;
+    currencies = codes.sort((a, b) => collator.compare(nameOf(a), nameOf(b)));
   }
   buildCurrencyList();
 
@@ -684,8 +713,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   function symbolOf(code) {
     if (CRYPTO[code]) return '';
     try {
-      const part = new Intl.NumberFormat(fmtLocale, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' })
-        .formatToParts(1).find(p => p.type === 'currency');
+      const part = nf({ style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' }).formatToParts(1).find(p => p.type === 'currency');
       return part && part.value !== code ? part.value : '';
     } catch { return ''; }
   }
@@ -761,7 +789,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // ---- fee menu ----
   const FEE_PRESETS = [0, 1, 2, 3];
   const MAX_FEE = 20;
-  const fmtPct = n => new Intl.NumberFormat(fmtLocale, { maximumFractionDigits: 2 }).format(n);
+  const fmtPct = n => nf({ maximumFractionDigits: 2 }).format(n);
   function renderFee() {
     $('feeBtn').textContent = state.fee ? `${fmtPct(state.fee)}% fee` : 'No fee';
     $('feeBtn').classList.toggle('on', state.fee > 0);
@@ -861,6 +889,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // the chart draws at once on launch and refreshes quietly behind it.
   const trendCache = new Map(Object.entries(store.get('trend') || {}).filter(([, e]) => e && Array.isArray(e.series)));
   function saveTrend(key, entry) {
+    // Six significant digits is finer than the chart can show and keeps the stored copy small.
+    entry.series = entry.series.map(([d, v]) => [d, Number(v.toPrecision(6))]);
     trendCache.delete(key);
     trendCache.set(key, entry);
     while (trendCache.size > 8) trendCache.delete(trendCache.keys().next().value);
@@ -927,7 +957,9 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       const load = (async () => {
         for (const url of SNAPSHOT_URLS) {
           try {
-            const res = await fetch(url(date), { cache: 'force-cache', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+            // AbortSignal.timeout is missing on older WebViews; there the request simply runs on.
+            const signal = AbortSignal.timeout ? AbortSignal.timeout(FETCH_TIMEOUT_MS) : undefined;
+            const res = await fetch(url(date), { cache: 'force-cache', signal });
             if (res.ok) return await res.json();
           } catch {}
         }
@@ -966,7 +998,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     el.setAttribute('role', 'img');
     el.setAttribute('aria-label', `${state.from} to ${state.to}: ${fmtRate(vals[0])} to ${fmtRate(vals.at(-1))}, low ${fmtRate(min)}, high ${fmtRate(max)}`);
     const long = state.days > 60;
-    const d = s => new Date(s + 'T00:00:00').toLocaleDateString(locale, long ? { month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' });
+    const d = s => df(long ? { month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' }).format(new Date(s + 'T00:00:00'));
     $('trendAxis').innerHTML = '';
     for (const [cls, text] of [['', d(series[0][0])], ['mid', `Low ${fmtRate(min)} · High ${fmtRate(max)}`], ['', d(series.at(-1)[0])]]) {
       const s = document.createElement('span');
@@ -998,7 +1030,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const mid = $('trendAxis').querySelector('.mid');
     if (mid) {
       mid.classList.add('active');
-      const day = new Date(date + 'T00:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short', year: state.days > 60 ? 'numeric' : undefined });
+      const day = df(state.days > 60 ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' }).format(new Date(date + 'T00:00:00'));
       mid.textContent = `${day} · ${fmtRate(value)}`;
     }
   }
@@ -1180,8 +1212,9 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       // Tidy what was typed (grouping, or the result of a sum) without rounding it.
       const { value } = evaluate(input.value);
       if (Number.isFinite(value) && value >= 0) {
-        const d = fractionDigits(state[side]);
-        input.value = new Intl.NumberFormat(fmtLocale, { minimumFractionDigits: d, maximumFractionDigits: Math.max(d, 8) }).format(value);
+        // Coins keep what was typed without padding it to eight places.
+        const d = CRYPTO[state[side]] ? 2 : fractionDigits(state[side]);
+        input.value = nf({ minimumFractionDigits: d, maximumFractionDigits: Math.max(d, 8) }).format(value);
         convert();
       }
     });
