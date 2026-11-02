@@ -13,7 +13,9 @@ import com.matisseduffield.bureau.MainActivity
 import com.matisseduffield.bureau.R
 import java.math.BigDecimal
 import java.math.MathContext
+import com.matisseduffield.bureau.rates.Rates
 import java.text.NumberFormat
+import java.util.Currency
 import java.util.Date
 import kotlin.concurrent.thread
 
@@ -49,9 +51,14 @@ class RateWidget : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_pair, context.getString(R.string.app_name))
                 views.setTextViewText(R.id.widget_rate, "–")
                 views.setTextViewText(R.id.widget_meta, context.getString(R.string.widget_setup))
-            } else {
+            } else if (pair.amount == 1.0) {
                 views.setTextViewText(R.id.widget_pair, "1 ${pair.from} in ${pair.to}")
                 views.setTextViewText(R.id.widget_rate, formatRate(pair.effectiveRate))
+                views.setTextViewText(R.id.widget_meta, meta(context, pair))
+            } else {
+                // The converter's amount, as last left in the app.
+                views.setTextViewText(R.id.widget_pair, "${formatAmount(pair.amount)} ${pair.from} in ${pair.to}")
+                views.setTextViewText(R.id.widget_rate, formatResult(pair.amount * pair.effectiveRate, pair.to))
                 views.setTextViewText(R.id.widget_meta, meta(context, pair))
             }
             val open = PendingIntent.getActivity(
@@ -72,6 +79,24 @@ class RateWidget : AppWidgetProvider() {
             }
             val fee = if (pair.fee > 0) "After ${NumberFormat.getNumberInstance().format(pair.fee)}% fee" else "Updated"
             return if (time.isEmpty()) fee else "$fee · $time"
+        }
+
+        /** The amount as typed: no padding, up to 8 decimals. */
+        private fun formatAmount(n: Double): String =
+            NumberFormat.getNumberInstance().apply { maximumFractionDigits = 8 }.format(n)
+
+        /** A converted amount: the currency's own decimals, or 6 significant digits for a coin. */
+        private fun formatResult(n: Double, code: String): String {
+            val nf = NumberFormat.getNumberInstance()
+            if (code in Rates.CRYPTO) {
+                val rounded = BigDecimal(n).round(MathContext(6)).stripTrailingZeros()
+                nf.maximumFractionDigits = maxOf(0, rounded.scale())
+                return nf.format(rounded)
+            }
+            val digits = runCatching { Currency.getInstance(code).defaultFractionDigits }.getOrDefault(2).coerceAtLeast(0)
+            nf.minimumFractionDigits = digits
+            nf.maximumFractionDigits = digits
+            return nf.format(n)
         }
 
         /** Same rounding as the page: 2 decimals from 100 up, else 5 significant digits. */

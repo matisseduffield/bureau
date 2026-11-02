@@ -6,15 +6,18 @@ the Android app in `app/` wraps it in a WebView and adds self-updates.
 ## Features
 - Live mid-market rates from Coinbase, refreshed every minute, checked against ExchangeRate-API's
   daily rates (used instead where Coinbase is more than 10% off, and as the fallback)
-- Convert in either direction, swap, and search about 160 currencies plus BTC, ETH and SOL;
+- Convert in either direction, swap, and search about 160 currencies by name, code or country, plus ten major coins;
   recently used currencies sit at the top of the picker
 - Simple sums in the amount fields (`12*3.5`, `(40+25)/2`), with + − × ÷ keys above the phone keyboard
-- Optional bank/card fee (0.5–5%) applied to every result, with the mid-market rate still shown
-- 1W / 1M / 1Y trend from European Central Bank reference rates
-- "Also in": the amount in up to four other recent currencies; tap one to switch to it
+- Optional bank/card fee (presets or a custom %) applied to every result, with the mid-market rate still shown
+- 1W / 1M / 1Y trend from European Central Bank reference rates, or daily snapshots
+  (fawazahmed0/currency-api) for crypto and currencies the ECB doesn't cover
+- Rate alerts (app only): the bell beside the rate sets a target; a background job checks
+  every 30 minutes and sends one notification when it's reached
 - Quick amounts in both directions
 - Remembers the pair, amount, fee and trend range; light and dark themes
-- Home-screen widget with the current pair's rate (refreshes every 30 minutes and whenever the app is used)
+- Home-screen widget with the converter's amount (or the plain rate) for the current pair
+  (refreshes every 30 minutes and whenever the app is used)
 - Works offline from the first launch: release builds bundle a rates snapshot (`web/snapshot.json`, generated in CI)
 - Hanken Grotesk is bundled in `web/fonts/` (SIL OFL) so the app looks the same offline
 
@@ -57,8 +60,8 @@ key there). The app checks that file on launch (then at most every 6 hours),
 verifies the download's SHA-256, and installs it over itself.
 
 Inside the app the version shows at the top right; tapping it checks for updates. The app talks to the page through a WebView message listener limited
-to its own asset origin (`window.bureauApp`): the page reports the pair (for the
-widget) and whether the currency picker is open (so Back closes it).
+to its own asset origin (`window.bureauApp`): the page reports the pair and amount (for the
+widget), sets and removes rate alerts, and says when the picker or a menu is open (so Back closes it).
 
 New updates show as a card at the top of the page (version, what's new, size,
 then download progress) with one Update button; Android's own confirm screen

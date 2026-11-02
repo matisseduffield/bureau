@@ -1,7 +1,8 @@
 <resources>
     <string name="app_name">Bureau</string>
     <string name="widget_name">Exchange rate</string>
-    <string name="widget_description">Your current Bureau pair and its live rate</string>
+    <string name="widget_description">Your Bureau pair and amount at the live rate</string>
+    <string name="alerts_channel">Rate alerts</string>
     <string name="widget_setup">Open Bureau to set the pair</string>
     <!-- Sample content for the widget picker preview -->
     <string name="widget_preview_pair" translatable="false">1 GBP in USD</string>

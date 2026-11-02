@@ -2,18 +2,17 @@ package com.matisseduffield.bureau.widget
 
 import android.content.Context
 import androidx.core.content.edit
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
+import com.matisseduffield.bureau.rates.Rates
 import kotlin.math.abs
 
 /**
- * The pair the widget shows. The app writes it whenever the page's pair, fee
- * or rate changes; the widget refreshes the rate itself between app visits.
+ * The pair the widget shows. The app writes it whenever the page's pair,
+ * amount, fee or rate changes; the widget refreshes the rate itself between
+ * app visits.
  */
 object WidgetStore {
     private const val PREFS = "widget"
-    private const val LIVE_URL = "https://api.coinbase.com/v2/exchange-rates?currency=USD"
+    private const val DAY_MS = 24 * 60 * 60 * 1000L
 
     data class Pair(
         val from: String,
@@ -22,6 +21,8 @@ object WidgetStore {
         /** Mid-market units of [to] per 1 [from]. */
         val rate: Double,
         val updatedAt: Long,
+        /** The converter's amount in [from]; 1 shows the plain rate. */
+        val amount: Double = 1.0,
     ) {
         val effectiveRate: Double get() = rate * (1 - fee / 100)
     }
@@ -36,6 +37,7 @@ object WidgetStore {
             fee = p.getFloat("fee", 0f).toDouble(),
             rate = p.getString("rate", null)?.toDoubleOrNull() ?: 0.0,
             updatedAt = p.getLong("updatedAt", 0L),
+            amount = p.getString("amount", null)?.toDoubleOrNull()?.takeIf { it > 0 } ?: 1.0,
         )
     }
 
@@ -46,12 +48,9 @@ object WidgetStore {
             putFloat("fee", pair.fee.toFloat())
             putString("rate", pair.rate.toString())
             putLong("updatedAt", pair.updatedAt)
+            putString("amount", pair.amount.toString())
         }
     }
-
-    // Coins the page offers; their prices swing too much for the outlier check.
-    private val CRYPTO = setOf("BTC", "ETH", "USDT", "XRP", "BNB", "SOL", "USDC", "DOGE", "ADA", "LTC")
-    private const val DAY_MS = 24 * 60 * 60 * 1000L
 
     /**
      * Fetches a fresh live rate for the stored pair. Blocking: call off the
@@ -62,30 +61,12 @@ object WidgetStore {
      */
     fun refresh(context: Context): Boolean {
         val pair = load(context) ?: return false
-        val conn = (URL(LIVE_URL).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 8_000
-            readTimeout = 8_000
-            useCaches = false
-        }
-        return try {
-            if (conn.responseCode != 200) return false
-            val rates = JSONObject(conn.inputStream.bufferedReader().readText())
-                .getJSONObject("data").getJSONObject("rates")
-            fun perUsd(code: String) = if (code == "USD") 1.0 else rates.optString(code).toDoubleOrNull()
-            val from = perUsd(pair.from) ?: return false
-            val to = perUsd(pair.to) ?: return false
-            if (from <= 0 || to <= 0) return false
-            val fresh = to / from
-            val check = pair.rate > 0 &&
-                pair.from !in CRYPTO && pair.to !in CRYPTO &&
-                System.currentTimeMillis() - pair.updatedAt < DAY_MS
-            if (check && abs(fresh / pair.rate - 1) > 0.1) return false
-            save(context, pair.copy(rate = fresh, updatedAt = System.currentTimeMillis()))
-            true
-        } catch (e: Exception) {
-            false
-        } finally {
-            conn.disconnect()
-        }
+        val fresh = Rates.live()?.let { Rates.cross(it, pair.from, pair.to) } ?: return false
+        val check = pair.rate > 0 &&
+            pair.from !in Rates.CRYPTO && pair.to !in Rates.CRYPTO &&
+            System.currentTimeMillis() - pair.updatedAt < DAY_MS
+        if (check && abs(fresh / pair.rate - 1) > 0.1) return false
+        save(context, pair.copy(rate = fresh, updatedAt = System.currentTimeMillis()))
+        return true
     }
 }

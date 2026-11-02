@@ -1,10 +1,13 @@
 package com.matisseduffield.bureau
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.HapticFeedbackConstants
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -15,6 +18,8 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import com.matisseduffield.bureau.alerts.Alerts
 import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -62,6 +67,8 @@ class MainActivity : ComponentActivity() {
     private val bridgeSupported by lazy { WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) }
     private var pendingUpdate: UpdateManager.UpdateInfo? = null
     private var installing = false
+    private var alertPair: kotlin.Pair<String, String>? = null
+    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { sendAlerts() }
 
     // With the bridge, Back is only intercepted while the currency picker or
     // fee menu is open (the page's "picker" message), so the system's
@@ -139,6 +146,7 @@ class MainActivity : ComponentActivity() {
             })
         }
         web.loadUrl(START_URL)
+        takeAlertPair(intent)
 
         // A downloaded update has done its job once the new version is running.
         if (savedInstanceState == null) {
@@ -167,6 +175,7 @@ class MainActivity : ComponentActivity() {
         web.onResume()
         web.resumeTimers()
         maybeCheckForUpdate()
+        if (page != null) sendAlerts()
     }
 
     override fun onPause() {
@@ -187,19 +196,43 @@ class MainActivity : ComponentActivity() {
                 page = reply
                 send(JSONObject().put("type", "info").put("version", BuildConfig.VERSION_NAME))
                 pendingUpdate?.let { sendUpdateCard(it) }
+                sendAlerts()
+                sendAlertPair()
             }
             "picker" -> closePicker.isEnabled = msg.optBoolean("open")
             "pair" -> {
                 val from = msg.optString("from")
                 val to = msg.optString("to")
                 val rate = msg.optDouble("rate")
+                val amount = msg.optDouble("amount", 1.0).takeIf { it.isFinite() && it > 0 } ?: 1.0
                 if (from.isNotBlank() && to.isNotBlank() && rate.isFinite() && rate > 0) {
                     WidgetStore.save(
                         this,
-                        WidgetStore.Pair(from, to, msg.optDouble("fee", 0.0), rate, msg.optLong("updatedAt")),
+                        WidgetStore.Pair(from, to, msg.optDouble("fee", 0.0), rate, msg.optLong("updatedAt"), amount),
                     )
                     RateWidget.updateAll(this)
                 }
+            }
+            "setAlert" -> {
+                val target = msg.optDouble("target")
+                val from = msg.optString("from")
+                val to = msg.optString("to")
+                if (from.isNotBlank() && to.isNotBlank() && target.isFinite() && target > 0) {
+                    Alerts.set(this, Alerts.Alert(from, to, target, msg.optBoolean("above")))
+                    if (Build.VERSION.SDK_INT >= 33 && !Alerts.notificationsOn(this)) {
+                        askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+                sendAlerts()
+            }
+            "removeAlert" -> {
+                Alerts.remove(this, msg.optString("from"), msg.optString("to"))
+                sendAlerts()
+            }
+            "notificationSettings" -> runCatching {
+                startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName),
+                )
             }
             // System tap feedback; Android skips it if touch feedback is off.
             "haptic" -> web.performHapticFeedback(
@@ -266,6 +299,39 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("RequiresFeature")
     private fun send(json: JSONObject) {
         runCatching { page?.postMessage(json.toString()) }
+    }
+
+    // ---- rate alerts ----
+
+    /** The page's copy of the alerts; alerts that fired in the background have gone. */
+    private fun sendAlerts() {
+        send(
+            JSONObject()
+                .put("type", "alerts")
+                .put("list", Alerts.toJson(Alerts.load(this)))
+                .put("notify", Alerts.notificationsOn(this)),
+        )
+    }
+
+    /** Opened from an alert's notification: show that pair. */
+    private fun takeAlertPair(intent: Intent?) {
+        val from = intent?.getStringExtra(Alerts.EXTRA_FROM) ?: return
+        val to = intent.getStringExtra(Alerts.EXTRA_TO) ?: return
+        alertPair = from to to
+        intent.removeExtra(Alerts.EXTRA_FROM)
+        sendAlertPair()
+    }
+
+    private fun sendAlertPair() {
+        val (from, to) = alertPair ?: return
+        if (page == null) return // sent on "hello"
+        send(JSONObject().put("type", "showPair").put("from", from).put("to", to))
+        alertPair = null
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        takeAlertPair(intent)
     }
 
     /** Result of a check the page asked for: "available", "latest" or "failed". */

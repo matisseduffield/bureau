@@ -228,6 +228,7 @@ button { cursor: pointer; }
 .swap svg { transition: transform .28s cubic-bezier(.2, .7, .2, 1); }
 
 .rateline {
+  position: relative;
   display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap;
   padding: 4px 8px 4px 22px;
   border-top: 1px solid var(--line);
@@ -256,16 +257,17 @@ button { cursor: pointer; }
   transform: rotate(45deg); transition: transform .15s;
 }
 .fee-btn[aria-expanded="true"]::after { transform: translateY(3px) rotate(-135deg); }
-/* Fee menu: a small panel under the button. Presets in one row, then a custom field. */
-.fee-menu {
-  position: absolute; top: calc(100% - 4px); right: 4px; z-index: 10;
+/* Small panels under the rate line (fee, alert): a label, then compact controls. */
+.pop {
+  position: absolute; top: calc(100% - 4px); z-index: 10;
   width: 232px; padding: 12px;
-  display: grid; gap: 12px;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px;
   background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
   box-shadow: 0 10px 28px var(--shadow);
   color: var(--ink);
 }
-.fee-label { margin: 0; font-size: .78rem; font-weight: 500; color: var(--muted); }
+.fee-menu { right: 4px; }
+.pop-label { margin: 0; font-size: .78rem; font-weight: 500; color: var(--muted); }
 .fee-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 3px; border-radius: 7px; background: var(--bg); }
 .fee-opts button {
   min-height: 38px; border: 0; border-radius: 5px; background: none;
@@ -274,20 +276,42 @@ button { cursor: pointer; }
 .fee-opts button:hover { color: var(--ink); }
 .fee-opts button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
 .fee-custom { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: .86rem; color: var(--muted); }
-.fee-field {
+.pop-field {
   display: flex; align-items: center; gap: 4px;
   width: 92px; height: 38px; padding: 0 10px;
   border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
   color: var(--muted);
 }
-.fee-field:focus-within, .fee-field.on { border-color: var(--accent); }
-.fee-field input {
+.pop-field:focus-within, .pop-field.on { border-color: var(--accent); }
+.pop-field input {
   flex: 1; min-width: 0; padding: 0;
   border: 0; background: none; outline: none;
   text-align: right; font-size: .9rem; font-weight: 500; color: var(--ink);
   caret-color: var(--accent);
 }
-.fee-field input::placeholder { color: var(--faint); font-weight: 400; }
+.pop-field input::placeholder { color: var(--faint); font-weight: 400; }
+
+/* Rate alert: a bell beside the rate; filled while this pair has an alert. */
+.bell {
+  display: grid; place-items: center;
+  width: 36px; height: 36px; margin: -6px -6px -6px -8px;
+  background: none; border: 0; border-radius: 50%;
+  color: var(--faint);
+}
+.bell:hover { color: var(--ink); }
+.bell.on { color: var(--accent); }
+.bell.on .bell-body { fill: currentColor; }
+.alert-menu { left: 8px; width: 256px; }
+.alert-row { display: flex; gap: 8px; }
+.alert-row .pop-field { flex: 1; width: auto; min-width: 0; }
+.alert-set {
+  min-width: 64px; height: 38px; border: 0; border-radius: 6px;
+  background: var(--accent); color: var(--accent-ink);
+  font-size: .86rem; font-weight: 600;
+}
+.alert-set:hover { filter: brightness(1.08); }
+.alert-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; margin-top: -4px; font-size: .8rem; color: var(--muted); }
+.alert-link { padding: 4px 0; border: 0; background: none; font-size: .8rem; font-weight: 600; color: var(--accent); }
 
 /* Sections */
 .section { display: grid; gap: 10px; }
@@ -476,11 +500,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     </div>
     <div class="rateline">
       <span class="rate-main" id="rateMain">Waiting for rates</span>
+      <button class="bell" id="alertBtn" type="button" aria-expanded="false" aria-controls="alertMenu" aria-label="Set a rate alert" hidden>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path class="bell-body" d="M8 2.2a3.6 3.6 0 0 0-3.6 3.6v2.4L3 10.8h10L11.6 8.2V5.8A3.6 3.6 0 0 0 8 2.2Z"/><path d="M6.5 12.8a1.6 1.6 0 0 0 3 0"/></svg>
+      </button>
       <span class="rate-sub" id="rateSub"></span>
       <div class="fee" id="feeBox">
         <button class="fee-btn" id="feeBtn" type="button" aria-expanded="false" aria-controls="feeMenu">No fee</button>
-        <div class="fee-menu" id="feeMenu" role="group" aria-label="Bank or card fee" hidden>
-          <p class="fee-label">Bank or card fee</p>
+        <div class="pop fee-menu" id="feeMenu" role="group" aria-label="Bank or card fee" hidden>
+          <p class="pop-label">Bank or card fee</p>
           <div class="fee-opts" id="feeOpts">
             <button type="button" data-fee="0">None</button>
             <button type="button" data-fee="1">1%</button>
@@ -489,8 +516,20 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
           </div>
           <label class="fee-custom">
             <span>Custom</span>
-            <span class="fee-field" id="feeField"><input id="feeCustom" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0" aria-label="Custom fee in percent"><span aria-hidden="true">%</span></span>
+            <span class="pop-field" id="feeField"><input id="feeCustom" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0" aria-label="Custom fee in percent"><span aria-hidden="true">%</span></span>
           </label>
+        </div>
+      </div>
+      <div class="pop alert-menu" id="alertMenu" role="group" aria-label="Rate alert" hidden>
+        <p class="pop-label" id="alertLabel">Notify me when 1 USD reaches</p>
+        <div class="alert-row">
+          <span class="pop-field"><input id="alertTarget" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="Target rate"><span id="alertCode" aria-hidden="true">EUR</span></span>
+          <button class="alert-set" id="alertSet" type="button">Set</button>
+        </div>
+        <div class="alert-foot">
+          <span id="alertHint" aria-live="polite"></span>
+          <button class="alert-link" id="alertRemove" type="button" hidden>Remove</button>
+          <button class="alert-link" id="alertAllow" type="button" hidden>Allow</button>
         </div>
       </div>
     </div>
@@ -749,6 +788,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     fitAll();
     store.set('amount', { side: src, value: field(src).value });
     announce();
+    tellAppPair();
   }
 
   let announceTimer = 0;
@@ -773,6 +813,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 
   function renderRateLine() {
     renderFee();
+    renderBell();
     const r = rate(state.from, state.to);
     const main = $('rateMain'), sub = $('rateSub');
     if (!Number.isFinite(r)) {
@@ -804,6 +845,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     renderAll();
   }
   function openFee() {
+    closeAlert();
     renderFee();
     $('feeMenu').hidden = false;
     $('feeBtn').setAttribute('aria-expanded', 'true');
@@ -822,6 +864,75 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     renderFee();
     if (refocus) $('feeBtn').focus();
     toApp({ type: 'picker', open: false });
+  }
+
+  // ---- rate alerts (in the app only) ----
+  // The app keeps the alerts and checks them in the background; the page
+  // holds a copy for the bell and the panel. One alert per pair, on the
+  // mid-market rate; its direction comes from the target vs the rate now.
+  let alerts = [], notifyOn = true;
+  const alertFor = (from, to) => alerts.find(a => a.from === from && a.to === to);
+  function renderBell() {
+    const a = alertFor(state.from, state.to);
+    $('alertBtn').classList.toggle('on', !!a);
+    $('alertBtn').setAttribute('aria-label', a ? `Rate alert at ${fmtRate(a.target)} ${state.to}. Change` : 'Set a rate alert');
+  }
+  function renderAlertHint() {
+    const r = rate(state.from, state.to), a = alertFor(state.from, state.to);
+    const t = parseNumber($('alertTarget').value.trim());
+    let text = '';
+    if (!notifyOn) text = 'Notifications are off';
+    else if (Number.isFinite(t) && t > 0 && Number.isFinite(r)) {
+      const diff = (t / r - 1) * 100;
+      const where = Math.abs(diff) < 0.01 ? "That's the rate now" : `${fmtPct(Math.abs(diff))}% ${diff > 0 ? 'above' : 'below'} now`;
+      text = a && Math.abs(t / a.target - 1) < 1e-9 ? `Set · ${where.toLowerCase()}` : where;
+    } else if (Number.isFinite(r)) text = `Now ${fmtRate(r)}`;
+    $('alertHint').textContent = text;
+    $('alertAllow').hidden = notifyOn;
+    $('alertRemove').hidden = !notifyOn || !a;
+  }
+  function openAlert() {
+    closeFee();
+    const a = alertFor(state.from, state.to), r = rate(state.from, state.to);
+    $('alertLabel').textContent = `Notify me when 1 ${state.from} reaches`;
+    $('alertCode').textContent = state.to;
+    $('alertTarget').value = a ? fmtRate(a.target) : (Number.isFinite(r) ? fmtRate(r) : '');
+    renderAlertHint();
+    $('alertMenu').hidden = false;
+    $('alertBtn').setAttribute('aria-expanded', 'true');
+    if (!reduceMotion.matches && $('alertMenu').animate) {
+      $('alertMenu').animate(
+        [{ opacity: 0, transform: 'translateY(-4px) scale(.98)' }, { opacity: 1, transform: 'none' }],
+        { duration: 140, easing: 'ease-out' },
+      );
+    }
+    $('alertTarget').focus();
+    $('alertTarget').select();
+    toApp({ type: 'picker', open: true });
+  }
+  function closeAlert(refocus) {
+    if ($('alertMenu').hidden) return;
+    $('alertMenu').hidden = true;
+    $('alertBtn').setAttribute('aria-expanded', 'false');
+    if (refocus) $('alertBtn').focus();
+    toApp({ type: 'picker', open: false });
+  }
+  function setAlert() {
+    const t = parseNumber($('alertTarget').value.trim()), r = rate(state.from, state.to);
+    if (!(t > 0) || !Number.isFinite(r) || Math.abs(t / r - 1) < 1e-4) return $('alertTarget').focus();
+    const alert = { from: state.from, to: state.to, target: t, above: t > r };
+    alerts = [...alerts.filter(a => a.from !== alert.from || a.to !== alert.to), alert];
+    toApp({ type: 'setAlert', ...alert });
+    haptic();
+    closeAlert(true);
+    renderBell();
+  }
+  function removeAlert() {
+    alerts = alerts.filter(a => a.from !== state.from || a.to !== state.to);
+    toApp({ type: 'removeAlert', from: state.from, to: state.to });
+    haptic('tick');
+    closeAlert(true);
+    renderBell();
   }
 
   // "14:05" today, otherwise "2 Nov, 14:05".
@@ -1063,7 +1174,6 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     renderRateLine();
     renderStatus();
     renderQuick();
-    tellAppPair();
   }
 
   // ---- Android app bridge (absent in a browser) ----
@@ -1085,7 +1195,9 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     clearTimeout(pairTimer);
     pairTimer = setTimeout(() => {
       const r = rate(state.from, state.to);
-      if (Number.isFinite(r)) toApp({ type: 'pair', from: state.from, to: state.to, fee: state.fee, rate: r, updatedAt: state.updatedAt });
+      // The home-screen widget shows the "You have" amount (1 shows the plain rate).
+      const amount = evaluate(field('from').value).value;
+      if (Number.isFinite(r)) toApp({ type: 'pair', from: state.from, to: state.to, fee: state.fee, rate: r, updatedAt: state.updatedAt, amount: amount > 0 ? amount : 1 });
     }, 400);
   }
   if (app) {
@@ -1108,6 +1220,20 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
         if (m.state === 'available') return markUpdateReady();
         showVersion(m.state === 'latest' ? 'Up to date' : "Couldn't check");
         versionTimer = setTimeout(() => showVersion(`v${appVersion}`), 2500);
+      } else if (m.type === 'alerts') {
+        alerts = Array.isArray(m.list) ? m.list.filter(a => a && isKnown(a.from) && isKnown(a.to) && a.target > 0) : [];
+        notifyOn = m.notify !== false;
+        renderBell();
+        if (!$('alertMenu').hidden) renderAlertHint();
+      } else if (m.type === 'showPair') {
+        // Opened from an alert's notification.
+        if (isKnown(m.from) && isKnown(m.to) && m.from !== m.to) {
+          state.from = m.from;
+          state.to = m.to;
+          savePair();
+          renderAll();
+          renderTrend();
+        }
       } else if (m.type === 'update') {
         if (m.state === 'available') markUpdateReady();
         showUpdate(m);
@@ -1118,6 +1244,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       toApp({ type: 'installUpdate' });
     });
     $('updateLater').addEventListener('click', () => { $('updateCard').hidden = true; });
+    $('alertBtn').hidden = false;
     // Tapping the version checks for updates; once one is known it reopens the card.
     $('version').addEventListener('click', () => {
       if (updateReady && $('updateCard').hidden) {
@@ -1295,12 +1422,21 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   $('feeCustom').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); closeFee(true); } });
   $('feeCustom').addEventListener('blur', renderFee);
   $('feeMenu').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeFee(true); } });
+  $('alertBtn').addEventListener('click', () => ($('alertMenu').hidden ? openAlert() : closeAlert()));
+  $('alertTarget').addEventListener('input', renderAlertHint);
+  $('alertTarget').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); setAlert(); } });
+  $('alertSet').addEventListener('click', setAlert);
+  $('alertRemove').addEventListener('click', removeAlert);
+  $('alertAllow').addEventListener('click', () => toApp({ type: 'notificationSettings' }));
+  $('alertMenu').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeAlert(true); } });
   document.addEventListener('pointerdown', e => {
     if (!$('feeMenu').hidden && !$('feeBox').contains(e.target)) closeFee();
+    if (!$('alertMenu').hidden && !$('alertMenu').contains(e.target) && !$('alertBtn').contains(e.target)) closeAlert();
   });
   // The app's Back gesture calls this first: it closes whichever menu is open.
   window.bureauBack = () => {
     if (!$('feeMenu').hidden) { closeFee(); return true; }
+    if (!$('alertMenu').hidden) { closeAlert(); return true; }
     if (dlg.open) { dlg.close(); return true; }
     return false;
   };
