@@ -322,21 +322,6 @@ button { cursor: pointer; }
 }
 .empty { padding: 16px 0; font-size: .88rem; color: var(--muted); }
 
-/* Also in: the amount in your other recent currencies */
-.also { display: grid; }
-.also button {
-  display: grid; grid-template-columns: 3.4em minmax(0, 1fr) auto; align-items: center; gap: 10px;
-  min-height: 48px; padding: 0 2px;
-  background: none; border: 0; border-top: 1px solid var(--line);
-  text-align: left;
-}
-.also button:last-child { border-bottom: 1px solid var(--line); }
-.also .c { font-weight: 600; letter-spacing: .01em; }
-.also .n { font-size: .86rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.also .v { font-weight: 500; white-space: nowrap; }
-.also button:hover .v { color: var(--accent); }
-.also button:active { background: var(--accent-soft); }
-
 /* Quick amounts */
 .quick { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .quick-col { display: grid; min-width: 0; }
@@ -510,11 +495,6 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       </div>
     </div>
     <p class="sr-only" id="announce" aria-live="polite"></p>
-  </section>
-
-  <section class="section" id="alsoSection" hidden>
-    <div class="section-head"><h2>Also in</h2></div>
-    <div class="also" id="also"></div>
   </section>
 
   <section class="section" id="trendSection">
@@ -741,41 +721,6 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     fitAll();
     store.set('amount', { side: src, value: field(src).value });
     announce();
-    renderAlso();
-  }
-
-  // The "You have" amount in up to four other recently used currencies.
-  function renderAlso() {
-    const codes = state.recent.filter(c => c !== state.from && c !== state.to && state.rates && state.rates[c]).slice(0, 4);
-    $('alsoSection').hidden = codes.length === 0;
-    if (!codes.length) return;
-    const amount = evaluate(field('from').value).value;
-    const rows = codes.map(code => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      const r = effectiveRate(state.from, code);
-      const value = Number.isFinite(amount) && amount >= 0 && Number.isFinite(r) ? fmtMoney(amount * r, code) : '–';
-      for (const [cls, text] of [['c', code], ['n', nameOf(code)], ['v', value]]) {
-        const s = document.createElement('span');
-        s.className = cls;
-        s.textContent = text;
-        b.append(s);
-      }
-      b.setAttribute('aria-label', `${value} in ${nameOf(code)}. Convert to ${nameOf(code)}`);
-      b.addEventListener('click', () => {
-        haptic();
-        const previous = state.to;
-        state.to = code;
-        state.recent = [previous, ...state.recent.filter(c => c !== previous)].slice(0, 5);
-        store.set('recent', state.recent);
-        state.edited = 'from';
-        savePair();
-        renderAll();
-        renderTrend();
-      });
-      return b;
-    });
-    $('also').replaceChildren(...rows);
   }
 
   let announceTimer = 0;
@@ -1372,7 +1317,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const li = document.createElement('li');
     li.className = 'group';
     li.textContent = label;
-    return [li, ...codes.map(itemButton)];
+    return [li, ...codes.map(code => itemButton(code))];
   }
   function renderPickerList(q) {
     const list = $('pickerList');

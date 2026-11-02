@@ -2,7 +2,11 @@
 // merging. No DOM and no app state, so the same file runs in the page and
 // under `node --test tests/` in CI.
 (function (root) {
-  const CRYPTO = { BTC: 'Bitcoin', ETH: 'Ether', SOL: 'Solana' };
+  // The most traded coins, in market order; Coinbase quotes them all live.
+  const CRYPTO = {
+    BTC: 'Bitcoin', ETH: 'Ethereum', USDT: 'Tether', XRP: 'XRP', BNB: 'BNB',
+    SOL: 'Solana', USDC: 'USD Coin', DOGE: 'Dogecoin', ADA: 'Cardano', LTC: 'Litecoin',
+  };
 
   function fractionDigits(code) {
     if (CRYPTO[code]) return 8;
