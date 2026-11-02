@@ -47,8 +47,10 @@ class MainActivity : ComponentActivity() {
         const val BRIDGE_NAME = "bureauApp"
         const val CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
 
+        // The page's bureauBack() closes the fee menu or the currency picker,
+        // whichever is open, and says whether it closed anything.
         const val CLOSE_PICKER_JS =
-            "(() => { const d = document.querySelector('dialog[open]'); if (d) { d.close(); return true; } return false; })()"
+            "(() => typeof bureauBack === 'function' && bureauBack() === true)()"
     }
 
     private lateinit var web: WebView
@@ -59,8 +61,9 @@ class MainActivity : ComponentActivity() {
     private var pendingUpdate: UpdateManager.UpdateInfo? = null
     private var installing = false
 
-    // With the bridge, Back is only intercepted while the currency picker is
-    // open, so the system's predictive back gesture works everywhere else.
+    // With the bridge, Back is only intercepted while the currency picker or
+    // fee menu is open (the page's "picker" message), so the system's
+    // predictive back gesture works everywhere else.
     private val closePicker = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             web.evaluateJavascript(CLOSE_PICKER_JS, null)

@@ -38,6 +38,7 @@
   --down: #B0392D;
   --warn: #8F5D08;
   --backdrop: rgba(10, 16, 14, .4);
+  --shadow: rgba(20, 33, 28, .12);
   --font: "Hanken Grotesk", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
   color-scheme: light;
 }
@@ -56,6 +57,7 @@
     --down: #F08476;
     --warn: #E0AA48;
     --backdrop: rgba(0, 0, 0, .6);
+    --shadow: rgba(0, 0, 0, .45);
     color-scheme: dark;
   }
 }
@@ -73,6 +75,7 @@
   --down: #F08476;
   --warn: #E0AA48;
   --backdrop: rgba(0, 0, 0, .6);
+  --shadow: rgba(0, 0, 0, .45);
   color-scheme: dark;
 }
 
@@ -238,21 +241,53 @@ button { cursor: pointer; }
   display: flex; align-items: center;
   color: var(--muted);
 }
-.fee select {
-  appearance: none; -webkit-appearance: none;
+.fee-btn {
+  position: relative;
   min-height: 44px; padding: 0 30px 0 12px;
   border: 0; border-radius: 4px; background: transparent;
   font-size: .86rem; color: inherit;
 }
-.fee select:hover { color: var(--ink); }
-.fee select.on { color: var(--accent); font-weight: 600; }
-.fee::after {
+.fee-btn:hover { color: var(--ink); }
+.fee-btn.on { color: var(--accent); font-weight: 600; }
+.fee-btn::after {
   content: ""; position: absolute; right: 14px; top: 50%; pointer-events: none;
   width: 5px; height: 5px; margin-top: -4px;
   border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg);
+  transform: rotate(45deg); transition: transform .15s;
 }
-.fee option { color: var(--ink); background: var(--surface); }
+.fee-btn[aria-expanded="true"]::after { transform: translateY(3px) rotate(-135deg); }
+/* Fee menu: a small panel under the button. Presets in one row, then a custom field. */
+.fee-menu {
+  position: absolute; top: calc(100% - 4px); right: 4px; z-index: 10;
+  width: 232px; padding: 12px;
+  display: grid; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 10px 28px var(--shadow);
+  color: var(--ink);
+}
+.fee-label { margin: 0; font-size: .78rem; font-weight: 500; color: var(--muted); }
+.fee-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 3px; border-radius: 7px; background: var(--bg); }
+.fee-opts button {
+  min-height: 38px; border: 0; border-radius: 5px; background: none;
+  font-size: .86rem; color: var(--muted);
+}
+.fee-opts button:hover { color: var(--ink); }
+.fee-opts button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+.fee-custom { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: .86rem; color: var(--muted); }
+.fee-field {
+  display: flex; align-items: center; gap: 4px;
+  width: 92px; height: 38px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
+  color: var(--muted);
+}
+.fee-field:focus-within, .fee-field.on { border-color: var(--accent); }
+.fee-field input {
+  flex: 1; min-width: 0; padding: 0;
+  border: 0; background: none; outline: none;
+  text-align: right; font-size: .9rem; font-weight: 500; color: var(--ink);
+  caret-color: var(--accent);
+}
+.fee-field input::placeholder { color: var(--faint); font-weight: 400; }
 
 /* Sections */
 .section { display: grid; gap: 10px; }
@@ -457,20 +492,22 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     <div class="rateline">
       <span class="rate-main" id="rateMain">Waiting for rates</span>
       <span class="rate-sub" id="rateSub"></span>
-      <label class="fee">
-        <span class="sr-only">Bank or card fee</span>
-        <select id="fee">
-          <option value="0">No fee</option>
-          <option value="0.5">0.5% fee</option>
-          <option value="1">1% fee</option>
-          <option value="1.5">1.5% fee</option>
-          <option value="2">2% fee</option>
-          <option value="2.5">2.5% fee</option>
-          <option value="3">3% fee</option>
-          <option value="4">4% fee</option>
-          <option value="5">5% fee</option>
-        </select>
-      </label>
+      <div class="fee" id="feeBox">
+        <button class="fee-btn" id="feeBtn" type="button" aria-expanded="false" aria-controls="feeMenu">No fee</button>
+        <div class="fee-menu" id="feeMenu" role="group" aria-label="Bank or card fee" hidden>
+          <p class="fee-label">Bank or card fee</p>
+          <div class="fee-opts" id="feeOpts">
+            <button type="button" data-fee="0">None</button>
+            <button type="button" data-fee="1">1%</button>
+            <button type="button" data-fee="2">2%</button>
+            <button type="button" data-fee="3">3%</button>
+          </div>
+          <label class="fee-custom">
+            <span>Custom</span>
+            <span class="fee-field" id="feeField"><input id="feeCustom" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0" aria-label="Custom fee in percent"><span aria-hidden="true">%</span></span>
+          </label>
+        </div>
+      </div>
     </div>
     <p class="sr-only" id="announce" aria-live="polite"></p>
   </section>
@@ -762,6 +799,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   const fitAll = () => { fit(field('from')); fit(field('to')); };
 
   function renderRateLine() {
+    renderFee();
     const r = rate(state.from, state.to);
     const main = $('rateMain'), sub = $('rateSub');
     if (!Number.isFinite(r)) {
@@ -773,8 +811,44 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const eff = effectiveRate(state.from, state.to);
     main.innerHTML = `1 ${state.from} = <b>${fmtRate(eff)}</b> ${state.to}`;
     sub.textContent = state.fee ? `Mid-market ${fmtRate(r)}` : `1 ${state.to} = ${fmtRate(1 / r)} ${state.from}`;
-    $('fee').value = String(state.fee);
-    $('fee').classList.toggle('on', state.fee > 0);
+  }
+
+  // ---- fee menu ----
+  const FEE_PRESETS = [0, 1, 2, 3];
+  const MAX_FEE = 20;
+  const fmtPct = n => new Intl.NumberFormat(fmtLocale, { maximumFractionDigits: 2 }).format(n);
+  function renderFee() {
+    $('feeBtn').textContent = state.fee ? `${fmtPct(state.fee)}% fee` : 'No fee';
+    $('feeBtn').classList.toggle('on', state.fee > 0);
+    const custom = !FEE_PRESETS.includes(state.fee);
+    for (const b of $('feeOpts').children) b.setAttribute('aria-pressed', String(Number(b.dataset.fee) === state.fee));
+    $('feeField').classList.toggle('on', custom);
+    if (document.activeElement !== $('feeCustom')) $('feeCustom').value = custom ? fmtPct(state.fee) : '';
+  }
+  function setFee(n) {
+    state.fee = Math.round(n * 100) / 100;
+    store.set('fee', state.fee);
+    renderAll();
+  }
+  function openFee() {
+    renderFee();
+    $('feeMenu').hidden = false;
+    $('feeBtn').setAttribute('aria-expanded', 'true');
+    if (!reduceMotion.matches && $('feeMenu').animate) {
+      $('feeMenu').animate(
+        [{ opacity: 0, transform: 'translateY(-4px) scale(.98)' }, { opacity: 1, transform: 'none' }],
+        { duration: 140, easing: 'ease-out' },
+      );
+    }
+    toApp({ type: 'picker', open: true });
+  }
+  function closeFee(refocus) {
+    if ($('feeMenu').hidden) return;
+    $('feeMenu').hidden = true;
+    $('feeBtn').setAttribute('aria-expanded', 'false');
+    renderFee();
+    if (refocus) $('feeBtn').focus();
+    toApp({ type: 'picker', open: false });
   }
 
   // "14:05" today, otherwise "2 Nov, 14:05".
@@ -1227,11 +1301,31 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     $('status').textContent = 'Checking…';
     loadRates();
   });
-  $('fee').addEventListener('change', e => {
-    state.fee = Number(e.target.value) || 0;
-    store.set('fee', state.fee);
-    renderAll();
+  $('feeBtn').addEventListener('click', () => ($('feeMenu').hidden ? openFee() : closeFee()));
+  $('feeOpts').addEventListener('click', e => {
+    const b = e.target.closest('button[data-fee]');
+    if (!b) return;
+    haptic('tick');
+    setFee(Number(b.dataset.fee));
+    closeFee(true);
   });
+  // A custom fee applies as you type; Done or Enter closes the menu.
+  $('feeCustom').addEventListener('input', e => {
+    const n = e.target.value.trim() ? parseNumber(e.target.value.replace('%', '').trim()) : 0;
+    if (Number.isFinite(n) && n >= 0 && n <= MAX_FEE) setFee(n);
+  });
+  $('feeCustom').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); closeFee(true); } });
+  $('feeCustom').addEventListener('blur', renderFee);
+  $('feeMenu').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeFee(true); } });
+  document.addEventListener('pointerdown', e => {
+    if (!$('feeMenu').hidden && !$('feeBox').contains(e.target)) closeFee();
+  });
+  // The app's Back gesture calls this first: it closes whichever menu is open.
+  window.bureauBack = () => {
+    if (!$('feeMenu').hidden) { closeFee(); return true; }
+    if (dlg.open) { dlg.close(); return true; }
+    return false;
+  };
   $('range').addEventListener('click', e => {
     const b = e.target.closest('button[data-days]');
     if (!b || Number(b.dataset.days) === state.days) return;
