@@ -837,7 +837,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     $('quick').replaceChildren(quickColumn(state.from, state.to), quickColumn(state.to, state.from));
   }
 
-  // ---- trend (ECB reference rates, fiat only) ----
+  // ---- trend ----
   // Trend series are kept on the device (the last few pairs and ranges), so
   // the chart draws at once on launch and refreshes quietly behind it.
   const trendCache = new Map(Object.entries(store.get('trend') || {}).filter(([, e]) => e && Array.isArray(e.series)));
@@ -856,34 +856,68 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const token = ++trendToken;
     const { from, to, days } = state;
     renderRange();
-    if (CRYPTO[from] || CRYPTO[to]) return showTrendEmpty('The ECB only publishes rates for national currencies, so there is no trend for crypto.');
     const key = `${from}${to}${days}`;
     let entry = trendCache.get(key);
-    if (entry && entry.series.length >= 2) drawTrend(entry.series, key);
-    if (!entry || Date.now() - entry.at > TREND_TTL_MS) {
-      if (!entry) $('trend').classList.add('loading');
-      const end = new Date(), start = new Date(end - (days + 1) * 864e5);
+    const usable = entry && entry.series.length >= 2;
+    if (usable) drawTrend(entry.series, key);
+    if (usable && Date.now() - entry.at < TREND_TTL_MS) return;
+    if (!usable) $('trend').classList.add('loading');
+    try {
+      entry = { at: Date.now(), series: await fetchSeries(from, to, days) };
+      saveTrend(key, entry);
+    } catch {
+      if (token !== trendToken) return;
+      trendFailed = true;
+      if (usable) return; // keep showing the saved chart
+      return showTrendEmpty("Couldn't load the trend. It will try again with the next rate update.");
+    }
+    if (token !== trendToken) return;
+    trendFailed = false;
+    if (entry.series.length < 2) return showTrendEmpty(`No history yet for ${from} → ${to}.`);
+    drawTrend(entry.series, key);
+  }
+
+  // Daily ECB reference rates where they exist (one request, every working
+  // day). Crypto and the currencies the ECB doesn't cover come from daily
+  // snapshots of all rates instead, sampled across the range.
+  async function fetchSeries(from, to, days) {
+    if (!CRYPTO[from] && !CRYPTO[to]) {
+      const start = new Date(Date.now() - (days + 1) * 864e5);
       try {
         const json = await getJSON(`${TREND_URL}${start.toISOString().slice(0, 10)}..?base=${from}&symbols=${to}`);
         const series = Object.entries(json.rates || {}).map(([d, v]) => [d, v[to]]).filter(p => Number.isFinite(p[1]));
-        entry = { at: Date.now(), series };
-        saveTrend(key, entry);
+        if (series.length >= 2) return series;
       } catch (e) {
-        if (token !== trendToken) return;
-        const noData = e.status === 404 || e.status === 422;
-        trendFailed = !noData;
-        if (entry && !noData) return; // keep showing the saved chart
-        return showTrendEmpty(noData
-          ? `The ECB doesn't publish reference rates for ${from} → ${to}.`
-          : "Couldn't load the trend. It will try again with the next rate update.");
+        if (e.status !== 404 && e.status !== 422) throw e;
       }
-      if (token !== trendToken) return;
-      trendFailed = false;
-      if (entry.series.length < 2) return showTrendEmpty(`The ECB doesn't publish reference rates for ${from} → ${to}.`);
-      drawTrend(entry.series, key);
-    } else if (entry.series.length < 2) {
-      showTrendEmpty(`The ECB doesn't publish reference rates for ${from} → ${to}.`);
     }
+    const dates = BureauLib.sampleDates(days, new Date());
+    const snaps = await Promise.all(dates.map(d => dayRates(d).catch(() => null)));
+    if (!snaps.some(Boolean)) throw new Error('No snapshots');
+    return BureauLib.crossSeries(dates, snaps, from, to);
+  }
+  // Past days never change, so each day's file is fetched once and kept in
+  // the browser cache; two mirrors of the same files.
+  const SNAPSHOT_URLS = [
+    d => `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${d}/v1/currencies/usd.min.json`,
+    d => `https://${d}.currency-api.pages.dev/v1/currencies/usd.min.json`,
+  ];
+  const dayCache = new Map();
+  function dayRates(date) {
+    if (!dayCache.has(date)) {
+      const load = (async () => {
+        for (const url of SNAPSHOT_URLS) {
+          try {
+            const res = await fetch(url(date), { cache: 'force-cache', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+            if (res.ok) return await res.json();
+          } catch {}
+        }
+        throw new Error('Snapshot unavailable');
+      })();
+      load.catch(() => dayCache.delete(date));
+      dayCache.set(date, load);
+    }
+    return dayCache.get(date);
   }
   // A new pair or range fades in; a quiet refresh of the same chart doesn't.
   let drawnKey = '';

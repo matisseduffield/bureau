@@ -144,7 +144,34 @@
     return null;
   }
 
-  const lib = { CRYPTO, fractionDigits, amountOpts, parseNumber, evaluate, mergeRates, regionsOf, REGION_ALIASES, searchScore };
+  // Days to sample for a trend drawn from daily snapshots (one file per day):
+  // every day for a week, every other day for a month, fortnightly for a
+  // year. Ends yesterday (UTC), the newest day with a complete file.
+  function sampleDates(days, now) {
+    const step = days <= 7 ? 1 : days <= 31 ? 2 : 14;
+    const end = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - 864e5;
+    const out = [];
+    for (let back = days - (days % step); back >= 0; back -= step) {
+      out.push(new Date(end - back * 864e5).toISOString().slice(0, 10));
+    }
+    return out;
+  }
+
+  // [date, rate] pairs from per-day snapshots of units per 1 USD (lowercase
+  // codes, as the snapshot files use). Days missing either currency are skipped.
+  function crossSeries(dates, snapshots, from, to) {
+    const out = [];
+    const per = (usd, code) => (code === 'USD' ? 1 : usd[code.toLowerCase()]);
+    dates.forEach((date, i) => {
+      const usd = snapshots[i] && snapshots[i].usd;
+      if (!usd) return;
+      const a = per(usd, from), b = per(usd, to);
+      if (a > 0 && b > 0) out.push([date, b / a]);
+    });
+    return out;
+  }
+
+  const lib = { CRYPTO, fractionDigits, amountOpts, parseNumber, evaluate, mergeRates, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);

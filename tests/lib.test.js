@@ -60,6 +60,26 @@ test('formatting follows each currency\'s decimals', () => {
   assert.deepEqual(amountOpts(0.0012, 'BTC'), { maximumSignificantDigits: 6 });
 });
 
+test('trend sampling covers the range and ends yesterday', () => {
+  const { sampleDates, crossSeries } = require('../web/lib.js');
+  const now = new Date('2026-11-02T09:00:00Z');
+  const week = sampleDates(7, now);
+  assert.equal(week.length, 8);
+  assert.equal(week[0], '2026-10-25');
+  assert.equal(week.at(-1), '2026-11-01');
+  const month = sampleDates(30, now);
+  assert.equal(month.length, 16);
+  assert.equal(month[0], '2026-10-02');
+  const year = sampleDates(365, now);
+  assert.equal(year.at(-1), '2026-11-01');
+  assert.ok(year.length >= 26 && year.length <= 28);
+  assert.deepEqual([...year].sort(), year);
+
+  const snaps = [{ usd: { eur: 0.9, btc: 0.00001 } }, null, { usd: { eur: 0.8 } }];
+  assert.deepEqual(crossSeries(['d1', 'd2', 'd3'], snaps, 'BTC', 'EUR'), [['d1', 90000]]);
+  assert.deepEqual(crossSeries(['d1', 'd2', 'd3'], snaps, 'USD', 'EUR'), [['d1', 0.9], ['d3', 0.8]]);
+});
+
 test('currencies can be found by country', () => {
   const { regionsOf, searchScore, REGION_ALIASES } = require('../web/lib.js');
   assert.deepEqual(regionsOf('JPY'), ['JP']);
