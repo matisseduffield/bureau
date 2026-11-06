@@ -18,7 +18,8 @@ the Android app in `app/` wraps it in a WebView and adds self-updates.
 - Remembers the pair, amount, fee and trend range; light and dark themes
 - Home-screen widget with the converter's amount (or the plain rate) for the current pair
   (refreshes every 30 minutes and whenever the app is used)
-- Works offline from the first launch: release builds bundle a rates snapshot (`web/snapshot.json`, generated in CI)
+- Works offline once it has rates, which it saves on the device; a first launch with no signal says so and
+  fills in when the connection returns
 - Hanken Grotesk is bundled in `web/fonts/` (SIL OFL) so the app looks the same offline
 
 ## Run the page

@@ -237,6 +237,10 @@ button { cursor: pointer; }
 .rate-main { color: var(--ink); }
 .rate-main b { font-weight: 600; }
 .rate-sub { color: var(--muted); }
+.credit { margin: 0; padding: 0 22px 12px; font-size: .74rem; color: var(--muted); }
+.credit a, .foot a { color: inherit; }
+.foot { font-size: .8rem; color: var(--muted); }
+.foot a { display: inline-block; padding: 10px 8px 10px 0; }
 .fee {
   margin-left: auto; position: relative;
   display: flex; align-items: center;
@@ -534,6 +538,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       </div>
     </div>
     <p class="sr-only" id="announce" aria-live="polite"></p>
+    <p class="credit"><a href="https://www.exchangerate-api.com" rel="noreferrer">Rates By Exchange Rate API</a></p>
   </section>
 
   <section class="section" id="trendSection">
@@ -554,6 +559,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     <div class="quick" id="quick"></div>
   </section>
 
+  <footer class="foot"><a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy</a></footer>
 </main>
 
 <div class="ops" id="ops" hidden>
@@ -785,6 +791,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     let out = NaN;
     if (Number.isFinite(value) && value >= 0 && Number.isFinite(r)) out = src === 'from' ? value * r : value / r;
     field(dst).value = fmtAmount(out, state[dst]);
+    // With no rate there's no answer yet, and a 0 would read like one.
+    field('from').placeholder = field('to').placeholder = Number.isFinite(r) ? '0' : '–';
     fitAll();
     store.set('amount', { side: src, value: field(src).value });
     announce();
@@ -1312,21 +1320,6 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     }
   }
 
-  // Rates bundled into the app at release time, so a first launch with no
-  // signal still converts. Missing in the browser build, which is fine.
-  async function loadSnapshot() {
-    if (state.rates) return;
-    try {
-      const json = await getJSON('snapshot.json');
-      if (json.result !== 'success' || !json.rates || !json.rates.EUR || state.rates) return;
-      const snap = { rates: json.rates, updatedAt: json.time_last_update_unix * 1000, fetchedAt: 0 };
-      if (!daily) daily = snap;
-      Object.assign(state, { rates: mergeRates(null, snap.rates), updatedAt: snap.updatedAt, source: 'daily' });
-      buildCurrencyList();
-      renderAll();
-    } catch {}
-  }
-
   // ---- interactions ----
   for (const side of ['from', 'to']) {
     const input = field(side);
@@ -1589,7 +1582,6 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   renderAll();
   renderTrend();
   toApp({ type: 'hello' });
-  loadSnapshot();
   loadRates();
   setInterval(() => { if (!document.hidden) loadRates(); }, REFRESH_MS);
   setInterval(renderStatus, 15_000);
