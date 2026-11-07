@@ -120,7 +120,7 @@ jobs:
           {
             echo "# Bureau releases"
             echo
-            echo "Signed Android builds of Bureau, a currency converter. Installed"
+            echo "Signed Android builds of Bureau, a live currency converter. Installed"
             echo "copies update themselves from here."
             echo
             echo "**[Download Bureau $VERSION_NAME]($RAW/Bureau.apk)**"

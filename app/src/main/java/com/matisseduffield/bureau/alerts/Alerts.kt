@@ -18,19 +18,18 @@ import org.json.JSONObject
 
 /**
  * Rate alerts: "tell me when 1 EUR reaches 0.85 GBP". At most one per pair,
- * kept in SharedPreferences and checked by [AlertJob] about every hour while
- * any exist. The rate is a daily one, so a move and reversal within a day isn't
- * seen. An alert fires once, as a notification, then is removed.
+ * kept in SharedPreferences and checked by [AlertJob] about every 30 minutes
+ * while any exist. An alert fires once, as a notification, then is removed.
  */
 object Alerts {
     private const val PREFS = "alerts"
     private const val JOB_ID = 1
     private const val CHANNEL = "rate_alerts"
-    private const val CHECK_EVERY_MS = 60 * 60 * 1000L
+    private const val CHECK_EVERY_MS = 30 * 60 * 1000L
     const val EXTRA_FROM = "alert_from"
     const val EXTRA_TO = "alert_to"
 
-    /** Fires when the plain daily rate is at or past [target], going the way [above] says. */
+    /** Fires when the plain rate is at or past [target], going the way [above] says. */
     data class Alert(val from: String, val to: String, val target: Double, val above: Boolean)
 
     fun load(context: Context): List<Alert> {
@@ -85,7 +84,7 @@ object Alerts {
         }
     }
 
-    fun notify(context: Context, alert: Alert, rate: String, target: String, day: String) {
+    fun notify(context: Context, alert: Alert, rate: String, target: String) {
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL, context.getString(R.string.alerts_channel), NotificationManager.IMPORTANCE_DEFAULT),
@@ -103,7 +102,7 @@ object Alerts {
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_alert)
             .setContentTitle("1 ${alert.from} = $rate ${alert.to}")
-            .setContentText("Daily rate for $day $way your $target alert")
+            .setContentText("${alert.from} → ${alert.to} $way your $target alert")
             .setContentIntent(open)
             .setAutoCancel(true)
             .build()

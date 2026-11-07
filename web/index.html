@@ -110,7 +110,7 @@ button { cursor: pointer; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: -8px; }
 .brand { display: grid; justify-items: start; }
 .mark { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
-/* How old the rates are, under the name; tap to try again once a refresh is due */
+/* Rates freshness under the name; tap to refresh */
 .status {
   min-height: 28px; margin: -2px 0 0 -6px; padding: 0 6px;
   background: none; border: 0;
@@ -538,7 +538,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
         </div>
       </div>
       <div class="pop alert-menu" id="alertMenu" role="group" aria-label="Rate alert" hidden>
-        <p class="pop-label" id="alertLabel">Notify me when the daily rate for 1 USD reaches</p>
+        <p class="pop-label" id="alertLabel">Notify me when 1 USD reaches</p>
         <div class="alert-row">
           <span class="pop-field"><input id="alertTarget" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="Target rate"><span id="alertCode" aria-hidden="true">EUR</span></span>
           <button class="alert-set" id="alertSet" type="button">Set</button>
@@ -596,15 +596,18 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 (() => {
   const $ = id => document.getElementById(id);
   const locale = navigator.language || 'en-US';
-  // Currencies come from ExchangeRate-API, and from the daily file if it's down.
-  // The ten coins always come from the file, which has two mirrors.
+  // Coinbase's live rates come first, for currencies and the ten coins. ExchangeRate-API's
+  // daily rates check them, and stand in if Coinbase is down; the daily file, which has
+  // two mirrors, stands in behind that and brings the coins.
+  const LIVE_URL = 'https://api.coinbase.com/v2/exchange-rates?currency=USD';
   const DAILY_URL = 'https://open.er-api.com/v6/latest/USD';
   const FILE_URLS = [
     'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json',
     'https://latest.currency-api.pages.dev/v1/currencies/usd.min.json',
   ];
   const TREND_URL = 'https://api.frankfurter.dev/v1/';
-  const REFRESH_MS = 60 * 60_000;
+  const REFRESH_MS = 60_000;
+  const DAILY_REFRESH_MS = 60 * 60_000;
   const FILE_FRESH_MS = 2 * 24 * 60 * 60_000;
   const TREND_TTL_MS = 6 * 60 * 60_000;
   const FETCH_TIMEOUT_MS = 8000;
@@ -662,19 +665,21 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     rates: null,        // units per 1 USD: fiat and coins together
     fiat: null,
     coins: null,
-    fiatAt: 0,          // when each source published these rates
+    fiatAt: 0,          // when each half dates from: now for live rates, else as published
     coinAt: 0,
-    fetchedAt: 0,       // when we last got both, which sets the next refresh
+    source: '',         // 'live' | 'daily'
+    fetchedAt: 0,       // when a refresh last worked
     error: false
   };
   if (state.from === state.to) state.to = state.from === 'USD' ? 'EUR' : 'USD';
-  // Rates saved by older versions came from a source Bureau no longer uses. They aren't kept.
+  let reference = store.get('daily');     // { fiat, updatedAt, fetchedAt }: ExchangeRate-API's, the yardstick
+  if (!reference || !reference.fiat) reference = null;
+  // Rates saved in the older shape aren't kept: the first refresh replaces them.
   const cached = store.get('rates');
   if (cached && cached.v === 2 && cached.fiat && Object.keys(cached.fiat).length) {
-    Object.assign(state, { fiat: cached.fiat, coins: cached.coins || {}, fiatAt: cached.fiatAt || 0, coinAt: cached.coinAt || 0, fetchedAt: cached.fetchedAt || 0 });
+    Object.assign(state, { fiat: cached.fiat, coins: cached.coins || {}, fiatAt: cached.fiatAt || 0, coinAt: cached.coinAt || 0, source: cached.source === 'live' ? 'live' : 'daily', fetchedAt: cached.fetchedAt || 0 });
     state.rates = { ...state.fiat, ...state.coins };
   }
-  try { localStorage.removeItem('bureau.daily'); } catch {}
 
   // ---- numbers ----
   // Pure helpers live in lib.js (tested in CI); these bind them to this locale.
@@ -723,6 +728,17 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       return await res.json();
     } finally { clearTimeout(timer); }
   }
+  async function fetchLive() {
+    const json = await getJSON(LIVE_URL);
+    const out = {};
+    for (const [k, v] of Object.entries((json.data && json.data.rates) || {})) {
+      const n = parseFloat(v);
+      if (n > 0) out[k] = n;
+    }
+    if (!out.EUR) throw new Error('Live rates incomplete');
+    out.USD = 1;
+    return out;
+  }
   async function fetchDaily() {
     return BureauLib.dailyRates(await getJSON(DAILY_URL), isFiat);
   }
@@ -743,26 +759,26 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   async function loadRates() {
     if (loading) return;
     loading = true;
-    const [daily, file] = (await Promise.allSettled([fetchDaily(), fetchFile()])).map(r => (r.status === 'fulfilled' ? r.value : null));
-    const next = BureauLib.combineRates(state, daily, file);
-    state.error = next.offline;
+    const attempt = get => get().catch(() => null);
+    const needDaily = !reference || Date.now() - (reference.fetchedAt || 0) > DAILY_REFRESH_MS;
+    const [live, first] = await Promise.all([attempt(fetchLive), needDaily ? attempt(fetchDaily) : null]);
+    // Without Coinbase, every refresh goes on to the other two.
+    const daily = first || (live || needDaily ? null : await attempt(fetchDaily));
+    if (daily) { reference = { ...daily, fetchedAt: Date.now() }; store.set('daily', reference); }
+    const file = !live || !reference ? await attempt(fetchFile) : null;
+    const yardstick = reference ? reference.fiat : file && file.fiat;
+    const next = live ? BureauLib.liveRates(live, yardstick, isFiat, Date.now()) : BureauLib.combineRates(state, daily, file);
+    state.error = !!next.offline;
     if (!next.offline) {
-      Object.assign(state, { fiat: next.fiat, coins: next.coins || {}, fiatAt: next.fiatAt, coinAt: next.coinAt });
-      if (next.complete) state.fetchedAt = Date.now();
+      const source = live ? 'live' : next.fiatAt > state.fiatAt ? 'daily' : state.source;
+      Object.assign(state, { fiat: next.fiat, coins: next.coins || {}, fiatAt: next.fiatAt, coinAt: next.coinAt, source, fetchedAt: Date.now() });
       state.rates = { ...state.fiat, ...state.coins };
-      store.set('rates', { v: 2, fiat: state.fiat, coins: state.coins, fiatAt: state.fiatAt, coinAt: state.coinAt, fetchedAt: state.fetchedAt });
+      store.set('rates', { v: 2, fiat: state.fiat, coins: state.coins, fiatAt: state.fiatAt, coinAt: state.coinAt, source, fetchedAt: state.fetchedAt });
     }
     loading = false;
     buildCurrencyList();
     renderAll();
     if (trendFailed) renderTrend();
-  }
-  // Rates change once a day, so one fetch an hour is plenty. A failed fetch
-  // leaves this true, so the next open or a tap on the status tries again.
-  const refreshDue = () => Date.now() - state.fetchedAt >= REFRESH_MS;
-  function refreshIfDue() {
-    if (refreshDue()) loadRates();
-    else if (trendFailed) renderTrend();
   }
 
   // ---- currency list ----
@@ -908,7 +924,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // ---- rate alerts (in the app only) ----
   // The app keeps the alerts and checks them in the background; the page
   // holds a copy for the bell and the panel. One alert per pair, on the plain
-  // daily rate; its direction comes from the target vs the latest rate.
+  // rate; its direction comes from the target vs the rate now.
   let alerts = [], notifyOn = true;
   const alertFor = (from, to) => alerts.find(a => a.from === from && a.to === to);
   function renderBell() {
@@ -923,9 +939,9 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     if (!notifyOn) text = 'Notifications are off';
     else if (Number.isFinite(t) && t > 0 && Number.isFinite(r)) {
       const diff = (t / r - 1) * 100;
-      const where = Math.abs(diff) < 0.01 ? "That's the latest rate" : `${fmtPct(Math.abs(diff))}% ${diff > 0 ? 'above' : 'below'} the latest rate`;
+      const where = Math.abs(diff) < 0.01 ? "That's the rate now" : `${fmtPct(Math.abs(diff))}% ${diff > 0 ? 'above' : 'below'} now`;
       text = a && Math.abs(t / a.target - 1) < 1e-9 ? `Set · ${where.toLowerCase()}` : where;
-    } else if (Number.isFinite(r)) text = `Latest ${fmtRate(r)}`;
+    } else if (Number.isFinite(r)) text = `Now ${fmtRate(r)}`;
     $('alertHint').textContent = text;
     $('alertAllow').hidden = notifyOn;
     $('alertRemove').hidden = !notifyOn || !a;
@@ -933,7 +949,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   function openAlert() {
     closeFee();
     const a = alertFor(state.from, state.to), r = rate(state.from, state.to);
-    $('alertLabel').textContent = `Notify me when the daily rate for 1 ${state.from} reaches`;
+    $('alertLabel').textContent = `Notify me when 1 ${state.from} reaches`;
     $('alertCode').textContent = state.to;
     $('alertTarget').value = a ? fmtRate(a.target) : (Number.isFinite(r) ? fmtRate(r) : '');
     renderAlertHint();
@@ -974,21 +990,35 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     renderBell();
   }
 
-  // The day a rate is for, as its source dates it. Sources date by UTC, so
-  // this does too, and "6 Nov" reads the same everywhere.
+  // "14:05" today, otherwise "2 Nov, 14:05".
+  function whenText(ms) {
+    const d = new Date(ms);
+    const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    return d.toDateString() === new Date().toDateString()
+      ? time
+      : `${d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}, ${time}`;
+  }
+  // The day a daily rate is for, as its source dates it. Sources date by UTC,
+  // so this does too, and "6 Nov" reads the same everywhere.
   const dayText = ms => new Date(ms).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' });
   // The pair's own date: a coin can be a day behind the currencies, or the
   // other way round, and the older side is the honest one to show.
   const pairAt = () => BureauLib.pairUpdatedAt(state.from, state.to, state.fiatAt, state.coinAt);
   // Rates are saved on the device after every refresh, so the app keeps
-  // working offline. This line always says what day the rates in use are from.
+  // working offline. This line always says how old the rates in use are.
   function renderStatus() {
     const el = $('status');
     let text = '';
     const at = Number.isFinite(rate(state.from, state.to)) ? pairAt() : state.fiatAt;
     if (!state.rates) text = state.error ? 'Offline · no saved rates yet' : '';
-    else if (state.error) text = `Offline · rates from ${dayText(at)}`;
-    else text = `Rates from ${dayText(at)}`;
+    else {
+      const live = state.source === 'live';
+      const when = live ? whenText(at) : dayText(at);
+      if (state.error) text = `Offline · rates from ${when}`;
+      else if (!live) text = `Daily rates from ${when}`;
+      else if (Date.now() - at > 10 * 60_000) text = `Rates from ${when}`;
+      else text = `Live · ${when}`;
+    }
     el.textContent = text;
     el.hidden = !text;
   }
@@ -1437,7 +1467,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   }
   $('swap').addEventListener('click', () => { haptic(); swap(); });
   $('status').addEventListener('click', () => {
-    if (loading || !refreshDue()) return;
+    if (loading) return;
     $('status').textContent = 'Checking…';
     loadRates();
   });
@@ -1620,10 +1650,13 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   renderAll();
   renderTrend();
   toApp({ type: 'hello' });
-  refreshIfDue();
-  setInterval(() => { if (!document.hidden) refreshIfDue(); }, REFRESH_MS);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshIfDue(); });
-  addEventListener('online', refreshIfDue);
+  loadRates();
+  setInterval(() => { if (!document.hidden) loadRates(); }, REFRESH_MS);
+  setInterval(renderStatus, 15_000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - state.fetchedAt > REFRESH_MS) loadRates();
+  });
+  addEventListener('online', loadRates);
   addEventListener('resize', fitAll);
   if (document.fonts) document.fonts.ready.then(fitAll);
 })();

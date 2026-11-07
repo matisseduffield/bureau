@@ -18,7 +18,7 @@ object WidgetStore {
         val fee: Double,
         /** Plain units of [to] per 1 [from], before any fee. */
         val rate: Double,
-        /** When the source published [rate], not when it reached the phone. */
+        /** When [rate] dates from: the fetch for a live rate, otherwise when its source published it. */
         val updatedAt: Long,
         /** The converter's amount in [from]; 1 shows the plain rate. */
         val amount: Double = 1.0,
@@ -52,9 +52,9 @@ object WidgetStore {
     }
 
     /**
-     * Fetches the latest daily rate for the stored pair. Blocking: call off
-     * the main thread. Keeps what it has if the answer is older, and the
-     * stored date always stays the one that came with the rate.
+     * Fetches the latest rate for the stored pair: live, or daily if Coinbase
+     * fails. Blocking: call off the main thread. Keeps what it has if the answer
+     * is older, and the stored time always stays the one that came with the rate.
      */
     fun refresh(context: Context): Boolean {
         val pair = load(context) ?: return false

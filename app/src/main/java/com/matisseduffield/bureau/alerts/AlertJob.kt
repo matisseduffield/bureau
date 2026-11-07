@@ -9,8 +9,9 @@ import java.text.NumberFormat
 import kotlin.concurrent.thread
 
 /**
- * The periodic alert check, against the same daily rates the page shows. One
- * round of fetching covers every alert. A pair with no rate, or a rate too old
+ * The periodic alert check, against the same rates the page shows: live ones
+ * from Coinbase, or daily ones if that fails. One round of fetching covers every
+ * alert. A pair with no rate, or a rate too old
  * to mean anything, waits for the next check rather than firing.
  */
 class AlertJob : JobService() {
@@ -37,7 +38,7 @@ class AlertJob : JobService() {
             if (quote.updatedAt < oldest) return@filter false
             val hit = if (alert.above) quote.rate >= alert.target else quote.rate <= alert.target
             if (!hit) return@filter false
-            Alerts.notify(this, alert, format(quote.rate), format(alert.target), Rates.dayText(quote.updatedAt))
+            Alerts.notify(this, alert, format(quote.rate), format(alert.target))
             true
         }
         Alerts.removeAll(this, fired)

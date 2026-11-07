@@ -6,6 +6,8 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.text.format.DateFormat
+import android.text.format.DateUtils
 import android.widget.RemoteViews
 import com.matisseduffield.bureau.MainActivity
 import com.matisseduffield.bureau.R
@@ -14,12 +16,13 @@ import java.math.MathContext
 import com.matisseduffield.bureau.rates.Rates
 import java.text.NumberFormat
 import java.util.Currency
+import java.util.Date
 import kotlin.concurrent.thread
 
 /**
  * Home-screen widget: the app's current pair and rate. Draws the stored rate
- * immediately, then fetches the latest one (every hour via updatePeriodMillis,
- * and whenever the app changes the pair). It always says what day the rate is from.
+ * immediately, then fetches a fresh one (every 30 minutes via
+ * updatePeriodMillis, and whenever the app changes the pair).
  */
 class RateWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
@@ -51,12 +54,12 @@ class RateWidget : AppWidgetProvider() {
             } else if (pair.amount == 1.0) {
                 views.setTextViewText(R.id.widget_pair, "1 ${pair.from} in ${pair.to}")
                 views.setTextViewText(R.id.widget_rate, formatRate(pair.effectiveRate))
-                views.setTextViewText(R.id.widget_meta, meta(pair))
+                views.setTextViewText(R.id.widget_meta, meta(context, pair))
             } else {
                 // The converter's amount, as last left in the app.
                 views.setTextViewText(R.id.widget_pair, "${formatAmount(pair.amount)} ${pair.from} in ${pair.to}")
                 views.setTextViewText(R.id.widget_rate, formatResult(pair.amount * pair.effectiveRate, pair.to))
-                views.setTextViewText(R.id.widget_meta, meta(pair))
+                views.setTextViewText(R.id.widget_meta, meta(context, pair))
             }
             val open = PendingIntent.getActivity(
                 context,
@@ -68,11 +71,14 @@ class RateWidget : AppWidgetProvider() {
             manager.updateAppWidget(ids, views)
         }
 
-        private fun meta(pair: WidgetStore.Pair): String {
-            val day = if (pair.updatedAt > 0) Rates.dayText(pair.updatedAt) else ""
-            if (pair.fee <= 0) return if (day.isEmpty()) "" else "Rates from $day"
-            val fee = "After ${NumberFormat.getNumberInstance().format(pair.fee)}% fee"
-            return if (day.isEmpty()) fee else "$fee · $day"
+        private fun meta(context: Context, pair: WidgetStore.Pair): String {
+            val time = when {
+                pair.updatedAt <= 0 -> ""
+                DateUtils.isToday(pair.updatedAt) -> DateFormat.getTimeFormat(context).format(Date(pair.updatedAt))
+                else -> DateFormat.getMediumDateFormat(context).format(Date(pair.updatedAt))
+            }
+            val fee = if (pair.fee > 0) "After ${NumberFormat.getNumberInstance().format(pair.fee)}% fee" else "Updated"
+            return if (time.isEmpty()) fee else "$fee · $time"
         }
 
         /** The amount as typed: no padding, up to 8 decimals. */

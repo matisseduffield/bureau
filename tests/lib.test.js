@@ -1,7 +1,7 @@
 // Run with: node --test tests/
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { fractionDigits, amountOpts, parseNumber, evaluate } = require('../web/lib.js');
+const { fractionDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates } = require('../web/lib.js');
 
 test('parseNumber reads either separator as the decimal point', () => {
   // English-style locale (group ",")
@@ -36,6 +36,28 @@ test('evaluate handles sums without eval', () => {
   assert.ok(Number.isNaN(evaluate('alert(1)', ',').value));
 });
 
+test('mergeRates keeps live quotes unless they stray from the daily reference', () => {
+  const fiat = new Set(['USD', 'EUR', 'GBP', 'ERN']);
+  const isFiat = c => fiat.has(c);
+  const live = { USD: 1, EUR: 0.9, ERN: 165.5, BTC: 0.00001, ESP: 120 };
+  const ref = { USD: 1, EUR: 0.88, GBP: 0.75, ERN: 15 };
+  const out = mergeRates(live, ref, isFiat);
+  assert.equal(out.EUR, 0.9);    // within 10%: live wins
+  assert.equal(out.ERN, 15);     // 10x off: reference wins
+  assert.equal(out.GBP, 0.75);   // only in the reference
+  assert.equal(out.BTC, 0.00001);
+  assert.equal(out.ESP, undefined); // not a current currency
+  assert.deepEqual(mergeRates(null, ref, isFiat), { USD: 1, EUR: 0.88, GBP: 0.75, ERN: 15 });
+});
+
+test('live rates split into currencies and coins, dated now', () => {
+  const isFiat = c => ['USD', 'EUR', 'GBP'].includes(c);
+  const out = liveRates({ USD: 1, EUR: 0.9, BTC: 0.00001 }, { USD: 1, EUR: 0.88, GBP: 0.75 }, isFiat, 5000);
+  assert.deepEqual(out, { fiat: { USD: 1, EUR: 0.9, GBP: 0.75 }, coins: { BTC: 0.00001 }, fiatAt: 5000, coinAt: 5000 });
+  // With no reference at all, the live quotes stand.
+  assert.deepEqual(liveRates({ USD: 1, EUR: 0.9 }, null, isFiat, 5000).fiat, { USD: 1, EUR: 0.9 });
+});
+
 const isFiat = c => /^[A-Z]{3}$/.test(c) && !['BTC', 'ETH', 'XRP', 'BNB', 'SOL', 'ADA', 'LTC'].includes(c);
 const coinFile = { date: '2026-11-06', usd: { usd: 1, eur: 0.9, gbp: 0.75, syp: 13004, btc: 0.00001, eth: 0.0004, usdt: 1.001, xrp: 0.8, bnb: 0.0014, sol: 0.011, usdc: 1, doge: 14, ada: 5.4, ltc: 0.019, shib: 90000 } };
 const erAnswer = { result: 'success', time_last_update_unix: 1793923351, rates: { USD: 1, EUR: 0.88, GBP: 0.74, SYP: 121, BTC: 5, CLF: 0.02 } };
@@ -66,25 +88,23 @@ test('the daily file splits into coins and currencies, dated by the file', () =>
   assert.equal(fileRates(null, isFiat), null);
 });
 
-test('a refresh never passes old or missing rates off as current', () => {
+test('without Coinbase, a refresh never passes old or missing rates off as current', () => {
   const { dailyRates, fileRates, combineRates } = require('../web/lib.js');
   const daily = dailyRates(erAnswer, isFiat), file = fileRates(coinFile, isFiat);
   const blank = { fiat: null, coins: null, fiatAt: 0, coinAt: 0 };
 
-  // Normal: currencies from the daily source, coins from the file.
+  // Coinbase down: currencies from the daily source, coins from the file.
   let out = combineRates(blank, daily, file);
   assert.equal(out.fiat.EUR, 0.88);
   assert.equal(out.coins.BTC, 0.00001);
   assert.equal(out.fiatAt, daily.updatedAt);
   assert.equal(out.coinAt, file.updatedAt);
-  assert.equal(out.complete, true);
   assert.equal(out.offline, false);
 
-  // Daily source down: the file stands in, with the file's date.
+  // Both down: the file stands in, with the file's date.
   out = combineRates(blank, null, file);
   assert.equal(out.fiat.EUR, 0.9);
   assert.equal(out.fiatAt, file.updatedAt);
-  assert.equal(out.complete, false);
 
   // A coin the new file lacks goes, even though we had one saved.
   const saved = { fiat: { USD: 1, EUR: 0.8 }, coins: { BTC: 0.00002, SOL: 0.02 }, fiatAt: 1000, coinAt: 1000 };
@@ -98,12 +118,17 @@ test('a refresh never passes old or missing rates off as current', () => {
   assert.equal(out.coins.BTC, 0.00002);
   assert.equal(out.coinAt, 1000);
   assert.equal(out.fiatAt, daily.updatedAt);
-  assert.equal(out.complete, false);
 
-  // Both down: nothing changes and it says so.
+  // All three down: nothing changes and it says so.
   out = combineRates(saved, null, null);
   assert.equal(out.offline, true);
   assert.equal(out.fiatAt, 1000);
+
+  // Live rates we already hold are newer than any daily answer, so they stay, with their time.
+  const held = { ...saved, fiatAt: daily.updatedAt + 3600000, coinAt: daily.updatedAt + 3600000 };
+  out = combineRates(held, daily, file);
+  assert.equal(out.fiat.EUR, 0.8);
+  assert.equal(out.fiatAt, held.fiatAt);
 
   // A file older than what we hold doesn't replace it.
   const newer = { ...saved, fiatAt: file.updatedAt + 1, coinAt: file.updatedAt + 1 };

@@ -1,8 +1,9 @@
-// Bureau's pure logic: number parsing, sums, formatting options and reading
-// the rate sources. No DOM and no app state, so the same file runs in the page and
+// Bureau's pure logic: number parsing, sums, formatting options, rate merging
+// and reading the rate sources. No DOM and no app state, so the same file runs in the page and
 // under `node --test tests/` in CI.
 (function (root) {
-  // The most traded coins, in market order; the daily rate file has them all.
+  // The most traded coins, in market order; Coinbase quotes them all live, and
+  // the daily rate file has them for when it can't.
   const CRYPTO = {
     BTC: 'Bitcoin', ETH: 'Ethereum', USDT: 'Tether', XRP: 'XRP', BNB: 'BNB',
     SOL: 'Solana', USDC: 'USD Coin', DOGE: 'Dogecoin', ADA: 'Cardano', LTC: 'Litecoin',
@@ -80,6 +81,31 @@
     return { value: i === tokens.length && Number.isFinite(value) ? value : NaN, isExpr };
   }
 
+  // Coinbase's live rate wins unless it's more than 10% away from the daily
+  // reference: its quotes for thinly traded currencies (and tickers that clash
+  // with old currency codes) can be far off. Rates are units per 1 USD.
+  function mergeRates(live, ref, isFiat) {
+    const out = {};
+    if (ref) for (const [k, v] of Object.entries(ref)) if (isFiat(k) && v > 0) out[k] = v;
+    if (live) {
+      for (const [k, v] of Object.entries(live)) {
+        if (CRYPTO[k]) { out[k] = v; continue; }
+        if (!isFiat(k)) continue;
+        if (ref && ref[k] > 0 && Math.abs(v / ref[k] - 1) > 0.1) continue;
+        out[k] = v;
+      }
+    }
+    return out;
+  }
+
+  // A refresh that reached Coinbase: the merged rates, split the way the page
+  // keeps them. Live rates carry no time of their own, so they date from now.
+  function liveRates(live, ref, isFiat, now) {
+    const fiat = {}, coins = {};
+    for (const [k, v] of Object.entries(mergeRates(live, ref, isFiat))) (CRYPTO[k] ? coins : fiat)[k] = v;
+    return { fiat, coins, fiatAt: now, coinAt: now };
+  }
+
   // The daily file's figures for these are far from ExchangeRate-API's (SYP by
   // about 100 times, ZWL by far more), so a fallback shows no rate for them
   // rather than a wrong one. Keep in step with Rates.kt.
@@ -111,7 +137,7 @@
     return { fiat, coins, updatedAt };
   }
 
-  // What a refresh leaves us with. `saved` is { fiat, coins, fiatAt, coinAt };
+  // What a refresh leaves us without Coinbase. `saved` is { fiat, coins, fiatAt, coinAt };
   // `daily` and `file` are what came back, or null. Each half keeps the date
   // of its own source, and is only replaced by something at least as new. A
   // new file replaces all the coins, so one it no longer has isn't kept.
@@ -120,7 +146,7 @@
     const fiat = [daily, file].find(s => s && s.updatedAt >= out.fiatAt);
     if (fiat) Object.assign(out, { fiat: fiat.fiat, fiatAt: fiat.updatedAt });
     if (file && file.updatedAt >= out.coinAt) Object.assign(out, { coins: file.coins, coinAt: file.updatedAt });
-    return { ...out, offline: !daily && !file, complete: !!(daily && file) };
+    return { ...out, offline: !daily && !file };
   }
 
   // When a pair's rate dates from: the older of its two sides. USD is always 1.
@@ -214,7 +240,7 @@
     return out;
   }
 
-  const lib = { CRYPTO, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, dailyRates, fileRates, combineRates, pairUpdatedAt, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  const lib = { CRYPTO, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);

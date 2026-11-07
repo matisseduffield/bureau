@@ -8,7 +8,7 @@ const vm = require('node:vm');
 const WEB = path.join(__dirname, '../web');
 const read = file => fs.readFileSync(path.join(WEB, file));
 const NAME = 'Bureau';
-const PASS_THROUGH = ['https://open.er-api.com/v6/latest/USD', 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json', 'https://api.frankfurter.dev/v1/latest', 'https://bureau.teloone.au/app', 'https://bureau.teloone.au/manifest.json'];
+const PASS_THROUGH = ['https://api.coinbase.com/v2/exchange-rates?currency=USD', 'https://open.er-api.com/v6/latest/USD', 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json', 'https://api.frankfurter.dev/v1/latest', 'https://bureau.teloone.au/app', 'https://bureau.teloone.au/manifest.json'];
 const KEPT = ['lib.js', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2'];
 
 const SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';

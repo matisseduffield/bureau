@@ -1,24 +1,26 @@
 # Bureau
 
-Currency converter. The whole converter is one page, [`web/index.html`](web/index.html);
+Live currency converter. The whole converter is one page, [`web/index.html`](web/index.html);
 the Android app in `app/` wraps it in a WebView and adds self-updates.
 
 ## Features
-- Daily currency rates from ExchangeRate-API, with the date shown; if it's down, the daily fawazahmed0/currency-api
-  file is the fallback (jsDelivr, then Cloudflare Pages). Refreshed on opening and at most once an hour
-- The ten coins come from that same daily file. A coin missing from the file shows no rate
+- Live rates from Coinbase, refreshed every minute while open, checked against ExchangeRate-API's daily rates
+  (used instead where Coinbase is more than 10% off). The daily rates are fetched at most hourly
+- If Coinbase fails, ExchangeRate-API's daily rates stand in, then the daily fawazahmed0/currency-api file
+  (jsDelivr, then Cloudflare Pages), which also brings the coins. The line under the name says how old the rates are
+- The ten coins come live from Coinbase. A coin neither has shows no rate
 - Convert in either direction, swap, and search about 160 currencies by name, code or country, plus ten major coins;
   recently used currencies sit at the top of the picker
 - Simple sums in the amount fields (`12*3.5`, `(40+25)/2`), with + − × ÷ keys above the phone keyboard
 - Optional bank/card fee (presets or a custom %) applied to every result, with the plain rate still shown
 - 1W / 1M / 1Y trend from European Central Bank reference rates, or daily snapshots
   (fawazahmed0/currency-api) for crypto and currencies the ECB doesn't cover
-- Rate alerts (app only): the bell beside the rate sets a target on the daily rate; a background job checks
-  about every hour and sends one notification when it's reached
+- Rate alerts (app only): the bell beside the rate sets a target; a background job checks
+  about every 30 minutes and sends one notification when it's reached
 - Quick amounts in both directions
 - Remembers the pair, amount, fee and trend range; light and dark themes
 - Home-screen widget with the converter's amount (or the plain rate) for the current pair
-  (refreshes about every hour and whenever the app is used, and shows the day of the rate)
+  (refreshes about every 30 minutes and whenever the app is used, and shows when it last updated)
 - Works offline once it has rates, which it saves on the device; a first launch with no signal says so and
   fills in when the connection returns
 - Hanken Grotesk is bundled in `web/fonts/` (SIL OFL) so the app looks the same offline
@@ -27,8 +29,24 @@ the Android app in `app/` wraps it in a WebView and adds self-updates.
 Open `web/index.html` in a browser, or use the `currency` preview config in
 `../.claude/launch.json` (serves `web/` on port 5180).
 
+## The website
+
+`worker/worker.js` is a Cloudflare Worker named `bureau` (no bindings, deployed by hand) that serves
+`web/` from the public bureau-releases repo, where every release publishes it, and sends `/app` to
+the APK. Rates don't pass through it: the page calls the rate services itself. Alerts, the widget and
+updates need the app, so they stay hidden on the website.
+
+## On an iPhone
+
+The website installs from Safari with Share, then Add to Home Screen: `web/manifest.json`
+(`.json` because the Worker's file list has no `.webmanifest`), `web/icons/` (rendered from the
+launcher icon), the Apple tags, and `web/pwa.js`, which registers `web/sw.js` and shows a one-time
+hint in Safari on an iPhone. `pwa.js` does nothing on `appassets.androidplatform.net`, so neither
+runs in the Android app. `sw.js` is network-first with a cached copy for offline opening, and only
+touches the files it names, so rates never land there.
+
 ## Tests
-The page's pure logic (number parsing, sums, formatting options, reading the rate sources)
+The page's pure logic (number parsing, sums, formatting options, merging and reading the rate sources)
 lives in `web/lib.js` and is tested on every push:
 
 ```

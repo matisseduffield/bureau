@@ -1,23 +1,22 @@
 package com.matisseduffield.bureau.rates
 
-import android.text.format.DateFormat
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.ZoneOffset
-import java.util.Date
 import java.util.Locale
-import java.util.TimeZone
+import kotlin.math.abs
 
 /**
  * The page's rate sources, for the parts of the app that run without it (the
- * widget and rate alerts). Currencies come from ExchangeRate-API, or from the
- * daily file if it's down; coins always come from the file. Rates are units
- * per 1 USD, and each one keeps the date its source gave it.
+ * widget and rate alerts). Coinbase's live rates come first, and a currency's
+ * quote is checked against ExchangeRate-API's daily rate, as the page does.
+ * Without Coinbase, currencies come from ExchangeRate-API, then the daily file,
+ * and coins from the file. Rates are units per 1 USD, and each one keeps its time.
  */
 object Rates {
+    private const val LIVE_URL = "https://api.coinbase.com/v2/exchange-rates?currency=USD"
     private const val DAILY_URL = "https://open.er-api.com/v6/latest/USD"
     private val FILE_URLS = listOf(
         "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json",
@@ -25,6 +24,7 @@ object Rates {
     )
     private const val DAY_MS = 24 * 60 * 60 * 1000L
     private const val FILE_FRESH_MS = 2 * DAY_MS
+    private const val MAX_LIVE_GAP = 0.1
 
     /** Coins the page offers (web/lib.js CRYPTO). */
     val CRYPTO = setOf("BTC", "ETH", "USDT", "XRP", "BNB", "SOL", "USDC", "DOGE", "ADA", "LTC")
@@ -39,10 +39,11 @@ object Rates {
 
     /** One round of fetching. Blocking, so use it off the main thread. Each source is read once, when first needed. */
     class Latest {
+        private val live by lazy { fetchLive() }
         private val daily by lazy { fetchDaily() }
         private val file by lazy { fetchFile() }
 
-        /** The rate for a pair, or null if either side has none, such as a coin missing from the file. */
+        /** The rate for a pair, or null if either side has none. */
         fun quote(from: String, to: String): Quote? {
             val a = side(from) ?: return null
             val b = side(to) ?: return null
@@ -51,6 +52,10 @@ object Rates {
 
         private fun side(code: String): Pair<Double, Long>? {
             if (code == "USD") return 1.0 to Long.MAX_VALUE
+            live?.let { now ->
+                val rate = now.rates[code]?.takeIf { it > 0 }
+                if (rate != null && trusted(code, rate)) return rate to now.updatedAt
+            }
             val source = when {
                 code in CRYPTO -> file
                 else -> daily ?: file?.takeIf { code !in FILE_SKIP }
@@ -58,14 +63,19 @@ object Rates {
             val rate = source.rates[code]?.takeIf { it > 0 } ?: return null
             return rate to source.updatedAt
         }
+
+        /** A currency's live quote stands unless it's over 10% from the daily rate (web/lib.js mergeRates). */
+        private fun trusted(code: String, rate: Double): Boolean {
+            if (code in CRYPTO) return true
+            val reference = (daily ?: file?.takeIf { code !in FILE_SKIP })?.rates?.get(code)?.takeIf { it > 0 } ?: return true
+            return abs(rate / reference - 1) <= MAX_LIVE_GAP
+        }
     }
 
-    /** The day a rate is for, such as "6 Nov". Sources date by UTC, so this does too. */
-    fun dayText(at: Long): String {
-        val locale = Locale.getDefault()
-        return SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, "dMMM"), locale)
-            .apply { timeZone = TimeZone.getTimeZone("UTC") }
-            .format(Date(at))
+    /** Coinbase's live rates. They carry no time of their own, so they date from now. */
+    private fun fetchLive(): Snapshot? {
+        val rates = getJson(LIVE_URL)?.optJSONObject("data")?.optJSONObject("rates")?.toRates() ?: return null
+        return Snapshot(rates, System.currentTimeMillis()).takeIf { rates.containsKey("EUR") }
     }
 
     private fun fetchDaily(): Snapshot? {
