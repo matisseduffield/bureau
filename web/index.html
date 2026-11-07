@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#E8ECE5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E1412" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Bureau">
 <title>Bureau</title>
 <style>
 /* Hanken Grotesk ships with the page (fonts/, SIL OFL) so the app looks the same offline. */
@@ -89,7 +95,7 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
-  padding-block: 28px 48px;
+  padding-block: calc(28px + env(safe-area-inset-top, 0px)) calc(48px + env(safe-area-inset-bottom, 0px));
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
@@ -239,6 +245,8 @@ button { cursor: pointer; }
 .rate-sub { color: var(--muted); }
 .credit { margin: 0; padding: 0 22px 12px; font-size: .74rem; color: var(--muted); }
 .credit a, .foot a { color: inherit; }
+.install-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; font-size: .84rem; line-height: 1.35; color: var(--muted); }
+.install-hint button { flex: none; width: 44px; height: 44px; margin: -10px -12px -10px 0; padding: 0; background: none; border: 0; font-size: 1.2rem; color: var(--muted); }
 .foot { font-size: .8rem; color: var(--muted); }
 .foot a { display: inline-block; padding: 10px 8px 10px 0; }
 .fee {
@@ -429,7 +437,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 .picker-list .hint { color: var(--muted); }
 
 @media (max-width: 520px) {
-  body { padding-block: 12px 40px; }
+  body { padding-block: calc(12px + env(safe-area-inset-top, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)); }
   .leg { padding: 16px; gap: 12px; }
   .calc { right: 16px; }
   .swap { right: 16px; }
@@ -437,7 +445,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   .rate-sub { flex-basis: 100%; order: 3; margin-top: -10px; padding-bottom: 8px; }
   dialog {
     width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
-    margin: 0; border: 0; border-radius: 0;
+    margin: 0; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); border: 0; border-radius: 0;
   }
 }
 @media (max-width: 360px) { .rate-sub { display: none; } }
@@ -445,10 +453,15 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   .trend, .swap, .swap svg, dialog, dialog::backdrop { transition: none; }
   dialog { transform: none; }
 }
+/* iPhones zoom the page into any field under 16px; only iOS matches this. */
+@supports (-webkit-touch-callout: none) {
+  input:not(.amount), select { font-size: 16px; }
+}
 </style>
 </head>
 <body>
 <main class="wrap">
+  <p class="install-hint" id="installHint" hidden><span>Keep Bureau on your iPhone: tap Share, then Add to Home Screen.</span><button type="button" aria-label="Dismiss">×</button></p>
   <header class="top">
     <div class="brand">
       <h1 class="mark">Bureau</h1>
@@ -578,6 +591,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 </dialog>
 
 <script src="lib.js"></script>
+<script src="pwa.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -821,13 +835,16 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     }, 700);
   }
 
-  // Long amounts shrink to fit instead of being cut off.
+  // Long amounts shrink to fit instead of being cut off, though not on an iPhone
+  // below the 16px that stops it zooming into the field.
+  const smallest = CSS.supports('-webkit-touch-callout', 'none') ? 16 : 0;
   function fit(input) {
     input.style.fontSize = '';
     let size = parseFloat(getComputedStyle(input).fontSize);
-    while (input.scrollWidth > input.clientWidth && size > 15) {
+    // Safari rounds scrollWidth up, so 1px over isn't over.
+    while (input.scrollWidth > input.clientWidth + 1 && size > 15) {
       size *= 0.92;
-      input.style.fontSize = size + 'px';
+      input.style.fontSize = Math.max(size, smallest) + 'px';
     }
   }
   const fitAll = () => { fit(field('from')); fit(field('to')); };
@@ -1364,6 +1381,15 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     if (on) { if (coarse.matches) $('ops').hidden = false; }
     else opsTimer = setTimeout(() => { $('ops').hidden = true; }, 120);
   }
+  // On the web the keyboard covers the page rather than shrinking it, so the keys
+  // go by what's still visible, and drop the gap for the home bar while it's up.
+  const seen = window.visualViewport;
+  function placeOps() {
+    const keyboard = Math.max(0, Math.round(innerHeight - seen.height - seen.offsetTop));
+    $('ops').style.bottom = `${keyboard}px`;
+    $('ops').style.paddingBottom = keyboard ? '2px' : '';
+  }
+  if (seen && !app) { seen.addEventListener('resize', placeOps); seen.addEventListener('scroll', placeOps); }
   $('ops').addEventListener('pointerdown', e => e.preventDefault());   // keep the keyboard up
   $('ops').addEventListener('click', e => {
     const b = e.target.closest('button[data-op]');

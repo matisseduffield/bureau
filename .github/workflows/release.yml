@@ -3,7 +3,8 @@ name: Build & Release APK
 # Pushing a v* tag builds a signed APK, attaches it to a release here, and
 # publishes it with latest.json to the public bureau-releases repo, which is
 # where installed apps look for updates (this repo is private, so phones
-# can't read its releases).
+# can't read its releases). The pages (web/) go there too: the `bureau`
+# Worker serves the website from them.
 on:
   push:
     tags: ["v*"]
@@ -105,6 +106,7 @@ jobs:
 
           RAW="https://raw.githubusercontent.com/matisseduffield/bureau-releases/main"
           mkdir pub && cp "$APK_NAME" pub/ && cp "$APK_NAME" pub/Bureau.apk
+          cp -r web pub/web
           cd pub
           SHA=$(sha256sum "$APK_NAME" | cut -d' ' -f1)
           SIZE=$(stat -c%s "$APK_NAME")
