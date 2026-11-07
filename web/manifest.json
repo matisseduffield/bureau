@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Bureau",
   "short_name": "Bureau",
-  "description": "Currency converter with daily rates.",
+  "description": "Currency converter with live rates.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",

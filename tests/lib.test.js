@@ -52,8 +52,9 @@ test('mergeRates keeps live quotes unless they stray from the daily reference', 
 
 test('live rates split into currencies and coins, dated now', () => {
   const isFiat = c => ['USD', 'EUR', 'GBP'].includes(c);
-  const out = liveRates({ USD: 1, EUR: 0.9, BTC: 0.00001 }, { USD: 1, EUR: 0.88, GBP: 0.75 }, isFiat, 5000);
-  assert.deepEqual(out, { fiat: { USD: 1, EUR: 0.9, GBP: 0.75 }, coins: { BTC: 0.00001 }, fiatAt: 5000, coinAt: 5000 });
+  const out = liveRates({ USD: 1, EUR: 0.9, BTC: 0.00001 }, { USD: 1, EUR: 0.88, GBP: 0.75 }, isFiat, 5000, 1000);
+  // GBP has no live quote, so it keeps the daily rate's time.
+  assert.deepEqual(out, { fiat: { USD: 1, EUR: 0.9, GBP: 0.75 }, coins: { BTC: 0.00001 }, fiatAt: 5000, coinAt: 5000, dated: { GBP: 1000 } });
   // With no reference at all, the live quotes stand.
   assert.deepEqual(liveRates({ USD: 1, EUR: 0.9 }, null, isFiat, 5000).fiat, { USD: 1, EUR: 0.9 });
 });
@@ -145,6 +146,35 @@ test('a pair is dated by its older side', () => {
   assert.equal(pairUpdatedAt('EUR', 'BTC', 100, 200), 100);
   assert.equal(pairUpdatedAt('USD', 'BTC', 200, 100), 100);
   assert.equal(pairUpdatedAt('USD', 'EUR', 200, 100), 200);
+});
+
+test('a pair on a daily rate never reads as live', () => {
+  const { liveRates, combineRates, pairUpdatedAt, rateStatus } = require('../web/lib.js');
+  const fiat = c => ['USD', 'EUR', 'GBP', 'SLE', 'ERN'].includes(c);
+  const DAY = Date.UTC(2026, 10, 6, 0, 2), NOW = DAY + 30 * 3600000;
+  // Coinbase has no SLE, and its ERN is ten times off, so both fall back to the daily rate.
+  const next = liveRates({ USD: 1, EUR: 0.9, ERN: 150 }, { USD: 1, EUR: 0.88, GBP: 0.75, SLE: 22.7, ERN: 15 }, fiat, NOW, DAY);
+  assert.deepEqual(next.dated, { GBP: DAY, SLE: DAY, ERN: DAY });
+  const state = { ...next, source: 'live', error: false };
+
+  assert.equal(pairUpdatedAt('USD', 'SLE', NOW, NOW, next.dated), DAY);
+  assert.equal(pairUpdatedAt('EUR', 'ERN', NOW, NOW, next.dated), DAY);
+  assert.deepEqual(rateStatus({ ...state, from: 'USD', to: 'SLE' }, true, NOW), { kind: 'dailyPair', at: DAY, byDay: true });
+  assert.deepEqual(rateStatus({ ...state, from: 'ERN', to: 'EUR' }, true, NOW), { kind: 'dailyPair', at: DAY, byDay: true });
+  // Both sides live: live, with the fetch time.
+  assert.deepEqual(rateStatus({ ...state, from: 'USD', to: 'EUR' }, true, NOW), { kind: 'live', at: NOW, byDay: false });
+  assert.equal(rateStatus({ ...state, from: 'USD', to: 'EUR' }, true, NOW + 11 * 60000).kind, 'stale');
+  // Offline, a daily pair still goes by its date.
+  assert.deepEqual(rateStatus({ ...state, error: true, from: 'USD', to: 'SLE' }, true, NOW), { kind: 'offline', at: DAY, byDay: true });
+  // Rates saved in the older shape have no exceptions, and stay as they were.
+  assert.equal(rateStatus({ ...state, dated: undefined, from: 'USD', to: 'SLE' }, true, NOW).kind, 'live');
+
+  // Without Coinbase the daily rates replace the lot, and the exceptions go with them.
+  const daily = { fiat: { USD: 1, EUR: 0.88, SLE: 22.7 }, updatedAt: NOW + 1 };
+  assert.deepEqual(combineRates(state, daily, null).dated, {});
+  // If nothing newer comes back, the saved live rates keep theirs.
+  assert.deepEqual(combineRates(state, null, null).dated, next.dated);
+  assert.equal(rateStatus({ ...state, source: 'daily', dated: {}, from: 'USD', to: 'SLE' }, true, NOW).kind, 'daily');
 });
 
 test('formatting follows each currency\'s decimals', () => {

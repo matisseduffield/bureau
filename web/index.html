@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#0E1412" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='18 18 72 72'%3E%3Crect x='18' y='18' width='72' height='72' rx='16' fill='%23F4C52E'/%3E%3Cpath d='M42 32v44M30 64l12 12 12-12M66 76V32M54 44l12-12 12 12' fill='none' stroke='%2314211C' stroke-width='6.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -112,10 +113,13 @@ button { cursor: pointer; }
 .mark { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
 /* Rates freshness under the name; tap to refresh */
 .status {
+  position: relative;
   min-height: 28px; margin: -2px 0 0 -6px; padding: 0 6px;
   background: none; border: 0;
   font-size: .8rem; color: var(--muted);
 }
+/* A 44px tap area without spacing the header out. */
+.status::before { content: ""; position: absolute; inset: -8px 0; }
 /* App version, top right; tap to check for updates */
 .version {
   min-height: 44px; margin-right: -8px; padding: 0 8px;
@@ -217,10 +221,14 @@ button { cursor: pointer; }
 .amount:focus { outline: none; }
 .amount::placeholder { color: var(--faint); }
 .leg:focus-within { box-shadow: inset 2px 0 0 var(--accent); }
+/* So the focus bar follows the slip's rounded corner. */
+.leg:first-child { border-radius: 5px 5px 0 0; }
 .calc {
   position: absolute; right: 22px; bottom: 8px;
   font-size: .8rem; color: var(--muted);
 }
+/* The swap button sits over the first row's bottom right, so its sum goes beside it. */
+.leg:first-child .calc { right: 74px; }
 
 .swap {
   position: absolute; top: 50%; right: 22px; z-index: 2;
@@ -309,7 +317,7 @@ button { cursor: pointer; }
   display: grid; place-items: center;
   width: 44px; height: 44px; margin: -10px -10px -10px -12px;
   background: none; border: 0; border-radius: 50%;
-  color: var(--faint);
+  color: var(--muted);
 }
 .bell:hover { color: var(--ink); }
 .bell.on { color: var(--accent); }
@@ -324,7 +332,9 @@ button { cursor: pointer; }
 }
 .alert-set:hover { filter: brightness(1.08); }
 .alert-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; margin-top: -4px; font-size: .8rem; color: var(--muted); }
-.alert-link { padding: 4px 0; border: 0; background: none; font-size: .8rem; font-weight: 600; color: var(--accent); }
+.alert-link { position: relative; padding: 4px 0; border: 0; background: none; font-size: .8rem; font-weight: 600; color: var(--accent); }
+/* Taller to tap than it looks, short of the Set button above. */
+.alert-link::before { content: ""; position: absolute; inset: -8px -8px -12px; }
 
 /* Sections */
 .section { display: grid; gap: 10px; }
@@ -441,8 +451,10 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   body { padding-block: calc(12px + env(safe-area-inset-top, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)); }
   .leg { padding: 16px; gap: 12px; }
   .calc { right: 16px; }
+  .leg:first-child .calc { right: 68px; }
   .swap { right: 16px; }
   .rateline { padding-left: 16px; }
+  .credit { padding-inline: 16px; }
   .rate-sub { flex-basis: 100%; order: 3; margin-top: -10px; padding-bottom: 8px; }
   dialog {
     width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
@@ -668,6 +680,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     coins: null,
     fiatAt: 0,          // when each half dates from: now for live rates, else as published
     coinAt: 0,
+    dated: {},          // with live rates, the currencies on their daily rate, and its time
     source: '',         // 'live' | 'daily'
     fetchedAt: 0,       // when a refresh last worked
     error: false
@@ -678,7 +691,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // Rates saved in the older shape aren't kept: the first refresh replaces them.
   const cached = store.get('rates');
   if (cached && cached.v === 2 && cached.fiat && Object.keys(cached.fiat).length) {
-    Object.assign(state, { fiat: cached.fiat, coins: cached.coins || {}, fiatAt: cached.fiatAt || 0, coinAt: cached.coinAt || 0, source: cached.source === 'live' ? 'live' : 'daily', fetchedAt: cached.fetchedAt || 0 });
+    Object.assign(state, { fiat: cached.fiat, coins: cached.coins || {}, fiatAt: cached.fiatAt || 0, coinAt: cached.coinAt || 0, dated: cached.dated || {}, source: cached.source === 'live' ? 'live' : 'daily', fetchedAt: cached.fetchedAt || 0 });
     state.rates = { ...state.fiat, ...state.coins };
   }
 
@@ -767,14 +780,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const daily = first || (live || needDaily ? null : await attempt(fetchDaily));
     if (daily) { reference = { ...daily, fetchedAt: Date.now() }; store.set('daily', reference); }
     const file = !live || !reference ? await attempt(fetchFile) : null;
-    const yardstick = reference ? reference.fiat : file && file.fiat;
-    const next = live ? BureauLib.liveRates(live, yardstick, isFiat, Date.now()) : BureauLib.combineRates(state, daily, file);
+    const yardstick = reference || file;
+    const next = live ? BureauLib.liveRates(live, yardstick && yardstick.fiat, isFiat, Date.now(), yardstick && yardstick.updatedAt) : BureauLib.combineRates(state, daily, file);
     state.error = !!next.offline;
     if (!next.offline) {
       const source = live ? 'live' : next.fiatAt > state.fiatAt ? 'daily' : state.source;
-      Object.assign(state, { fiat: next.fiat, coins: next.coins || {}, fiatAt: next.fiatAt, coinAt: next.coinAt, source, fetchedAt: Date.now() });
+      Object.assign(state, { fiat: next.fiat, coins: next.coins || {}, fiatAt: next.fiatAt, coinAt: next.coinAt, dated: next.dated || {}, source, fetchedAt: Date.now() });
       state.rates = { ...state.fiat, ...state.coins };
-      store.set('rates', { v: 2, fiat: state.fiat, coins: state.coins, fiatAt: state.fiatAt, coinAt: state.coinAt, source, fetchedAt: state.fetchedAt });
+      store.set('rates', { v: 2, fiat: state.fiat, coins: state.coins, fiatAt: state.fiatAt, coinAt: state.coinAt, dated: state.dated, source, fetchedAt: state.fetchedAt });
     }
     loading = false;
     buildCurrencyList();
@@ -1004,21 +1017,24 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   const dayText = ms => new Date(ms).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' });
   // The pair's own date: a coin can be a day behind the currencies, or the
   // other way round, and the older side is the honest one to show.
-  const pairAt = () => BureauLib.pairUpdatedAt(state.from, state.to, state.fiatAt, state.coinAt);
+  const pairAt = () => BureauLib.pairUpdatedAt(state.from, state.to, state.fiatAt, state.coinAt, state.dated);
   // Rates are saved on the device after every refresh, so the app keeps
-  // working offline. This line always says how old the rates in use are.
+  // working offline. This line always says how old the rates in use are,
+  // and a pair on a daily rate never reads as live.
   function renderStatus() {
     const el = $('status');
     let text = '';
-    const at = Number.isFinite(rate(state.from, state.to)) ? pairAt() : state.fiatAt;
     if (!state.rates) text = state.error ? 'Offline · no saved rates yet' : '';
     else {
-      const live = state.source === 'live';
-      const when = live ? whenText(at) : dayText(at);
-      if (state.error) text = `Offline · rates from ${when}`;
-      else if (!live) text = `Daily rates from ${when}`;
-      else if (Date.now() - at > 10 * 60_000) text = `Rates from ${when}`;
-      else text = `Live · ${when}`;
+      const { kind, at, byDay } = BureauLib.rateStatus(state, Number.isFinite(rate(state.from, state.to)), Date.now());
+      const when = byDay ? dayText(at) : whenText(at);
+      text = {
+        offline: `Offline · rates from ${when}`,
+        daily: `Daily rates from ${when}`,
+        dailyPair: `Daily rate from ${when}`,
+        stale: `Rates from ${when}`,
+        live: `Live · ${when}`,
+      }[kind];
     }
     el.textContent = text;
     el.hidden = !text;
@@ -1558,7 +1574,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   function renderPickerList(q) {
     const list = $('pickerList');
     const all = currencies.length ? currencies : COMMON;
-    q = q.trim().toLowerCase();
+    const typed = q.trim();
+    q = typed.toLowerCase();
     if (!q) {
       const recent = state.recent.filter(c => all.includes(c));
       const common = COMMON.filter(c => all.includes(c) && !recent.includes(c));
@@ -1579,7 +1596,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     if (!hits.length) {
       const li = document.createElement('li');
       li.className = 'group';
-      li.textContent = `Nothing matches “${q}”`;
+      li.textContent = `Nothing matches “${typed}”`;
       list.replaceChildren(li);
       return;
     }

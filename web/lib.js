@@ -100,10 +100,15 @@
 
   // A refresh that reached Coinbase: the merged rates, split the way the page
   // keeps them. Live rates carry no time of their own, so they date from now.
-  function liveRates(live, ref, isFiat, now) {
-    const fiat = {}, coins = {};
-    for (const [k, v] of Object.entries(mergeRates(live, ref, isFiat))) (CRYPTO[k] ? coins : fiat)[k] = v;
-    return { fiat, coins, fiatAt: now, coinAt: now };
+  // A currency Coinbase lacks, or whose quote was set aside, has the daily rate
+  // instead; `dated` gives each of those the daily rate's own time, `refAt`.
+  function liveRates(live, ref, isFiat, now, refAt) {
+    const fiat = {}, coins = {}, dated = {};
+    for (const [k, v] of Object.entries(mergeRates(live, ref, isFiat))) {
+      (CRYPTO[k] ? coins : fiat)[k] = v;
+      if (!CRYPTO[k] && !(live && live[k] === v) && refAt > 0) dated[k] = refAt;
+    }
+    return { fiat, coins, fiatAt: now, coinAt: now, dated };
   }
 
   // The daily file's figures for these are far from ExchangeRate-API's (SYP by
@@ -141,18 +146,33 @@
   // `daily` and `file` are what came back, or null. Each half keeps the date
   // of its own source, and is only replaced by something at least as new. A
   // new file replaces all the coins, so one it no longer has isn't kept.
+  // Saved live rates keep their `dated` exceptions; daily ones need none.
   function combineRates(saved, daily, file) {
-    const out = { fiat: saved.fiat, coins: saved.coins, fiatAt: saved.fiatAt || 0, coinAt: saved.coinAt || 0 };
+    const out = { fiat: saved.fiat, coins: saved.coins, fiatAt: saved.fiatAt || 0, coinAt: saved.coinAt || 0, dated: saved.dated || {} };
     const fiat = [daily, file].find(s => s && s.updatedAt >= out.fiatAt);
-    if (fiat) Object.assign(out, { fiat: fiat.fiat, fiatAt: fiat.updatedAt });
+    if (fiat) Object.assign(out, { fiat: fiat.fiat, fiatAt: fiat.updatedAt, dated: {} });
     if (file && file.updatedAt >= out.coinAt) Object.assign(out, { coins: file.coins, coinAt: file.updatedAt });
     return { ...out, offline: !daily && !file };
   }
 
   // When a pair's rate dates from: the older of its two sides. USD is always 1.
-  function pairUpdatedAt(from, to, fiatAt, coinAt) {
-    const at = code => (code === 'USD' ? Infinity : CRYPTO[code] ? coinAt : fiatAt);
+  function pairUpdatedAt(from, to, fiatAt, coinAt, dated) {
+    const at = code => (code === 'USD' ? Infinity : dated && dated[code] ? dated[code] : CRYPTO[code] ? coinAt : fiatAt);
     return Math.min(at(from), at(to));
+  }
+
+  // What the status line says about the rates in use, and the time it gives.
+  // `s` is the page's state; `priced` is whether the pair has a rate. "live"
+  // needs both sides quoted by Coinbase in the last ten minutes; a side on its
+  // daily rate makes it "dailyPair", dated by that rate. `byDay` is set when
+  // the time is a daily rate's, which goes by its date rather than the clock.
+  function rateStatus(s, priced, now) {
+    const at = priced ? pairUpdatedAt(s.from, s.to, s.fiatAt, s.coinAt, s.dated) : s.fiatAt;
+    const live = s.source === 'live';
+    const onDaily = priced && live && !!s.dated && [s.from, s.to].some(c => s.dated[c] > 0);
+    const byDay = !live || onDaily;
+    const kind = s.error ? 'offline' : !live ? 'daily' : onDaily ? 'dailyPair' : now - at > 10 * 60_000 ? 'stale' : 'live';
+    return { kind, at, byDay };
   }
 
   // Countries that use each currency (ISO 4217 code: ISO 3166 regions, two
@@ -240,7 +260,7 @@
     return out;
   }
 
-  const lib = { CRYPTO, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  const lib = { CRYPTO, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);
