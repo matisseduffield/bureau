@@ -17,7 +17,13 @@ test('parseNumber reads either separator as the decimal point', () => {
   assert.equal(parseNumber("1'000", "'"), 1000);
   assert.equal(parseNumber('5.', ','), 5);
   assert.equal(parseNumber('.5', ','), 0.5);
-  assert.equal(parseNumber('1.2.3', ','), 123);
+  assert.ok(Number.isNaN(parseNumber('1.2.3', ',')));
+  // A second point is a typo, not grouping; a bare 0 is never grouped
+  assert.ok(Number.isNaN(parseNumber('1.5.', ',')));
+  assert.ok(Number.isNaN(parseNumber('1..5', ',')));
+  assert.equal(parseNumber('0.500', '.'), 0.5);
+  assert.equal(parseNumber('1.234.567', ','), 1234567);
+  assert.equal(parseNumber('1,234,567', ','), 1234567);
   assert.ok(Number.isNaN(parseNumber('', ',')));
   assert.ok(Number.isNaN(parseNumber('abc', ',')));
 });
@@ -34,6 +40,11 @@ test('evaluate handles sums without eval', () => {
   assert.ok(Number.isNaN(evaluate('(2+3', ',').value));
   assert.ok(Number.isNaN(evaluate('1/0', ',').value));
   assert.ok(Number.isNaN(evaluate('alert(1)', ',').value));
+  // Pasted amounts keep their number when they carry a currency
+  assert.equal(evaluate('$12.50', ',').value, 12.5);
+  assert.equal(evaluate('12.50 USD', ',').value, 12.5);
+  assert.equal(evaluate('€ 1.234,56', '.').value, 1234.56);
+  assert.equal(evaluate('2 x 3', ',').value, 6);
 });
 
 test('mergeRates keeps live quotes unless they stray from the daily reference', () => {

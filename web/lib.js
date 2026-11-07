@@ -44,8 +44,12 @@
     } else if (hasDot || hasComma) {
       const ch = hasDot ? '.' : ',';
       const parts = s.split(ch);
-      if (parts.length > 2) s = parts.join('');
-      else if (ch === group && parts[1].length === 3 && parts[0].length > 0) s = parts.join('');
+      // Grouping needs every group three digits after something other than a bare 0,
+      // and a lone mark must be the locale's: "1.234.567" anywhere, "1.500" in Germany,
+      // but "0.500" is a half and "1.5." is a typo, not 15.
+      const threes = /^\d*[1-9]\d*$/.test(parts[0]) && parts.slice(1).every(p => p.length === 3);
+      if (threes && (parts.length > 2 || ch === group)) s = parts.join('');
+      else if (parts.length > 2) return NaN;
       else s = (parts[0] || '0') + '.' + parts[1];
     }
     return /^\d*\.?\d+$|^\d+\.$/.test(s) ? parseFloat(s) : NaN;
@@ -53,7 +57,9 @@
 
   // Amount fields accept simple sums such as 12*3.5 or (40+25)/2. Hand-parsed; nothing is eval'd.
   function evaluate(text, group) {
-    const src = String(text).replace(/[\s  ]/g, '').replace(/[×xX]/g, '*').replace(/÷/g, '/').replace(/[−–]/g, '-');
+    // A pasted amount may carry its currency: "$12.50", "12.50 USD", "€ 1.234,56".
+    const bare = String(text).trim().replace(/^[A-Za-z]{1,3}(?=[\s\d.,\p{Sc}])|(?<=[\s\d.,\p{Sc}])[A-Za-z]{2,3}$/gu, '').replace(/\p{Sc}/gu, '');
+    const src = bare.replace(/[\s  ]/g, '').replace(/[×xX]/g, '*').replace(/÷/g, '/').replace(/[−–]/g, '-');
     if (!src) return { value: NaN, isExpr: false };
     const tokens = src.match(/[0-9.,'’]+|[-+*/()]/g);
     if (!tokens || tokens.join('') !== src) return { value: NaN, isExpr: false };

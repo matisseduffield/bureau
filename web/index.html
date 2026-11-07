@@ -197,6 +197,8 @@ button { cursor: pointer; }
   transform: rotate(45deg);
 }
 .pick .name { max-width: 100%; font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leg.tight .pick .name { display: none; }
+.leg.tight { gap: 10px; }
 /* The amount sizes to its text so the muted symbol can sit right beside it. */
 .amount-wrap {
   flex: 1; min-width: 0;
@@ -868,16 +870,24 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // Long amounts shrink to fit instead of being cut off, though not on an iPhone
   // below the 16px that stops it zooming into the field.
   const smallest = CSS.supports('-webkit-touch-callout', 'none') ? 16 : 0;
-  function fit(input) {
+  function fit(input, floor = 15) {
     input.style.fontSize = '';
     let size = parseFloat(getComputedStyle(input).fontSize);
     // Safari rounds scrollWidth up, so 1px over isn't over.
-    while (input.scrollWidth > input.clientWidth + 1 && size > 15) {
+    while (input.scrollWidth > input.clientWidth + 1 && size > floor) {
       size *= 0.92;
       input.style.fontSize = Math.max(size, smallest) + 'px';
     }
   }
-  const fitAll = () => { fit(field('from')); fit(field('to')); };
+  // If it still doesn't fit (big text on a small phone), the currency's name gives
+  // up its room so no digit is hidden.
+  function fitLeg(input) {
+    const leg = input.closest('.leg');
+    leg.classList.remove('tight');
+    fit(input);
+    if (input.scrollWidth > input.clientWidth + 1) { leg.classList.add('tight'); fit(input, 10); }
+  }
+  const fitAll = () => { fitLeg(field('from')); fitLeg(field('to')); };
 
   function renderRateLine() {
     renderFee();
@@ -988,7 +998,10 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   }
   function setAlert() {
     const t = parseNumber($('alertTarget').value.trim()), r = rate(state.from, state.to);
-    if (!(t > 0) || !Number.isFinite(r) || Math.abs(t / r - 1) < 1e-4) return $('alertTarget').focus();
+    if (!(t > 0) || !Number.isFinite(r) || Math.abs(t / r - 1) < 1e-4) {
+      if (t > 0 && Number.isFinite(r)) $('alertHint').textContent = 'Pick a rate above or below now';
+      return $('alertTarget').focus();
+    }
     const alert = { from: state.from, to: state.to, target: t, above: t > r };
     alerts = [...alerts.filter(a => a.from !== alert.from || a.to !== alert.to), alert];
     toApp({ type: 'setAlert', ...alert });
@@ -1396,12 +1409,17 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   }
 
   // ---- interactions ----
+  let focused = 'from';   // the amount field the sign keys type into
   for (const side of ['from', 'to']) {
     const input = field(side);
     // The input is only as wide as its text, so a tap anywhere in the amount area focuses it.
     $(side + 'Wrap').addEventListener('click', e => { if (e.target !== input) input.focus(); });
+    // Only typing makes a field the one being edited: tapping the answer and away
+    // again must leave the amount you typed exactly as it was.
+    let before = '';
     input.addEventListener('focus', () => {
-      state.edited = side;
+      focused = side;
+      before = input.value;
       input.select();
       showOps(true);
     });
@@ -1409,6 +1427,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
     input.addEventListener('blur', () => {
       showOps(false);
+      if (input.value === before) return;
       // Tidy what was typed (grouping, or the result of a sum) without rounding it.
       const { value } = evaluate(input.value);
       if (Number.isFinite(value) && value >= 0) {
@@ -1442,9 +1461,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const b = e.target.closest('button[data-op]');
     if (!b) return;
     haptic('tick');
-    const input = field(state.edited);
+    const input = field(focused);
     if (document.activeElement !== input) input.focus();
-    const start = input.selectionStart ?? input.value.length, end = input.selectionEnd ?? input.value.length;
+    let start = input.selectionStart ?? input.value.length, end = input.selectionEnd ?? input.value.length;
+    // The amount is selected on focus so typing replaces it; a sign carries it on.
+    if (start === 0 && end === input.value.length) start = end;
     input.setRangeText(b.dataset.op, start, end, 'end');
     input.dispatchEvent(new Event('input'));
   });
