@@ -1,8 +1,8 @@
-// Bureau's pure logic: number parsing, sums, formatting options and rate
-// merging. No DOM and no app state, so the same file runs in the page and
+// Bureau's pure logic: number parsing, sums, formatting options and reading
+// the rate sources. No DOM and no app state, so the same file runs in the page and
 // under `node --test tests/` in CI.
 (function (root) {
-  // The most traded coins, in market order; Coinbase quotes them all live.
+  // The most traded coins, in market order; the daily rate file has them all.
   const CRYPTO = {
     BTC: 'Bitcoin', ETH: 'Ethereum', USDT: 'Tether', XRP: 'XRP', BNB: 'BNB',
     SOL: 'Solana', USDC: 'USD Coin', DOGE: 'Dogecoin', ADA: 'Cardano', LTC: 'Litecoin',
@@ -80,21 +80,53 @@
     return { value: i === tokens.length && Number.isFinite(value) ? value : NaN, isExpr };
   }
 
-  // Coinbase's live rate wins unless it's more than 10% away from the daily
-  // reference: its quotes for thinly traded currencies (and tickers that clash
-  // with old currency codes) can be far off. Rates are units per 1 USD.
-  function mergeRates(live, ref, isFiat) {
-    const out = {};
-    if (ref) for (const [k, v] of Object.entries(ref)) if (isFiat(k) && v > 0) out[k] = v;
-    if (live) {
-      for (const [k, v] of Object.entries(live)) {
-        if (CRYPTO[k]) { out[k] = v; continue; }
-        if (!isFiat(k)) continue;
-        if (ref && ref[k] > 0 && Math.abs(v / ref[k] - 1) > 0.1) continue;
-        out[k] = v;
-      }
+  // The daily file's figures for these are far from ExchangeRate-API's (SYP by
+  // about 100 times, ZWL by far more), so a fallback shows no rate for them
+  // rather than a wrong one. Keep in step with Rates.kt.
+  const FILE_SKIP = new Set(['SDG', 'SYP', 'ZWL']);
+
+  // ExchangeRate-API's answer: national currencies, units per 1 USD, with the
+  // time it was published. Null if it isn't usable.
+  function dailyRates(json, isFiat) {
+    const updatedAt = json ? json.time_last_update_unix * 1000 : NaN;
+    if (!json || json.result !== 'success' || !json.rates || !(json.rates.EUR > 0) || !(updatedAt > 0)) return null;
+    const fiat = {};
+    for (const [k, v] of Object.entries(json.rates)) if (isFiat(k) && v > 0) fiat[k] = v;
+    return { fiat, updatedAt };
+  }
+
+  // The fawazahmed0 file: lowercase codes, currencies and coins together, and
+  // a date rather than a time. A coin it leaves out stays out.
+  function fileRates(json, isFiat) {
+    const usd = json && json.usd;
+    const updatedAt = json ? Date.parse(json.date + 'T00:00:00Z') : NaN;
+    if (!usd || !(usd.eur > 0) || !(updatedAt > 0)) return null;
+    const fiat = { USD: 1 }, coins = {};
+    for (const [k, v] of Object.entries(usd)) {
+      if (!(v > 0)) continue;
+      const code = k.toUpperCase();
+      if (CRYPTO[code]) coins[code] = v;
+      else if (isFiat(code) && !FILE_SKIP.has(code)) fiat[code] = v;
     }
-    return out;
+    return { fiat, coins, updatedAt };
+  }
+
+  // What a refresh leaves us with. `saved` is { fiat, coins, fiatAt, coinAt };
+  // `daily` and `file` are what came back, or null. Each half keeps the date
+  // of its own source, and is only replaced by something at least as new. A
+  // new file replaces all the coins, so one it no longer has isn't kept.
+  function combineRates(saved, daily, file) {
+    const out = { fiat: saved.fiat, coins: saved.coins, fiatAt: saved.fiatAt || 0, coinAt: saved.coinAt || 0 };
+    const fiat = [daily, file].find(s => s && s.updatedAt >= out.fiatAt);
+    if (fiat) Object.assign(out, { fiat: fiat.fiat, fiatAt: fiat.updatedAt });
+    if (file && file.updatedAt >= out.coinAt) Object.assign(out, { coins: file.coins, coinAt: file.updatedAt });
+    return { ...out, offline: !daily && !file, complete: !!(daily && file) };
+  }
+
+  // When a pair's rate dates from: the older of its two sides. USD is always 1.
+  function pairUpdatedAt(from, to, fiatAt, coinAt) {
+    const at = code => (code === 'USD' ? Infinity : CRYPTO[code] ? coinAt : fiatAt);
+    return Math.min(at(from), at(to));
   }
 
   // Countries that use each currency (ISO 4217 code: ISO 3166 regions, two
@@ -182,7 +214,7 @@
     return out;
   }
 
-  const lib = { CRYPTO, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  const lib = { CRYPTO, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, dailyRates, fileRates, combineRates, pairUpdatedAt, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);

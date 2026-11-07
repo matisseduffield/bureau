@@ -3,7 +3,6 @@ package com.matisseduffield.bureau.widget
 import android.content.Context
 import androidx.core.content.edit
 import com.matisseduffield.bureau.rates.Rates
-import kotlin.math.abs
 
 /**
  * The pair the widget shows. The app writes it whenever the page's pair,
@@ -12,14 +11,14 @@ import kotlin.math.abs
  */
 object WidgetStore {
     private const val PREFS = "widget"
-    private const val DAY_MS = 24 * 60 * 60 * 1000L
 
     data class Pair(
         val from: String,
         val to: String,
         val fee: Double,
-        /** Mid-market units of [to] per 1 [from]. */
+        /** Plain units of [to] per 1 [from], before any fee. */
         val rate: Double,
+        /** When the source published [rate], not when it reached the phone. */
         val updatedAt: Long,
         /** The converter's amount in [from]; 1 shows the plain rate. */
         val amount: Double = 1.0,
@@ -53,20 +52,15 @@ object WidgetStore {
     }
 
     /**
-     * Fetches a fresh live rate for the stored pair. Blocking: call off the
-     * main thread. For currencies, a quote more than 10% away from a rate
-     * stored in the last day is ignored, matching the page, which distrusts
-     * Coinbase's outliers. Older rates aren't a fair yardstick (a currency
-     * can really move 10% in weeks), so the widget never gets stuck on one.
+     * Fetches the latest daily rate for the stored pair. Blocking: call off
+     * the main thread. Keeps what it has if the answer is older, and the
+     * stored date always stays the one that came with the rate.
      */
     fun refresh(context: Context): Boolean {
         val pair = load(context) ?: return false
-        val fresh = Rates.live()?.let { Rates.cross(it, pair.from, pair.to) } ?: return false
-        val check = pair.rate > 0 &&
-            pair.from !in Rates.CRYPTO && pair.to !in Rates.CRYPTO &&
-            System.currentTimeMillis() - pair.updatedAt < DAY_MS
-        if (check && abs(fresh / pair.rate - 1) > 0.1) return false
-        save(context, pair.copy(rate = fresh, updatedAt = System.currentTimeMillis()))
+        val quote = Rates.Latest().quote(pair.from, pair.to) ?: return false
+        if (quote.updatedAt < pair.updatedAt) return false
+        save(context, pair.copy(rate = quote.rate, updatedAt = quote.updatedAt))
         return true
     }
 }

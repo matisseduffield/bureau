@@ -134,12 +134,13 @@ class MainActivity : ComponentActivity() {
         }
         web.loadUrl(START_URL)
         takeAlertPair(intent)
+        Alerts.reschedule(this)
 
         updates.start(firstCreate = savedInstanceState == null)
     }
 
-    // Out of sight, the page's timers and rate polling stop entirely; they
-    // resume (and refresh stale rates) as soon as the app is back.
+    // Out of sight, the page's timers stop entirely; they resume (and refresh
+    // the rates if an hour has passed) as soon as the app is back.
     override fun onResume() {
         super.onResume()
         web.onResume()
