@@ -244,11 +244,12 @@ button { cursor: pointer; }
 .rate-main b { font-weight: 600; }
 .rate-sub { color: var(--muted); }
 .credit { margin: 0; padding: 0 22px 12px; font-size: .74rem; color: var(--muted); }
-.credit a, .foot a { color: inherit; }
+.credit a { color: inherit; }
 .install-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; font-size: .84rem; line-height: 1.35; color: var(--muted); }
 .install-hint button { flex: none; width: 44px; height: 44px; margin: -10px -12px -10px 0; padding: 0; background: none; border: 0; font-size: 1.2rem; color: var(--muted); }
 .foot { font-size: .8rem; color: var(--muted); }
-.foot a { display: inline-block; padding: 10px 8px 10px 0; }
+.legal { display: flex; justify-content: center; gap: 48px; }
+.legal a { padding: 12px 8px; font-size: .84rem; color: var(--muted); text-decoration: none; }
 .fee {
   margin-left: auto; position: relative;
   display: flex; align-items: center;
@@ -572,7 +573,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     <div class="quick" id="quick"></div>
   </section>
 
-  <footer class="foot"><a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy</a> <a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms</a></footer>
+  <footer class="foot"><nav class="legal" aria-label="Legal"><a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy</a><a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms</a></nav></footer>
 </main>
 
 <div class="ops" id="ops" hidden>
