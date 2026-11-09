@@ -301,3 +301,29 @@ test('a trend ends at the rate shown now, dated by that rate', () => {
   assert.equal(withLatest(series, 1.6, ''), series);
   assert.deepEqual(withLatest([], 1.6, '2026-11-09'), []);
 });
+
+test('quick amounts are six round numbers, scaled for very cheap or dear money', () => {
+  const { quickAmounts } = require('../web/lib.js');
+  assert.deepEqual(quickAmounts(0.65), [1, 5, 10, 20, 50, 100]);
+  assert.deepEqual(quickAmounts(3.25), [1, 5, 10, 20, 50, 100]);
+  // Iranian rial and Indonesian rupiah: whole thousands of units
+  assert.deepEqual(quickAmounts(0.0000237), [100000, 500000, 1000000, 2000000, 5000000, 10000000]);
+  assert.deepEqual(quickAmounts(0.0000598), [10000, 50000, 100000, 200000, 500000, 1000000]);
+  // Bitcoin: clean fractions, not 0.000009999999999
+  assert.deepEqual(quickAmounts(102000), [0.00001, 0.00005, 0.0001, 0.0002, 0.0005, 0.001]);
+  // No rate yet reads as a dollar
+  assert.deepEqual(quickAmounts(undefined), [1, 5, 10, 20, 50, 100]);
+});
+
+test('the fee reads a typed percent; blank is none, nonsense changes nothing', () => {
+  const { parseFee, MAX_FEE } = require('../web/lib.js');
+  assert.equal(parseFee('', ','), 0);
+  assert.equal(parseFee('  ', ','), 0);
+  assert.equal(parseFee('0', ','), 0);
+  assert.equal(parseFee('2.5', ','), 2.5);
+  assert.equal(parseFee('2,5', '.'), 2.5);
+  assert.equal(parseFee('3%', ','), 3);
+  assert.equal(parseFee('1.234', ','), 1.23);
+  assert.equal(parseFee(String(MAX_FEE), ','), MAX_FEE);
+  for (const bad of ['21', 'abc', '1.2.3', '-1']) assert.ok(Number.isNaN(parseFee(bad, ',')), bad);
+});

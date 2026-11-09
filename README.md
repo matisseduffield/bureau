@@ -12,12 +12,13 @@ the Android app in `app/` wraps it in a WebView and adds self-updates.
 - Convert in either direction, swap, and search about 160 currencies by name, code or country, plus ten major coins;
   recently used currencies sit at the top of the picker
 - Simple sums in the amount fields (`12*3.5`, `(40+25)/2`), with + − × ÷ keys above the phone keyboard
-- Optional bank/card fee (presets or a custom %) applied to every result, with the plain rate still shown
+- Optional bank/card fee: tap "No fee" in the rate line and type a % (blank is none); it applies to every result,
+  with the plain rate shown under it
 - 1W / 1M / 1Y trend from European Central Bank reference rates, or daily snapshots
   (fawazahmed0/currency-api) for crypto and currencies the ECB doesn't cover
-- Rate alerts (app only): the bell beside the rate sets a target; a background job checks
+- Rate alerts (app only): the bell beside the fee opens a row in the converter to set a target; a background job checks
   about every 30 minutes and sends one notification when it's reached
-- Quick amounts in both directions
+- Quick amounts (1 to 100, scaled for very cheap or dear money) for the way the converter runs now
 - Remembers the pair, amount, fee and trend range; light and dark themes
 - Home-screen widget with the converter's amount (or the plain rate) for the current pair
   (refreshes about every 30 minutes and whenever the app is used, and shows when it last updated)
@@ -88,8 +89,8 @@ Inside the app the version shows at the top right; tapping it checks for updates
 to its own asset origin (`window.bureauApp`): the page reports the pair and amount (for the
 widget), sets and removes rate alerts, and says when the picker or a menu is open (so Back closes it).
 
-New updates show as a card at the top of the page (version, what's new, size,
-then download progress) with one Update button; Android's own confirm screen
+New updates show as a card at the top of the page (version and size, what's new,
+then download progress) with Not now and Update; Android's own confirm screen
 follows. WebViews without the message bridge get a system dialog instead.
 
 Publishing an update = push an annotated `v*` tag whose message lists what's new

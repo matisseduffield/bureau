@@ -5,7 +5,7 @@
   // Raised with every change here, together with lib.js?v= in index.html and
   // FILES in sw.js. The page checks it, so a page and a lib.js from different
   // releases never run together.
-  const VERSION = 2;
+  const VERSION = 3;
 
   // The most traded coins, in market order; Coinbase quotes them all live, and
   // the daily rate file has them for when it can't.
@@ -45,6 +45,25 @@
     if (STABLE.has(code)) return { minimumFractionDigits: 2, maximumFractionDigits: 2 };
     const whole = Math.abs(n) >= 1 ? Math.floor(Math.log10(Math.abs(n))) + 1 : 0;
     return { maximumSignificantDigits: Math.min(21, Math.max(4, whole)) };
+  }
+
+  // Six round amounts to convert from (1 to 100), scaled by powers of ten for a
+  // currency worth far more or less than a dollar: 100,000 rial, 0.00001 BTC.
+  function quickAmounts(usdValue) {
+    const k = usdValue > 0 ? Math.round(Math.log10(usdValue)) : 0;
+    const mult = Math.abs(k) >= 2 ? Math.pow(10, -k) : 1;
+    // Rounded so 0.00001 doesn't come out as 0.000009999999999999999.
+    return [1, 5, 10, 20, 50, 100].map(a => Number((a * mult).toPrecision(12)));
+  }
+
+  // The fee as typed in the rate line, in percent: blank (or 0) is no fee; a "%"
+  // may come with it. Anything else, or over MAX_FEE, is NaN and leaves the fee as it was.
+  const MAX_FEE = 20;
+  function parseFee(text, group) {
+    const s = String(text).replace(/%/g, '').trim();
+    if (!s) return 0;
+    const n = parseNumber(s, group);
+    return Number.isFinite(n) && n <= MAX_FEE ? Math.round(n * 100) / 100 : NaN;
   }
 
   // One number as typed: either "." or "," can be the decimal point. When both
@@ -302,7 +321,7 @@
     return [...(last === day ? series.slice(0, -1) : series), [day, rate]];
   }
 
-  const lib = { VERSION, CRYPTO, NAMES, REPLACED, isCurrency, currentCode, coinQuickOpts, withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  const lib = { VERSION, CRYPTO, MAX_FEE, quickAmounts, parseFee, NAMES, REPLACED, isCurrency, currentCode, coinQuickOpts, withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);

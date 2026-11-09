@@ -9,7 +9,7 @@ const WEB = path.join(__dirname, '../web');
 const read = file => fs.readFileSync(path.join(WEB, file));
 const NAME = 'Bureau';
 const PASS_THROUGH = ['https://api.coinbase.com/v2/exchange-rates?currency=USD', 'https://open.er-api.com/v6/latest/USD', 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json', 'https://api.frankfurter.dev/v1/latest', 'https://bureau.teloone.au/app', 'https://bureau.teloone.au/manifest.json'];
-const KEPT = ['lib.js?v=2', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2'];
+const KEPT = ['lib.js?v=3', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2'];
 
 const SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
 const CHROME_IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/138.0.7204.156 Mobile/15E148 Safari/604.1';
@@ -165,7 +165,7 @@ test('no signal opens the saved copy at once, and nothing at all is an error', a
 });
 
 test('a versioned file answers from its saved copy, unless the page asks afresh', async () => {
-  const LIB = 'https://bureau.teloone.au/lib.js?v=2';
+  const LIB = 'https://bureau.teloone.au/lib.js?v=3';
   let calls = 0;
   const sw = loadSw({ net: async () => { calls++; return new Response('network lib'); }, saved: { [LIB]: new Response('saved lib') } });
   assert.equal(await (await sw.respond({ url: LIB }).response).text(), 'saved lib');
@@ -178,7 +178,7 @@ test('a versioned file answers from its saved copy, unless the page asks afresh'
   assert.deepEqual(sw.kept, [LIB]);
   // A version not saved yet waits for the network, however long.
   const other = loadSw({ net: async () => new Response('v3') });
-  assert.equal(await (await other.respond({ url: 'https://bureau.teloone.au/lib.js?v=2' }).response).text(), 'v3');
+  assert.equal(await (await other.respond({ url: 'https://bureau.teloone.au/lib.js?v=3' }).response).text(), 'v3');
   assert.equal(other.timers.length, 0);
 });
 

@@ -40,6 +40,8 @@
   --line: #CDD5CC;
   --accent: #2C53C4;
   --accent-soft: rgba(44, 83, 196, .08);
+  --accent-faint: rgba(44, 83, 196, .04);
+  --key: #E8ECE5;
   --accent-ink: #FFFFFF;
   --up: #1D7548;
   --down: #B0392D;
@@ -59,6 +61,8 @@
     --line: #2E3A35;
     --accent: #85A2FF;
     --accent-soft: rgba(133, 162, 255, .10);
+  --accent-faint: rgba(133, 162, 255, .05);
+  --key: #26302C;
     --accent-ink: #0E1412;
     --up: #5FC890;
     --down: #F08476;
@@ -77,6 +81,8 @@
   --line: #2E3A35;
   --accent: #85A2FF;
   --accent-soft: rgba(133, 162, 255, .10);
+  --accent-faint: rgba(133, 162, 255, .05);
+  --key: #26302C;
   --accent-ink: #0E1412;
   --up: #5FC890;
   --down: #F08476;
@@ -126,43 +132,23 @@ button { cursor: pointer; }
   background: none; border: 0;
   font-size: .82rem; color: var(--muted);
 }
-.version:hover { color: var(--ink); }
+@media (hover: hover) { .version:hover { color: var(--ink); } }
 .version[data-state="available"] { color: var(--accent); font-weight: 600; }
-.status:hover { color: var(--ink); }
+@media (hover: hover) { .status:hover { color: var(--ink); } }
 
-/* Update card (only inside the app, when a new version is published):
-   icon + title, what's new, then two equal buttons or a progress bar. */
-.update {
-  display: grid; gap: 16px;
-  padding: 18px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
-}
+/* Update card (only inside the app, when a new version is published), as in
+   Nudge: title and size, what's new, then two buttons or a progress bar. */
+.update { display: grid; gap: 12px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
 .update p { margin: 0; }
-.update-head { display: flex; align-items: center; gap: 14px; }
-.update-icon {
-  flex: none; display: grid; place-items: center;
-  width: 40px; height: 40px; border-radius: 50%;
-  background: var(--accent-soft); color: var(--accent);
-}
-.update-text { min-width: 0; }
 .update-title { font-weight: 600; line-height: 1.3; }
-.update-sub { font-size: .84rem; color: var(--muted); }
-.update-new { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
-.update-label { font-size: .78rem; font-weight: 500; color: var(--muted); }
-.update-notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: .9rem; line-height: 1.4; }
-.update-notes li { position: relative; padding-left: 16px; }
-.update-notes li::before { content: ""; position: absolute; left: 3px; top: .6em; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
-.update-msg { font-size: .86rem; line-height: 1.45; color: var(--muted); }
-.update-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.update-actions button {
-  min-height: 46px; border-radius: 6px;
-  font-size: .95rem; font-weight: 600;
-}
-.btn-secondary { background: transparent; border: 1px solid var(--line); color: var(--ink); }
-.btn-secondary:hover { border-color: var(--muted); }
-.btn-primary { background: var(--accent); border: 1px solid var(--accent); color: var(--accent-ink); }
-.btn-primary:hover { filter: brightness(1.08); }
-.update-progress { display: flex; align-items: center; gap: 12px; min-height: 46px; }
+.update-sub, .update-msg { font-size: .84rem; color: var(--muted); }
+.update-notes { margin: 0; padding: 0 0 0 18px; font-size: .9rem; line-height: 1.4; }
+.update-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.update-actions button { min-height: 44px; border: 0; border-radius: 6px; font-size: .92rem; font-weight: 600; }
+.btn-secondary { background: var(--key); color: var(--ink); }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+@media (hover: hover) { .update-actions button:hover { filter: brightness(1.05); } }
+.update-progress { display: flex; align-items: center; gap: 12px; min-height: 44px; }
 .update-track { flex: 1; height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; }
 .update-track span { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--accent); transition: width .2s; }
 .update-pct { min-width: 3.2ch; text-align: right; font-size: .86rem; font-weight: 600; }
@@ -182,10 +168,10 @@ button { cursor: pointer; }
   max-width: 48%; min-height: 52px;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
   margin: -4px -8px; padding: 4px 8px;
-  background: none; border: 0; border-radius: 4px;
+  background: none; border: 0; border-radius: 6px;
   text-align: left;
 }
-.pick:hover .code { color: var(--accent); }
+@media (hover: hover) { .pick:hover .code { color: var(--accent); } }
 .pick:active { background: var(--accent-soft); }
 .pick .code {
   display: inline-flex; align-items: center; gap: 8px;
@@ -240,103 +226,80 @@ button { cursor: pointer; }
   color: var(--muted);
   transition: color .12s, border-color .12s;
 }
-.swap:hover { color: var(--accent); border-color: var(--accent); }
+@media (hover: hover) { .swap:hover { color: var(--accent); border-color: var(--accent); } }
 .swap svg { transition: transform .28s cubic-bezier(.2, .7, .2, 1); }
 
+/* Under the amounts, one line: the rate, then the alert bell and the fee at fixed spots on the right. */
 .rateline {
-  position: relative;
-  display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap;
-  padding: 4px 8px 4px 22px;
+  display: flex; align-items: center; gap: 0 2px;
+  min-height: 52px; padding: 4px 6px 4px 22px;
   border-top: 1px solid var(--line);
   font-size: .86rem;
 }
-.rate-main { color: var(--ink); }
+.rate-text { flex: 1; min-width: 0; margin: 0; padding: 6px 0; line-height: 1.4; }
+.rate-main { display: block; color: var(--ink); overflow-wrap: anywhere; }
 .rate-main b { font-weight: 600; }
-.rate-sub { color: var(--muted); }
-.credit { margin: 0; padding: 0 22px 12px; font-size: .74rem; color: var(--muted); }
-.credit a { color: inherit; }
+.rate-sub { display: block; font-size: .8rem; color: var(--muted); }
+.rate-sub:empty { display: none; }
+/* The last row keeps the slip's rounded corner under its focus bar. */
+.rateline:has(+ .alert-row[hidden]), .alert-row { border-radius: 0 0 5px 5px; }
 .install-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; font-size: .84rem; line-height: 1.35; color: var(--muted); }
 .install-hint button { flex: none; width: 44px; height: 44px; margin: -10px -12px -10px 0; padding: 0; background: none; border: 0; font-size: 1.2rem; color: var(--muted); }
 .foot { font-size: .8rem; color: var(--muted); }
-.legal { display: flex; justify-content: center; gap: 48px; }
-.legal a { padding: 12px 8px; font-size: .84rem; color: var(--muted); text-decoration: none; }
-.fee {
-  margin-left: auto; position: relative;
-  display: flex; align-items: center;
-  color: var(--muted);
-}
+/* The rates credit stays on the page (ExchangeRate-API's terms ask for it), here with the legal links. */
+.legal { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 20px; }
+.legal a { padding: 12px 4px; font-size: .8rem; color: var(--muted); text-decoration: none; }
+@media (hover: hover) { .legal a:hover { color: var(--ink); } }
+
+/* Fee: "No fee" until tapped, then a bare percent field in its place, typed like the amounts. */
+.fee { flex: none; display: flex; align-items: center; color: var(--muted); }
 .fee-btn {
-  position: relative;
-  min-height: 44px; padding: 0 30px 0 12px;
-  border: 0; border-radius: 4px; background: transparent;
-  font-size: .86rem; color: inherit;
+  min-height: 44px; padding: 0 12px;
+  border: 0; border-radius: 6px; background: transparent;
+  font-size: .86rem; color: inherit; white-space: nowrap;
 }
-.fee-btn:hover { color: var(--ink); }
 .fee-btn.on { color: var(--accent); font-weight: 600; }
-.fee-btn::after {
-  content: ""; position: absolute; right: 14px; top: 50%; pointer-events: none;
-  width: 5px; height: 5px; margin-top: -4px;
-  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg); transition: transform .15s;
-}
-.fee-btn[aria-expanded="true"]::after { transform: translateY(3px) rotate(-135deg); }
-/* Small panels under the rate line (fee, alert): a label, then compact controls. */
-.pop {
-  position: absolute; top: calc(100% - 4px); z-index: 10;
-  width: 232px; padding: 12px;
-  display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
-  box-shadow: 0 10px 28px var(--shadow);
-  color: var(--ink);
-}
-.fee-menu { right: 4px; }
-.pop-label { margin: 0; font-size: .78rem; font-weight: 500; color: var(--muted); }
-.fee-opts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 3px; border-radius: 7px; background: var(--bg); }
-.fee-opts button {
-  min-height: 38px; border: 0; border-radius: 5px; background: none;
-  font-size: .86rem; color: var(--muted);
-}
-.fee-opts button:hover { color: var(--ink); }
-.fee-opts button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
-.fee-custom { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: .86rem; color: var(--muted); }
-.pop-field {
-  display: flex; align-items: center; gap: 4px;
-  width: 92px; height: 38px; padding: 0 10px;
-  border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
-  color: var(--muted);
-}
-.pop-field:focus-within, .pop-field.on { border-color: var(--accent); }
-.pop-field input {
-  flex: 1; min-width: 0; padding: 0;
+.fee-edit { display: flex; align-items: center; gap: 1px; min-height: 44px; padding: 0 12px; cursor: text; white-space: nowrap; }
+/* Small inputs inside the slip's rows: no box, like the amounts; the row shows the focus bar. */
+.inline-in {
+  width: 4ch; padding: 0;
   border: 0; background: none; outline: none;
-  text-align: right; font-size: .9rem; font-weight: 500; color: var(--ink);
+  font-weight: 600; color: var(--ink); text-align: right;
   caret-color: var(--accent);
 }
-.pop-field input::placeholder { color: var(--faint); font-weight: 400; }
+@supports (field-sizing: content) { .inline-in { width: auto; min-width: 1ch; field-sizing: content; } }
+.inline-in::placeholder { color: var(--faint); font-weight: 400; }
+.rateline:has(.inline-in:focus), .alert-row:has(.inline-in:focus) { box-shadow: inset 2px 0 0 var(--accent); }
 
-/* Rate alert: a bell beside the rate; filled while this pair has an alert. */
+/* Rate alert: a bell beside the fee; filled while this pair has an alert. */
 .bell {
-  display: grid; place-items: center;
-  width: 44px; height: 44px; margin: -10px -10px -10px -12px;
+  flex: none; display: grid; place-items: center;
+  width: 44px; height: 44px;
   background: none; border: 0; border-radius: 50%;
   color: var(--muted);
 }
-.bell:hover { color: var(--ink); }
 .bell.on { color: var(--accent); }
 .bell.on .bell-body { fill: currentColor; }
-.alert-menu { left: 8px; width: 256px; }
-.alert-row { display: flex; gap: 8px; }
-.alert-row .pop-field { flex: 1; width: auto; min-width: 0; }
-.alert-set {
-  min-width: 64px; height: 38px; border: 0; border-radius: 6px;
-  background: var(--accent); color: var(--accent-ink);
-  font-size: .86rem; font-weight: 600;
+@media (hover: hover) { .fee-btn:hover, .bell:hover { color: var(--ink); } .fee-btn.on:hover, .bell.on:hover { color: var(--accent); } }
+/* The alert opens as one more row of the slip: "Alert at 0.9 USD", how far that is, Set. */
+.alert-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px;
+  min-height: 52px; padding: 4px 6px 4px 22px;
+  border-top: 1px solid var(--line);
+  font-size: .86rem;
 }
-.alert-set:hover { filter: brightness(1.08); }
-.alert-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; margin-top: -4px; font-size: .8rem; color: var(--muted); }
-.alert-link { position: relative; padding: 4px 0; border: 0; background: none; font-size: .8rem; font-weight: 600; color: var(--accent); }
-/* Taller to tap than it looks, short of the Set button above. */
-.alert-link::before { content: ""; position: absolute; inset: -8px -8px -12px; }
+.alert-field { display: flex; align-items: center; gap: 5px; min-height: 44px; color: var(--muted); cursor: text; white-space: nowrap; }
+.alert-field .inline-in { min-width: 2ch; text-align: left; }
+.alert-hint { flex: 1 1 0; min-width: 0; padding: 0 4px 0 10px; text-align: right; font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Where the hint doesn't fit beside the number, it takes a line of its own. */
+.alert-row.wrap .alert-field { flex: 1; }
+.alert-row.wrap .alert-hint { order: 1; flex-basis: 100%; margin-top: -8px; padding: 0 0 8px; text-align: left; }
+.link {
+  flex: none; min-height: 44px; padding: 0 10px;
+  border: 0; border-radius: 6px; background: none;
+  font-size: .86rem; font-weight: 600; color: var(--accent);
+}
+@media (hover: hover) { .link:hover { color: var(--ink); } }
 
 /* Sections */
 .section { display: grid; gap: 10px; }
@@ -352,7 +315,7 @@ button { cursor: pointer; }
   background: none; border: 0;
   font-size: .85rem; color: var(--muted);
 }
-.range button:hover { color: var(--ink); }
+@media (hover: hover) { .range button:hover { color: var(--ink); } }
 .range button[aria-pressed="true"] { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; text-decoration-color: var(--accent); }
 
 .trend { position: relative; height: 116px; border-bottom: 1px solid var(--line); transition: opacity .2s; }
@@ -369,24 +332,25 @@ button { cursor: pointer; }
   position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
   background: var(--accent); box-shadow: 0 0 0 3px var(--bg); pointer-events: none;
 }
-.empty { padding: 16px 0; font-size: .88rem; color: var(--muted); }
+/* A trend that can't load is one grey line, with nothing to switch between. */
+.trend-note { margin: 0; font-size: .86rem; color: var(--muted); }
+.section.off > :not(.trend-note) { display: none; }
 
-/* Quick amounts */
-.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.quick-col { display: grid; min-width: 0; }
-.quick-col h3 { margin: 0 0 4px; font-size: .8rem; font-weight: 500; color: var(--muted); }
-/* A row too long for its half puts the answer on a second line, right-aligned. */
-.quick-col button {
-  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 8px;
+/* Quick amounts: one column, the way the converter runs now. The heading names the
+   pair, so the amounts on the left are bare numbers. A row too long for the width
+   puts the answer on a second line, right-aligned. */
+.quick-pair { margin-left: 8px; font-weight: 400; color: var(--muted); }
+.quick { display: grid; min-width: 0; }
+.quick button {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 12px;
   min-height: 44px; padding: 4px 2px;
   background: none; border: 0; border-top: 1px solid var(--line);
   font-size: .9rem; text-align: left;
 }
-.quick-col button span:first-child { color: var(--muted); }
-.quick-col button span:last-child { margin-left: auto; font-weight: 500; white-space: nowrap; }
-.quick-col button:hover span:last-child { color: var(--accent); }
-.quick-col button:active { background: var(--accent-soft); }
-@media (max-width: 340px) { .quick { grid-template-columns: 1fr; } }
+.quick button span:first-child { color: var(--muted); }
+.quick button span:last-child { margin-left: auto; font-weight: 500; white-space: nowrap; }
+@media (hover: hover) { .quick button:hover span:last-child { color: var(--accent); } }
+.quick button:active { background: var(--accent-soft); }
 
 
 /* Operator keys above the phone keyboard (Android's number pad has none) */
@@ -412,7 +376,7 @@ button { cursor: pointer; }
 dialog {
   width: min(440px, calc(100vw - 32px));
   max-height: min(600px, calc(100dvh - 64px));
-  padding: 0; border: 1px solid var(--line); border-radius: 4px;
+  padding: 0; border: 1px solid var(--line); border-radius: 6px;
   background: var(--surface); color: var(--ink);
 }
 dialog[open] { display: flex; flex-direction: column; }
@@ -431,11 +395,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 .picker-head { display: flex; gap: 4px; padding: 10px 6px 10px 12px; border-bottom: 1px solid var(--line); }
 .picker-head input {
   flex: 1; min-width: 0; min-height: 44px; padding: 0 12px;
-  border: 1px solid var(--line); border-radius: 4px; background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
 }
 .picker-head input:focus { outline: none; border-color: var(--accent); }
 .picker-head button { min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--muted); font-size: .9rem; }
-.picker-head button:hover { color: var(--ink); }
+@media (hover: hover) { .picker-head button:hover { color: var(--ink); } }
 .picker-list { list-style: none; margin: 0; padding: 4px 0 12px; overflow-y: auto; overscroll-behavior: contain; }
 .picker-list .group { padding: 14px 16px 4px; font-size: .8rem; font-weight: 500; color: var(--muted); }
 .picker-list button {
@@ -443,8 +407,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   display: grid; grid-template-columns: 48px 1fr 18px; align-items: center; gap: 10px;
   padding: 0 16px; border: 0; background: none; text-align: left;
 }
-.picker-list button:hover, .picker-list button:focus-visible { background: var(--accent-soft); outline: none; }
-.picker-list button[aria-current="true"] { background: var(--accent-soft); }
+/* Hover only where there's a mouse: on a phone a tapped row would stay shaded and read as a second choice. */
+@media (hover: hover) { .picker-list button:hover { background: var(--accent-soft); } }
+.picker-list button:focus-visible { background: var(--accent-soft); outline: none; }
+/* The current currency: the tick, on a lighter shade than hover. */
+.picker-list button[aria-current="true"] { background: var(--accent-faint); }
 .picker-list .c { font-weight: 600; letter-spacing: .01em; }
 .picker-list .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .picker-list .tick { color: var(--accent); }
@@ -456,9 +423,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   .calc { right: 16px; }
   .leg:first-child .calc { right: 68px; }
   .swap { right: 16px; }
-  .rateline { padding-left: 16px; }
-  .credit { padding-inline: 16px; }
-  .rate-sub { flex-basis: 100%; order: 3; margin-top: -10px; padding-bottom: 8px; }
+  .rateline, .alert-row { padding-left: 16px; }
   dialog {
     width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
     margin: 0; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); border: 0; border-radius: 0;
@@ -486,19 +451,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   </header>
 
   <section class="update" id="updateCard" aria-label="App update" hidden>
-    <div class="update-head">
-      <span class="update-icon" aria-hidden="true">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v9M5 8.5 9 12.5l4-4M4 15h10"/></svg>
-      </span>
-      <div class="update-text">
-        <p class="update-title" id="updateTitle">Update available</p>
-        <p class="update-sub" id="updateSub"></p>
-      </div>
+    <div>
+      <p class="update-title" id="updateTitle">Update available</p>
+      <p class="update-sub" id="updateSub"></p>
     </div>
-    <div class="update-new" id="updateNew">
-      <p class="update-label">What's new</p>
-      <ul class="update-notes" id="updateNotes"></ul>
-    </div>
+    <ul class="update-notes" id="updateNotes" hidden></ul>
     <p class="update-msg" id="updateMsg" aria-live="polite" hidden></p>
     <div class="update-progress" id="updateProgress" hidden>
       <div class="update-track"><span id="updateBar"></span></div>
@@ -530,43 +487,24 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v11M2 10l3 3 3-3M11 14V3M8 6l3-3 3 3"/></svg>
       </button>
     </div>
+    <p class="sr-only" id="announce" aria-live="polite"></p>
     <div class="rateline">
-      <span class="rate-main" id="rateMain">Waiting for rates</span>
-      <button class="bell" id="alertBtn" type="button" aria-expanded="false" aria-controls="alertMenu" aria-label="Set a rate alert" hidden>
+      <p class="rate-text"><span class="rate-main" id="rateMain">Waiting for rates</span><span class="rate-sub" id="rateSub"></span></p>
+      <button class="bell" id="alertBtn" type="button" aria-expanded="false" aria-controls="alertRow" aria-label="Set a rate alert" hidden>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path class="bell-body" d="M8 2.2a3.6 3.6 0 0 0-3.6 3.6v2.4L3 10.8h10L11.6 8.2V5.8A3.6 3.6 0 0 0 8 2.2Z"/><path d="M6.5 12.8a1.6 1.6 0 0 0 3 0"/></svg>
       </button>
-      <span class="rate-sub" id="rateSub"></span>
       <div class="fee" id="feeBox">
-        <button class="fee-btn" id="feeBtn" type="button" aria-expanded="false" aria-controls="feeMenu">No fee</button>
-        <div class="pop fee-menu" id="feeMenu" role="group" aria-label="Bank or card fee" hidden>
-          <p class="pop-label">Bank or card fee</p>
-          <div class="fee-opts" id="feeOpts">
-            <button type="button" data-fee="0">None</button>
-            <button type="button" data-fee="1">1%</button>
-            <button type="button" data-fee="2">2%</button>
-            <button type="button" data-fee="3">3%</button>
-          </div>
-          <label class="fee-custom">
-            <span>Custom</span>
-            <span class="pop-field" id="feeField"><input id="feeCustom" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0" aria-label="Custom fee in percent"><span aria-hidden="true">%</span></span>
-          </label>
-        </div>
-      </div>
-      <div class="pop alert-menu" id="alertMenu" role="group" aria-label="Rate alert" hidden>
-        <p class="pop-label" id="alertLabel">Notify me when 1 USD reaches</p>
-        <div class="alert-row">
-          <span class="pop-field"><input id="alertTarget" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="Target rate"><span id="alertCode" aria-hidden="true">EUR</span></span>
-          <button class="alert-set" id="alertSet" type="button">Set</button>
-        </div>
-        <div class="alert-foot">
-          <span id="alertHint" aria-live="polite"></span>
-          <button class="alert-link" id="alertRemove" type="button" hidden>Remove</button>
-          <button class="alert-link" id="alertAllow" type="button" hidden>Allow</button>
-        </div>
+        <button class="fee-btn" id="feeBtn" type="button">No fee</button>
+        <label class="fee-edit" id="feeEdit" hidden><input class="inline-in" id="feeInput" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0" aria-label="Bank or card fee in percent, blank for none"><span aria-hidden="true">% fee</span></label>
       </div>
     </div>
-    <p class="sr-only" id="announce" aria-live="polite"></p>
-    <p class="credit"><a href="https://www.exchangerate-api.com" rel="noreferrer">Rates By Exchange Rate API</a></p>
+    <div class="alert-row" id="alertRow" role="group" aria-label="Rate alert" hidden>
+      <label class="alert-field"><span>Alert at</span><input class="inline-in" id="alertTarget" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false"><span id="alertCode">EUR</span></label>
+      <span class="alert-hint" id="alertHint" aria-live="polite"></span>
+      <button class="link" id="alertAllow" type="button" hidden>Allow</button>
+      <button class="link" id="alertRemove" type="button" hidden>Remove</button>
+      <button class="link" id="alertSet" type="button">Set</button>
+    </div>
   </section>
 
   <section class="section" id="trendSection">
@@ -580,14 +518,15 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     </div>
     <div class="trend" id="trend"></div>
     <div class="trend-axis" id="trendAxis"></div>
+    <p class="trend-note" id="trendNote" hidden></p>
   </section>
 
-  <section class="section">
-    <div class="section-head"><h2>Quick amounts</h2></div>
+  <section class="section" id="quickSection" hidden>
+    <div class="section-head"><h2>Quick amounts<span class="quick-pair" id="quickPair"></span></h2></div>
     <div class="quick" id="quick"></div>
   </section>
 
-  <footer class="foot"><nav class="legal" aria-label="Legal"><a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy</a><a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms</a></nav></footer>
+  <footer class="foot"><nav class="legal" aria-label="Legal"><a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy</a><a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms</a><a href="https://www.exchangerate-api.com" rel="noreferrer">Rates By Exchange Rate API</a></nav></footer>
 </main>
 
 <div class="ops" id="ops" hidden>
@@ -605,14 +544,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   <ul class="picker-list" id="pickerList"></ul>
 </dialog>
 
-<script src="lib.js?v=2"></script>
+<script src="lib.js?v=3"></script>
 <script src="pwa.js"></script>
 <script>
 (() => {
   // A page and a lib.js from different releases can meet right after one (an
   // edge or saved copy of one but not the other). Fetch lib.js afresh and load
   // again, once; a second miss runs anyway rather than loop.
-  const LIB = 2;
+  const LIB = 3;
   if (!window.BureauLib || BureauLib.VERSION !== LIB) {
     let tried = true;
     try { tried = sessionStorage.getItem('bureau.libRetry') === String(LIB); sessionStorage.setItem('bureau.libRetry', String(LIB)); } catch {}
@@ -919,46 +858,43 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     }
     const eff = effectiveRate(state.from, state.to);
     main.innerHTML = `1 ${state.from} = <b>${fmtRate(eff)}</b> ${state.to}`;
-    sub.textContent = state.fee ? `Plain rate ${fmtRate(r)}` : `1 ${state.to} = ${fmtRate(1 / r)} ${state.from}`;
+    // Only with a fee is there a second rate worth a line.
+    sub.textContent = state.fee ? `Plain rate ${fmtRate(r)}` : '';
   }
 
-  // ---- fee menu ----
-  const FEE_PRESETS = [0, 1, 2, 3];
-  const MAX_FEE = 20;
+  // ---- fee ----
+  // "No fee" (or "2.5% fee") in the rate line; tapping it turns it into a bare
+  // percent field that applies as you type. Blank is no fee.
   const fmtPct = n => nf({ maximumFractionDigits: 2 }).format(n);
+  let feeBefore = 0;
   function renderFee() {
-    $('feeBtn').textContent = state.fee ? `${fmtPct(state.fee)}% fee` : 'No fee';
-    $('feeBtn').classList.toggle('on', state.fee > 0);
-    const custom = !FEE_PRESETS.includes(state.fee);
-    for (const b of $('feeOpts').children) b.setAttribute('aria-pressed', String(Number(b.dataset.fee) === state.fee));
-    $('feeField').classList.toggle('on', custom);
-    if (document.activeElement !== $('feeCustom')) $('feeCustom').value = custom ? fmtPct(state.fee) : '';
+    const btn = $('feeBtn');
+    btn.textContent = state.fee ? `${fmtPct(state.fee)}% fee` : 'No fee';
+    btn.classList.toggle('on', state.fee > 0);
+    btn.setAttribute('aria-label', `Bank or card fee: ${state.fee ? fmtPct(state.fee) + '%' : 'none'}. Change`);
   }
   function setFee(n) {
-    state.fee = Math.round(n * 100) / 100;
+    state.fee = n;
     store.set('fee', state.fee);
     renderAll();
     announce();
   }
   function openFee() {
     closeAlert();
-    renderFee();
-    $('feeMenu').hidden = false;
-    $('feeBtn').setAttribute('aria-expanded', 'true');
-    if (!reduceMotion.matches && $('feeMenu').animate) {
-      $('feeMenu').animate(
-        [{ opacity: 0, transform: 'translateY(-4px) scale(.98)' }, { opacity: 1, transform: 'none' }],
-        { duration: 140, easing: 'ease-out' },
-      );
-    }
+    feeBefore = state.fee;
+    $('feeBtn').hidden = true;
+    $('feeEdit').hidden = false;
+    $('feeInput').value = state.fee ? fmtPct(state.fee) : '';
+    $('feeInput').focus();
+    $('feeInput').select();
     toApp({ type: 'picker', open: true });
   }
-  function closeFee(refocus) {
-    if ($('feeMenu').hidden) return;
-    $('feeMenu').hidden = true;
-    $('feeBtn').setAttribute('aria-expanded', 'false');
+  // On blur: the field gives way to the button again, showing the fee in force.
+  function closeFee() {
+    if ($('feeEdit').hidden) return;
+    $('feeEdit').hidden = true;
+    $('feeBtn').hidden = false;
     renderFee();
-    if (refocus) $('feeBtn').focus();
     toApp({ type: 'picker', open: false });
   }
 
@@ -973,42 +909,55 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     $('alertBtn').classList.toggle('on', !!a);
     $('alertBtn').setAttribute('aria-label', a ? `Rate alert at ${fmtRate(a.target)} ${state.to}. Change` : 'Set a rate alert');
   }
+  // The row says how far the target is from now. An alert already set at the
+  // typed rate offers Remove instead of Set; with notifications off, Allow comes
+  // first (Set still asks Android for permission).
   function renderAlertHint() {
     const r = rate(state.from, state.to), a = alertFor(state.from, state.to);
     const t = parseNumber($('alertTarget').value.trim());
+    const isSet = !!a && t > 0 && Math.abs(t / a.target - 1) < 1e-9;
     let text = '';
-    if (!notifyOn) text = 'Notifications are off';
+    if (!notifyOn) text = 'Notifications off';
     else if (Number.isFinite(t) && t > 0 && Number.isFinite(r)) {
       const diff = (t / r - 1) * 100;
-      const where = Math.abs(diff) < 0.01 ? "That's the rate now" : `${fmtPct(Math.abs(diff))}% ${diff > 0 ? 'above' : 'below'} now`;
-      text = a && Math.abs(t / a.target - 1) < 1e-9 ? `Set · ${where.toLowerCase()}` : where;
+      text = Math.abs(diff) < 0.01 ? 'The rate now' : `${fmtPct(Math.abs(diff))}% ${diff > 0 ? 'above' : 'below'} now`;
     } else if (Number.isFinite(r)) text = `Now ${fmtRate(r)}`;
     $('alertHint').textContent = text;
     $('alertAllow').hidden = notifyOn;
-    $('alertRemove').hidden = !notifyOn || !a;
+    $('alertRemove').hidden = !notifyOn || !isSet;
+    $('alertSet').hidden = notifyOn && isSet;
+    fitAlertHint();
+  }
+  // The hint drops under the number when the row can't hold it whole.
+  function fitAlertHint() {
+    const row = $('alertRow'), hint = $('alertHint');
+    row.classList.remove('wrap');
+    if (row.hidden || !hint.firstChild) return;
+    // Measured in fractions of a pixel: scrollWidth rounds away the sliver that brings on the ellipsis.
+    const range = document.createRange();
+    range.selectNodeContents(hint);
+    const pad = parseFloat(getComputedStyle(hint).paddingLeft) + parseFloat(getComputedStyle(hint).paddingRight);
+    if (range.getBoundingClientRect().width + pad > hint.getBoundingClientRect().width + 0.5) row.classList.add('wrap');
   }
   function openAlert() {
     closeFee();
     const a = alertFor(state.from, state.to), r = rate(state.from, state.to);
-    $('alertLabel').textContent = `Notify me when 1 ${state.from} reaches`;
     $('alertCode').textContent = state.to;
+    $('alertTarget').setAttribute('aria-label', `Alert when 1 ${state.from} reaches, in ${state.to}`);
     $('alertTarget').value = a ? fmtRate(a.target) : (Number.isFinite(r) ? fmtRate(r) : '');
+    $('alertRow').hidden = false;
     renderAlertHint();
-    $('alertMenu').hidden = false;
     $('alertBtn').setAttribute('aria-expanded', 'true');
-    if (!reduceMotion.matches && $('alertMenu').animate) {
-      $('alertMenu').animate(
-        [{ opacity: 0, transform: 'translateY(-4px) scale(.98)' }, { opacity: 1, transform: 'none' }],
-        { duration: 140, easing: 'ease-out' },
-      );
+    if (!reduceMotion.matches && $('alertRow').animate) {
+      $('alertRow').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140, easing: 'ease-out' });
     }
     $('alertTarget').focus();
     $('alertTarget').select();
     toApp({ type: 'picker', open: true });
   }
   function closeAlert(refocus) {
-    if ($('alertMenu').hidden) return;
-    $('alertMenu').hidden = true;
+    if ($('alertRow').hidden) return;
+    $('alertRow').hidden = true;
     $('alertBtn').setAttribute('aria-expanded', 'false');
     if (refocus) $('alertBtn').focus();
     toApp({ type: 'picker', open: false });
@@ -1016,7 +965,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   function setAlert() {
     const t = parseNumber($('alertTarget').value.trim()), r = rate(state.from, state.to);
     if (!(t > 0) || !Number.isFinite(r) || Math.abs(t / r - 1) < 1e-4) {
-      if (t > 0 && Number.isFinite(r)) $('alertHint').textContent = 'Pick a rate above or below now';
+      if (t > 0 && Number.isFinite(r)) { $('alertHint').textContent = 'Pick one above or below now'; fitAlertHint(); }
       return $('alertTarget').focus();
     }
     const alert = { from: state.from, to: state.to, target: t, above: t > r };
@@ -1071,49 +1020,42 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   }
 
   // ---- quick amounts ----
-  function quickAmounts(code) {
-    const usdValue = state.rates && state.rates[code] ? 1 / state.rates[code] : 1;
-    const k = Math.round(Math.log10(usdValue));
-    const mult = Math.abs(k) >= 2 ? Math.pow(10, -k) : 1;
-    return [1, 5, 10, 20, 50, 100, 200, 500, 1000].map(a => a * mult);
-  }
-  function quickColumn(from, to) {
-    const col = document.createElement('div');
-    col.className = 'quick-col';
-    const h = document.createElement('h3');
-    h.textContent = `${from} → ${to}`;
-    col.append(h);
+  // One column for the way the converter runs now; a swap turns it round.
+  function renderQuick() {
+    const { from, to } = state;
     const r = effectiveRate(from, to);
-    // Coins go bare and short here: the heading names them, and a phone has no room for 0.00000740452 BTC.
-    const money = (n, code, opts) => (CRYPTO[code] ? (Number.isFinite(n) ? nf(opts || BureauLib.coinQuickOpts(n, code)).format(n) : '–') : fmtMoney(n, code, opts));
-    // Big amounts read short: the round ones to convert from 10,000 up (Rp 10K), answers
+    // Nothing to list until there's a rate.
+    $('quickSection').hidden = !Number.isFinite(r);
+    if (!Number.isFinite(r)) return $('quick').replaceChildren();
+    $('quickPair').textContent = `${from} → ${to}`;
+    // Coins go short here, and a phone has no room for 0.00000740452 BTC.
+    const money = (n, code, opts) => (CRYPTO[code] ? nf(opts || BureauLib.coinQuickOpts(n, code)).format(n) : fmtMoney(n, code, opts));
+    // Big amounts read short: the round ones to convert from 10,000 up (10K), answers
     // without cents from 10,000 and in millions as Rp 13.59M. Screen readers hear them whole.
     const short = n => (Math.abs(n) >= 1e6 ? { notation: 'compact', maximumSignificantDigits: 4 } : Math.abs(n) >= 1e4 ? { maximumFractionDigits: 0 } : undefined);
-    const spoken = (text, code) => (CRYPTO[code] && text !== '–' ? `${text} ${code}` : text);
-    for (const a of quickAmounts(from)) {
+    const spoken = (text, code) => (CRYPTO[code] ? `${text} ${code}` : text);
+    const usdValue = state.rates[from] > 0 ? 1 / state.rates[from] : 1;
+    const rows = BureauLib.quickAmounts(usdValue).map(a => {
       const b = document.createElement('button');
       b.type = 'button';
       const whole = Number.isInteger(a) ? { maximumFractionDigits: 0 } : undefined;
+      // The heading names the currency, so the amount to convert is a bare number.
       const left = document.createElement('span');
-      left.textContent = money(a, from, CRYPTO[from] || a < 1e4 ? whole : { notation: 'compact' });
+      left.textContent = CRYPTO[from] ? money(a, from) : nf(a < 1e4 ? (whole || amountOpts(a, from)) : { notation: 'compact' }).format(a);
       const right = document.createElement('span');
       right.textContent = money(a * r, to, CRYPTO[to] ? undefined : short(a * r));
       b.append(left, right);
-      b.setAttribute('aria-label', `Use ${spoken(money(a, from, whole), from)}, ${spoken(money(a * r, to), to)}`);
+      b.setAttribute('aria-label', `Use ${spoken(money(a, from, CRYPTO[from] ? undefined : whole), from)}, ${spoken(money(a * r, to), to)}`);
       b.addEventListener('click', () => {
         haptic();
-        if (from !== state.from) swap();
         state.edited = 'from';
         field('from').value = fmtAmount(a, state.from);
         convert();
         announce();
       });
-      col.append(b);
-    }
-    return col;
-  }
-  function renderQuick() {
-    $('quick').replaceChildren(quickColumn(state.from, state.to), quickColumn(state.to, state.from));
+      return b;
+    });
+    $('quick').replaceChildren(...rows);
   }
 
   // ---- trend ----
@@ -1153,13 +1095,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       if (token !== trendToken) return;
       trendFailed = true;
       if (usable) return; // keep showing the saved chart
-      return showTrendEmpty("Couldn't load the trend. It will try again with the next rate update.");
+      // It tries again with the next rate update.
+      return showTrendEmpty(navigator.onLine === false || state.error ? 'No trend offline' : 'No trend right now');
     } finally {
       if (trendBusy === token) trendBusy = 0;
     }
     if (token !== trendToken) return;
     trendFailed = false;
-    if (entry.series.length < 2) return showTrendEmpty(`No history yet for ${from} → ${to}.`);
+    if (entry.series.length < 2) return showTrendEmpty(`No trend for ${from} → ${to} yet`);
     drawTrend(entry.series, key);
   }
   // After each rate refresh: a failed or 6-hour-old trend loads again, and
@@ -1231,6 +1174,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   function drawTrend(series, key) {
     const el = $('trend');
     el.classList.remove('loading');
+    $('trendSection').classList.remove('off');
+    $('trendNote').hidden = true;
     const fresh = key !== drawnKey;
     drawnKey = key;
     series = BureauLib.withLatest(series, rate(state.from, state.to), rateDay());
@@ -1301,6 +1246,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   $('trend').addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) scrubAt(e.clientX); });
   for (const type of ['pointerup', 'pointerleave', 'pointercancel']) $('trend').addEventListener(type, endScrub);
 
+  // No chart box, range or heading: the section folds to one grey line.
   function showTrendEmpty(msg) {
     scrub = null;
     drawnKey = '';
@@ -1308,10 +1254,12 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     el.classList.remove('loading');
     el.removeAttribute('role');
     el.removeAttribute('aria-label');
-    el.innerHTML = '<div class="empty"></div>';
-    el.firstChild.textContent = msg;
+    el.innerHTML = '';
     $('trendChange').textContent = '';
     $('trendAxis').innerHTML = '';
+    $('trendNote').textContent = msg;
+    $('trendNote').hidden = false;
+    $('trendSection').classList.add('off');
   }
 
   function renderAll() {
@@ -1377,11 +1325,12 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
         alerts = list.filter(a => isKnown(a.from) && isKnown(a.to));
         notifyOn = m.notify !== false;
         renderBell();
-        if (!$('alertMenu').hidden) renderAlertHint();
+        if (!$('alertRow').hidden) renderAlertHint();
       } else if (m.type === 'showPair') {
         // Opened from an alert's notification.
         const from = settle(m.from), to = settle(m.to);
         if (from && to && from !== to) {
+          closeAlert();
           state.from = from;
           state.to = to;
           savePair();
@@ -1389,20 +1338,23 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
           renderTrend();
         }
       } else if (m.type === 'update' && selfUpdates) {
-        if (m.state === 'available') markUpdateReady();
+        if (m.state === 'available') updateReady = true;
         showUpdate(m);
+        showVersion(versionLabel(), updateReady && $('updateCard').hidden ? 'available' : '');
       }
     };
     $('updateGo').addEventListener('click', () => {
       showUpdate({ state: 'downloading', progress: 0 });
       toApp({ type: 'installUpdate' });
     });
-    $('updateLater').addEventListener('click', () => { $('updateCard').hidden = true; });
+    // Put away, the card leaves "Update available" at the top right to bring it back.
+    $('updateLater').addEventListener('click', () => { $('updateCard').hidden = true; markUpdateReady(); });
     $('alertBtn').hidden = false;
     // Tapping the version checks for updates; once one is known it reopens the card.
     $('version').addEventListener('click', () => {
       if (updateReady && $('updateCard').hidden) {
         $('updateCard').hidden = false;
+        showVersion(versionLabel());
         scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
@@ -1421,9 +1373,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     $('version').textContent = text;
     $('version').dataset.state = state || '';
   }
+  // While the update card shows, the top right keeps the version: the card says the rest.
+  const versionLabel = () => (updateReady && $('updateCard').hidden ? 'Update available' : `v${appVersion}`);
   function markUpdateReady() {
     updateReady = true;
-    showVersion('Update available', 'available');
+    showVersion(versionLabel(), $('updateCard').hidden ? 'available' : '');
   }
 
   // The update card. The app sends: available (version, notes, size),
@@ -1437,15 +1391,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       updateSize = m.size > 0 ? m.size : updateSize;
       const notes = Array.isArray(m.notes) ? m.notes.filter(n => typeof n === 'string' && n).slice(0, 5) : [];
       $('updateNotes').replaceChildren(...notes.map(n => { const li = document.createElement('li'); li.textContent = n; return li; }));
-      show('updateNew', notes.length > 0);
+      show('updateNotes', notes.length > 0);
     }
     const sub = [`Bureau ${updateVersion}`, updateSize ? `${(updateSize / 1e6).toFixed(1)} MB` : ''].filter(Boolean).join(' · ');
     const pct = Math.round(Math.max(0, Math.min(1, m.progress || 0)) * 100);
     const view = {
       available: { title: 'Update available', msg: '', actions: true, progress: false, go: 'Update' },
       downloading: { title: 'Downloading update', msg: '', actions: false, progress: true },
-      installing: { title: 'Installing update', actions: false, progress: true,
-        msg: 'Confirm on the next screen. The first time, Android asks you to allow installs from Bureau. Turn it on, then go back.' },
+      installing: { title: 'Installing update', actions: false, progress: true, msg: 'Confirm on the next screen.' },
       failed: { title: "Update didn't finish", msg: m.message || 'Something went wrong. Try again.', actions: true, progress: false, go: 'Try again' },
     }[m.state];
     if (!view) return;
@@ -1529,6 +1482,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     store.set('pair', { from: state.from, to: state.to });
   }
   function swap() {
+    closeAlert();
     [state.from, state.to] = [state.to, state.from];
     const f = field('from').value;
     field('from').value = field('to').value;
@@ -1565,37 +1519,32 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     $('status').textContent = 'Checking…';
     loadRates();
   });
-  $('feeBtn').addEventListener('click', () => ($('feeMenu').hidden ? openFee() : closeFee()));
-  $('feeOpts').addEventListener('click', e => {
-    const b = e.target.closest('button[data-fee]');
-    if (!b) return;
-    haptic('tick');
-    setFee(Number(b.dataset.fee));
-    closeFee(true);
+  $('feeBtn').addEventListener('click', openFee);
+  // The fee applies as you type; one that can't be read leaves the last good one.
+  $('feeInput').addEventListener('input', e => {
+    const n = BureauLib.parseFee(e.target.value, GROUP);
+    if (Number.isFinite(n) && n !== state.fee) setFee(n);
   });
-  // A custom fee applies as you type; Done or Enter closes the menu.
-  $('feeCustom').addEventListener('input', e => {
-    const n = e.target.value.trim() ? parseNumber(e.target.value.replace('%', '').trim()) : 0;
-    if (Number.isFinite(n) && n >= 0 && n <= MAX_FEE) setFee(n);
+  $('feeInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); $('feeInput').blur(); }
+    // Escape puts back the fee from before.
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (state.fee !== feeBefore) setFee(feeBefore); $('feeInput').blur(); }
   });
-  $('feeCustom').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); closeFee(true); } });
-  $('feeCustom').addEventListener('blur', renderFee);
-  $('feeMenu').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeFee(true); } });
-  $('alertBtn').addEventListener('click', () => ($('alertMenu').hidden ? openAlert() : closeAlert()));
+  $('feeInput').addEventListener('blur', () => { closeFee(); });
+  $('alertBtn').addEventListener('click', () => ($('alertRow').hidden ? openAlert() : closeAlert()));
   $('alertTarget').addEventListener('input', renderAlertHint);
   $('alertTarget').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); setAlert(); } });
   $('alertSet').addEventListener('click', setAlert);
   $('alertRemove').addEventListener('click', removeAlert);
   $('alertAllow').addEventListener('click', () => toApp({ type: 'notificationSettings' }));
-  $('alertMenu').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeAlert(true); } });
+  $('alertRow').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeAlert(true); } });
   document.addEventListener('pointerdown', e => {
-    if (!$('feeMenu').hidden && !$('feeBox').contains(e.target)) closeFee();
-    if (!$('alertMenu').hidden && !$('alertMenu').contains(e.target) && !$('alertBtn').contains(e.target)) closeAlert();
+    if (!$('alertRow').hidden && !$('alertRow').contains(e.target) && !$('alertBtn').contains(e.target)) closeAlert();
   });
-  // The app's Back gesture calls this first: it closes whichever menu is open.
+  // The app's Back gesture calls this first: it closes the fee field, the alert row or the picker.
   window.bureauBack = () => {
-    if (!$('feeMenu').hidden) { closeFee(); return true; }
-    if (!$('alertMenu').hidden) { closeAlert(); return true; }
+    if (!$('feeEdit').hidden) { $('feeInput').blur(); closeFee(); return true; }
+    if (!$('alertRow').hidden) { closeAlert(); return true; }
     if (dlg.open) { dlg.close(); return true; }
     return false;
   };
@@ -1708,6 +1657,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     store.set('recent', state.recent);
     savePair();
     dlg.close();
+    closeAlert();
     renderAll();
     renderTrend();
     announce();
@@ -1755,7 +1705,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     if (!document.hidden && Date.now() - state.fetchedAt > REFRESH_MS) loadRates();
   });
   addEventListener('online', loadRates);
-  addEventListener('resize', fitAll);
+  addEventListener('resize', () => { fitAll(); if (!$('alertRow').hidden) renderAlertHint(); });
   if (document.fonts) document.fonts.ready.then(fitAll);
 })();
 </script>

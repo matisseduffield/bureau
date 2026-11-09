@@ -10,7 +10,7 @@ const CACHE = 'bureau-2';
 const WAIT_MS = 3000;
 const at = file => new URL(file, location).href;
 const INDEX = at('index.html');
-const FILES = ['index.html', 'lib.js?v=2', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2', 'fonts/hanken-grotesk-latin-ext.woff2'].map(at);
+const FILES = ['index.html', 'lib.js?v=3', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2', 'fonts/hanken-grotesk-latin-ext.woff2'].map(at);
 // Past the browser's own cache, which could hold a copy older than the network's.
 const fresh = key => (key.endsWith('.woff2') ? 'default' : 'reload');
 
