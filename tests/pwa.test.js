@@ -9,7 +9,7 @@ const WEB = path.join(__dirname, '../web');
 const read = file => fs.readFileSync(path.join(WEB, file));
 const NAME = 'Bureau';
 const PASS_THROUGH = ['https://api.coinbase.com/v2/exchange-rates?currency=USD', 'https://open.er-api.com/v6/latest/USD', 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json', 'https://api.frankfurter.dev/v1/latest', 'https://bureau.teloone.au/app', 'https://bureau.teloone.au/manifest.json'];
-const KEPT = ['lib.js', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2'];
+const KEPT = ['lib.js?v=2', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2'];
 
 const SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
 const CHROME_IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/138.0.7204.156 Mobile/15E148 Safari/604.1';
@@ -164,29 +164,36 @@ test('no signal opens the saved copy at once, and nothing at all is an error', a
   assert.equal((await empty.respond({ url: INDEX_URL }).response).type, 'error');
 });
 
-test('a page from the saved copy takes saved files, and a fresh page fresh ones', async () => {
-  const LIB = 'https://bureau.teloone.au/lib.js';
-  let arrive;
-  const sw = loadSw({ net: () => new Promise(r => { arrive = r; }), saved: { [INDEX_URL]: new Response('old page'), [LIB]: new Response('old lib') } });
-  // Fresh page: its lib.js waits for the network, however slow, with no timer.
-  const fresh = loadSw({ net: async () => new Response('new'), saved: { [LIB]: new Response('old lib') } });
-  await fresh.respond({ url: INDEX_URL, mode: 'navigate' }).response;
-  const lib = fresh.respond({ url: LIB }).response;
-  assert.equal(fresh.timers.length, 1);
-  assert.equal(await (await lib).text(), 'new');
-  // Saved page: its lib.js is the saved one at once.
-  const page = sw.respond({ url: INDEX_URL, mode: 'navigate' }).response;
-  sw.timers[0].fn();
-  assert.equal(await (await page).text(), 'old page');
-  assert.equal(await (await sw.respond({ url: LIB }).response).text(), 'old lib');
-  assert.equal(sw.timers.length, 1);
-  arrive(new Response('new'));
+test('a versioned file answers from its saved copy, unless the page asks afresh', async () => {
+  const LIB = 'https://bureau.teloone.au/lib.js?v=2';
+  let calls = 0;
+  const sw = loadSw({ net: async () => { calls++; return new Response('network lib'); }, saved: { [LIB]: new Response('saved lib') } });
+  assert.equal(await (await sw.respond({ url: LIB }).response).text(), 'saved lib');
+  assert.equal(calls, 0);
+  assert.equal(sw.timers.length, 0);
+  // The page found a mismatched lib.js and asks past the saved copy, which the answer replaces.
+  const { response, waits } = sw.respond({ url: LIB, cache: 'reload' });
+  assert.equal(await (await response).text(), 'network lib');
+  await Promise.all(waits);
+  assert.deepEqual(sw.kept, [LIB]);
+  // A version not saved yet waits for the network, however long.
+  const other = loadSw({ net: async () => new Response('v3') });
+  assert.equal(await (await other.respond({ url: 'https://bureau.teloone.au/lib.js?v=2' }).response).text(), 'v3');
+  assert.equal(other.timers.length, 0);
+});
+
+test('lib.js, the page and the service worker name one version', () => {
+  const { VERSION } = require('../web/lib.js');
+  const page = read('index.html').toString();
+  assert.ok(page.includes(`<script src="lib.js?v=${VERSION}"></script>`));
+  assert.ok(page.includes(`const LIB = ${VERSION};`));
+  assert.ok(read('sw.js').toString().includes(`'lib.js?v=${VERSION}'`));
 });
 
 test('every file the service worker keeps exists', () => {
   const listed = read('sw.js').toString().match(/^const (?:FILES|SHELL) = \[(.*)\]/m)[1].match(/'[^']+'/g).map(s => s.slice(1, -1));
   assert.ok(listed.includes('index.html'));
-  for (const file of listed) assert.ok(fs.existsSync(path.join(WEB, file)), file);
+  for (const file of listed) assert.ok(fs.existsSync(path.join(WEB, file.split('?')[0])), file);
   const page = read('index.html').toString();
   for (const [, font] of page.matchAll(/url\("(fonts\/[^"]+)"\)/g)) assert.ok(listed.includes(font), font);
 });
@@ -245,6 +252,17 @@ test('the page comes from bureau-releases, and only the page', async t => {
   for (const bad of ['/x.apk', '/.env', '/rates']) assert.equal((await worker.fetch(new Request('https://bureau.teloone.au' + bad))).status, 404, bad);
   assert.equal(seen.length, 2);
   assert.equal((await worker.fetch(new Request('https://bureau.teloone.au/', { method: 'POST' }))).status, 405);
+});
+
+test('a versioned file is fetched and kept per version', async t => {
+  const worker = await loadWorker();
+  const seen = [];
+  t.mock.method(globalThis, 'fetch', async url => { seen.push(url); return new Response('x'); });
+  const lib = await worker.fetch(new Request('https://bureau.teloone.au/lib.js?v=2'));
+  assert.equal(lib.headers.get('Cache-Control'), 'public, max-age=604800');
+  const plain = await worker.fetch(new Request('https://bureau.teloone.au/lib.js?x=1'));
+  assert.equal(plain.headers.get('Cache-Control'), 'public, max-age=60');
+  assert.deepEqual(seen, ['https://raw.githubusercontent.com/matisseduffield/bureau-releases/main/web/lib.js?v=2', 'https://raw.githubusercontent.com/matisseduffield/bureau-releases/main/web/lib.js']);
 });
 
 test('a release publishes the website', () => {

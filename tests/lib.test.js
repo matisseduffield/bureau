@@ -259,16 +259,18 @@ test('currencies can be found by country', () => {
 test('only currencies in use today count, and withdrawn ones move on', () => {
   const { isCurrency, currentCode, NAMES, REPLACED, CRYPTO } = require('../web/lib.js');
   for (const code of ['SLE', 'XCG', 'ZWG', 'VES', 'EUR', 'USD']) assert.equal(isCurrency(code), true, code);
-  for (const code of ['SLL', 'HRK', 'BGN', 'ZWL', 'ANG', 'VEF', 'XDR', 'BTC', 'toString', '']) assert.equal(isCurrency(code), false, code);
+  for (const code of ['SLL', 'HRK', 'BGN', 'ZWL', 'ANG', 'VEF', 'VED', 'XDR', 'BTC', 'toString', '']) assert.equal(isCurrency(code), false, code);
   assert.equal(currentCode('SLL'), 'SLE');
   assert.equal(currentCode('HRK'), 'EUR');
   assert.equal(currentCode('ANG'), 'XCG');
+  assert.equal(currentCode('VED'), 'VES');
   assert.equal(currentCode('JPY'), 'JPY');
   assert.equal(currentCode('constructor'), 'constructor');
   assert.equal(currentCode(undefined), undefined);
   // every replacement is itself current, and every new code has a name to fall back on
   for (const [old, now] of Object.entries(REPLACED)) assert.ok(isCurrency(now) && !isCurrency(old), old);
-  for (const code of ['SLE', 'XCG', 'ZWG', 'VED']) assert.ok(NAMES[code] && isCurrency(code), code);
+  for (const code of ['SLE', 'XCG', 'ZWG']) assert.ok(NAMES[code] && isCurrency(code), code);
+  for (const code of Object.keys(NAMES)) assert.ok(isCurrency(code), code);
   assert.ok(Object.keys(CRYPTO).every(c => !isCurrency(c)));
 });
 
@@ -281,15 +283,21 @@ test('quick amounts in a coin keep about four significant digits', () => {
   assert.equal(fmt(1000.12), '1,000');
   assert.equal(fmt(123456.7), '123,457');
   assert.equal(fmt(0), '0');
+  // stablecoins read like money
+  assert.equal(new Intl.NumberFormat('en', coinQuickOpts(750.1, 'USDT')).format(750.1), '750.10');
+  assert.equal(new Intl.NumberFormat('en', coinQuickOpts(0.5, 'USDC')).format(0.5), '0.50');
 });
 
-test('a trend ends at the rate shown now', () => {
+test('a trend ends at the rate shown now, dated by that rate', () => {
   const { withLatest } = require('../web/lib.js');
   const series = [['2026-11-05', 1.5], ['2026-11-06', 1.52]];
   assert.deepEqual(withLatest(series, 1.6, '2026-11-09'), [...series, ['2026-11-09', 1.6]]);
-  // a point already dated today gives way
-  assert.deepEqual(withLatest([...series, ['2026-11-09', 1.55]], 1.6, '2026-11-09'), [...series, ['2026-11-09', 1.6]]);
-  // no rate, no change
+  // a point dated the rate's day gives way to it
+  assert.deepEqual(withLatest(series, 1.6, '2026-11-06'), [series[0], ['2026-11-06', 1.6]]);
+  // a rate older than the chart's last day is left out
+  assert.equal(withLatest(series, 1.6, '2026-11-04'), series);
+  // no rate or no day (the 1-year chart), no change
   assert.equal(withLatest(series, NaN, '2026-11-09'), series);
+  assert.equal(withLatest(series, 1.6, ''), series);
   assert.deepEqual(withLatest([], 1.6, '2026-11-09'), []);
 });

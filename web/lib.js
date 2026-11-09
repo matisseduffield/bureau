@@ -2,6 +2,11 @@
 // and reading the rate sources. No DOM and no app state, so the same file runs in the page and
 // under `node --test tests/` in CI.
 (function (root) {
+  // Raised with every change here, together with lib.js?v= in index.html and
+  // FILES in sw.js. The page checks it, so a page and a lib.js from different
+  // releases never run together.
+  const VERSION = 2;
+
   // The most traded coins, in market order; Coinbase quotes them all live, and
   // the daily rate file has them for when it can't.
   const CRYPTO = {
@@ -31,9 +36,13 @@
     return { minimumFractionDigits: d, maximumFractionDigits: d };
   }
 
+  // Stablecoins track the dollar, so they read like money.
+  const STABLE = new Set(['USDT', 'USDC']);
+
   // Quick amounts in a coin: about four significant digits, whole numbers kept,
-  // so a column fits a phone (0.00007405, 1,000).
-  function coinQuickOpts(n) {
+  // so a column fits a phone (0.00007405, 1,000); a stablecoin has cents.
+  function coinQuickOpts(n, code) {
+    if (STABLE.has(code)) return { minimumFractionDigits: 2, maximumFractionDigits: 2 };
     const whole = Math.abs(n) >= 1 ? Math.floor(Math.log10(Math.abs(n))) + 1 : 0;
     return { maximumSignificantDigits: Math.min(21, Math.max(4, whole)) };
   }
@@ -205,7 +214,7 @@
     'QAR:QA RON:RO RSD:RS RUB:RU RWF:RW SAR:SA SBD:SB SCR:SC SDG:SD SEK:SE SGD:SG SHP:SH SLE:SL ' +
     'SOS:SO SRD:SR SSP:SS STN:ST SVC:SV SYP:SY SZL:SZ THB:TH TJS:TJ TMT:TM TND:TN TOP:TO TRY:TR ' +
     'TTD:TT TWD:TW TZS:TZ UAH:UA UGX:UG USD:ASBQECFMGUHTIOMHMPPAPRPWSVTCTLUMUSVGVI UYU:UY UZS:UZ ' +
-    'VED:VE VES:VE VND:VN VUV:VU WST:WS XAF:CFCGCMGAGQTD XCD:AGAIDMGDKNLCMSVC XCG:CWSX ' +
+    'VES:VE VND:VN VUV:VU WST:WS XAF:CFCGCMGAGQTD XCD:AGAIDMGDKNLCMSVC XCG:CWSX ' +
     'XOF:BFBJCIGWMLNESNTG XPF:NCPFWF YER:YE ZAR:LSNAZA ZMW:ZM ZWG:ZW'
   );
   const regionTable = {};
@@ -219,10 +228,10 @@
   const isCurrency = code => Object.prototype.hasOwnProperty.call(regionTable, code);
 
   // English names for codes newer than some browsers' own lists.
-  const NAMES = { SLE: 'Sierra Leonean Leone', XCG: 'Caribbean Guilder', ZWG: 'Zimbabwe Gold', VED: 'Bolívar Soberano' };
+  const NAMES = { SLE: 'Sierra Leonean Leone', XCG: 'Caribbean Guilder', ZWG: 'Zimbabwe Gold' };
 
   // Withdrawn codes and what replaced them, so a saved pair or recent pick moves on.
-  const REPLACED = { SLL: 'SLE', HRK: 'EUR', BGN: 'EUR', ZWL: 'ZWG', ANG: 'XCG', VEF: 'VES' };
+  const REPLACED = { SLL: 'SLE', HRK: 'EUR', BGN: 'EUR', ZWL: 'ZWG', ANG: 'XCG', VEF: 'VES', VED: 'VES' };
   const currentCode = code => (Object.prototype.hasOwnProperty.call(REPLACED, code) ? REPLACED[code] : code);
 
   // Everyday names people type that aren't the official country name.
@@ -284,14 +293,16 @@
   }
 
   // A trend ends at the rate shown above it, so its change, low and high include
-  // now. A point already dated today (or later) gives way to it.
-  function withLatest(series, rate, today) {
-    if (!(rate > 0) || !series.length) return series;
-    const before = series.at(-1)[0] >= today ? series.slice(0, -1) : series;
-    return [...before, [today, rate]];
+  // it. `day` is the rate's own date; a point dated that day gives way to it, and
+  // a rate older than the chart's last day is left out.
+  function withLatest(series, rate, day) {
+    if (!(rate > 0) || !day || !series.length) return series;
+    const last = series.at(-1)[0];
+    if (day < last) return series;
+    return [...(last === day ? series.slice(0, -1) : series), [day, rate]];
   }
 
-  const lib = { CRYPTO, NAMES, REPLACED, isCurrency, currentCode, coinQuickOpts, withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  const lib = { VERSION, CRYPTO, NAMES, REPLACED, isCurrency, currentCode, coinQuickOpts, withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);

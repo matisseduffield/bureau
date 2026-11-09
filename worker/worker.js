@@ -18,9 +18,13 @@ export default {
     if (url.pathname === '/app') return new Response(null, { status: 302, headers: { Location: `${RELEASES}Bureau.apk`, 'Cache-Control': 'no-store', ...HEADERS } });
     const file = url.pathname.replace(/^\/+/, '').replace(/(^|\/)$/, '$1index.html');
     if (!/^[a-z0-9-]+(\/[a-zA-Z0-9.-]+)*\.(html|js|json|woff2|png|txt)$/.test(file)) return new Response('Not found', { status: 404, headers: HEADERS });
-    const res = await fetch(`${RELEASES}web/${file}`, { cf: { cacheTtl: 300, cacheEverything: true } });
+    // A ?v= file never changes, so it can sit in the browser for a week. The
+    // version goes upstream too, so the edge keeps a copy per version: an edge
+    // copy of the last release's lib.js can't answer for this one's.
+    const version = /^\?v=\d+$/.test(url.search) ? url.search : '';
+    const res = await fetch(`${RELEASES}web/${file}${version}`, { cf: { cacheTtl: 300, cacheEverything: true } });
     if (!res.ok) return new Response('Not found', { status: 404, headers: HEADERS });
-    const cache = file.endsWith('.html') ? 'no-cache' : file.endsWith('.woff2') ? 'public, max-age=604800' : 'public, max-age=60';
+    const cache = file.endsWith('.html') ? 'no-cache' : version || file.endsWith('.woff2') ? 'public, max-age=604800' : 'public, max-age=60';
     return new Response(res.body, { headers: { 'Content-Type': TYPES[file.split('.').pop()], 'Cache-Control': cache, ...HEADERS } });
   },
 };

@@ -372,18 +372,18 @@ button { cursor: pointer; }
 .empty { padding: 16px 0; font-size: .88rem; color: var(--muted); }
 
 /* Quick amounts */
-/* Even halves, but a column of long amounts (Rp 10,000,000 in Bitcoin) takes room from the other. */
-.quick { display: grid; grid-template-columns: repeat(2, minmax(min-content, 1fr)); gap: 20px; }
+.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .quick-col { display: grid; min-width: 0; }
 .quick-col h3 { margin: 0 0 4px; font-size: .8rem; font-weight: 500; color: var(--muted); }
+/* A row too long for its half puts the answer on a second line, right-aligned. */
 .quick-col button {
-  display: flex; justify-content: space-between; align-items: center; gap: 8px;
-  min-height: 44px; padding: 0 2px;
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 8px;
+  min-height: 44px; padding: 4px 2px;
   background: none; border: 0; border-top: 1px solid var(--line);
   font-size: .9rem; text-align: left;
 }
 .quick-col button span:first-child { color: var(--muted); }
-.quick-col button span:last-child { font-weight: 500; white-space: nowrap; }
+.quick-col button span:last-child { margin-left: auto; font-weight: 500; white-space: nowrap; }
 .quick-col button:hover span:last-child { color: var(--accent); }
 .quick-col button:active { background: var(--accent-soft); }
 @media (max-width: 340px) { .quick { grid-template-columns: 1fr; } }
@@ -605,10 +605,23 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   <ul class="picker-list" id="pickerList"></ul>
 </dialog>
 
-<script src="lib.js"></script>
+<script src="lib.js?v=2"></script>
 <script src="pwa.js"></script>
 <script>
 (() => {
+  // A page and a lib.js from different releases can meet right after one (an
+  // edge or saved copy of one but not the other). Fetch lib.js afresh and load
+  // again, once; a second miss runs anyway rather than loop.
+  const LIB = 2;
+  if (!window.BureauLib || BureauLib.VERSION !== LIB) {
+    let tried = true;
+    try { tried = sessionStorage.getItem('bureau.libRetry') === String(LIB); sessionStorage.setItem('bureau.libRetry', String(LIB)); } catch {}
+    if (!tried) {
+      fetch(`lib.js?v=${LIB}`, { cache: 'reload' }).catch(() => {}).finally(() => location.reload());
+      return;
+    }
+  }
+  try { sessionStorage.removeItem('bureau.libRetry'); } catch {}
   const $ = id => document.getElementById(id);
   const locale = navigator.language || 'en-US';
   // Coinbase's live rates come first, for currencies and the ten coins. ExchangeRate-API's
@@ -629,7 +642,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 
   const COMMON = ['USD', 'EUR', 'GBP', 'AUD', 'JPY', 'CAD', 'CHF', 'CNY', 'NZD', 'INR', 'SGD', 'HKD'];
   const { CRYPTO } = BureauLib;
-  const EURO_ZONE = 'AT BE CY DE EE ES FI FR GR HR IE IT LT LU LV MT NL PT SI SK'.split(' ');
+  const EURO_ZONE = 'AT BE BG CY DE EE ES FI FR GR HR IE IT LT LU LV MT NL PT SI SK'.split(' ');
   const REGION_CURRENCY = {
     US: 'USD', GB: 'GBP', AU: 'AUD', NZ: 'NZD', CA: 'CAD', JP: 'JPY', CN: 'CNY', IN: 'INR', CH: 'CHF',
     SE: 'SEK', NO: 'NOK', DK: 'DKK', PL: 'PLN', CZ: 'CZK', HU: 'HUF', SG: 'SGD', HK: 'HKD', KR: 'KRW',
@@ -1072,17 +1085,21 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     col.append(h);
     const r = effectiveRate(from, to);
     // Coins go bare and short here: the heading names them, and a phone has no room for 0.00000740452 BTC.
-    const money = (n, code, opts) => (CRYPTO[code] ? (Number.isFinite(n) ? nf(BureauLib.coinQuickOpts(n)).format(n) : '–') : fmtMoney(n, code, opts));
+    const money = (n, code, opts) => (CRYPTO[code] ? (Number.isFinite(n) ? nf(opts || BureauLib.coinQuickOpts(n, code)).format(n) : '–') : fmtMoney(n, code, opts));
+    // Big amounts read short: the round ones to convert from 10,000 up (Rp 10K), answers
+    // without cents from 10,000 and in millions as Rp 13.59M. Screen readers hear them whole.
+    const short = n => (Math.abs(n) >= 1e6 ? { notation: 'compact', maximumSignificantDigits: 4 } : Math.abs(n) >= 1e4 ? { maximumFractionDigits: 0 } : undefined);
     const spoken = (text, code) => (CRYPTO[code] && text !== '–' ? `${text} ${code}` : text);
     for (const a of quickAmounts(from)) {
       const b = document.createElement('button');
       b.type = 'button';
+      const whole = Number.isInteger(a) ? { maximumFractionDigits: 0 } : undefined;
       const left = document.createElement('span');
-      left.textContent = money(a, from, Number.isInteger(a) ? { maximumFractionDigits: 0 } : undefined);
+      left.textContent = money(a, from, CRYPTO[from] || a < 1e4 ? whole : { notation: 'compact' });
       const right = document.createElement('span');
-      right.textContent = money(a * r, to);
+      right.textContent = money(a * r, to, CRYPTO[to] ? undefined : short(a * r));
       b.append(left, right);
-      b.setAttribute('aria-label', `Use ${spoken(left.textContent, from)}, ${spoken(right.textContent, to)}`);
+      b.setAttribute('aria-label', `Use ${spoken(money(a, from, whole), from)}, ${spoken(money(a * r, to), to)}`);
       b.addEventListener('click', () => {
         haptic();
         if (from !== state.from) swap();
@@ -1201,14 +1218,22 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   }
   // A new pair or range fades in; a quiet refresh of the same chart doesn't.
   let drawnKey = '';
-  // Today on this phone, as the series dates its days (2026-11-09).
-  const localDay = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10); };
+  // The day the pair's rate is for, to end the chart on: by this phone's clock for
+  // a live rate, by its own date for a daily one. None on the 1-year chart, whose
+  // points are a fortnight apart, or with no rate.
+  function rateDay() {
+    if (state.days > 31 || !Number.isFinite(rate(state.from, state.to))) return '';
+    const { at, byDay } = BureauLib.rateStatus(state, true, Date.now());
+    if (!(at > 0) || !Number.isFinite(at)) return '';
+    const d = new Date(at);
+    return (byDay ? d : new Date(at - d.getTimezoneOffset() * 60_000)).toISOString().slice(0, 10);
+  }
   function drawTrend(series, key) {
     const el = $('trend');
     el.classList.remove('loading');
     const fresh = key !== drawnKey;
     drawnKey = key;
-    series = BureauLib.withLatest(series, rate(state.from, state.to), localDay());
+    series = BureauLib.withLatest(series, rate(state.from, state.to), rateDay());
     const vals = series.map(p => p[1]);
     const min = Math.min(...vals), max = Math.max(...vals);
     const span = max - min || max * 0.001;
@@ -1345,15 +1370,20 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
         showVersion(m.state === 'latest' ? 'Up to date' : "Couldn't check");
         versionTimer = setTimeout(() => showVersion(`v${appVersion}`), 2500);
       } else if (m.type === 'alerts') {
-        alerts = Array.isArray(m.list) ? m.list.filter(a => a && isKnown(a.from) && isKnown(a.to) && a.target > 0) : [];
+        const list = Array.isArray(m.list) ? m.list.filter(a => a && typeof a.from === 'string' && typeof a.to === 'string' && a.target > 0) : [];
+        // An alert on a withdrawn code could never be seen or removed here, so the app
+        // stops checking it. Its target meant the old money, so it doesn't move on.
+        for (const a of list) if (!isKnown(a.from) || !isKnown(a.to)) toApp({ type: 'removeAlert', from: a.from, to: a.to });
+        alerts = list.filter(a => isKnown(a.from) && isKnown(a.to));
         notifyOn = m.notify !== false;
         renderBell();
         if (!$('alertMenu').hidden) renderAlertHint();
       } else if (m.type === 'showPair') {
         // Opened from an alert's notification.
-        if (isKnown(m.from) && isKnown(m.to) && m.from !== m.to) {
-          state.from = m.from;
-          state.to = m.to;
+        const from = settle(m.from), to = settle(m.to);
+        if (from && to && from !== to) {
+          state.from = from;
+          state.to = to;
           savePair();
           renderAll();
           renderTrend();
@@ -1709,7 +1739,9 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   const savedAmount = store.get('amount');
   if (savedAmount && typeof savedAmount.value === 'string' && savedAmount.value) {
     state.edited = savedAmount.side === 'to' ? 'to' : 'from';
-    field(state.edited).value = savedAmount.value;
+    // If that side's currency was withdrawn, the number meant the old money: start again at 100.
+    const moved = saved[state.edited] !== undefined && saved[state.edited] !== state[state.edited];
+    field(state.edited).value = moved ? fmtAmount(100, state[state.edited]) : savedAmount.value;
   } else {
     field('from').value = fmtAmount(100, state.from);
   }

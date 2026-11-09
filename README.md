@@ -45,6 +45,10 @@ hint in Safari on an iPhone. `pwa.js` does nothing on `appassets.androidplatform
 runs in the Android app. `sw.js` is network-first with a cached copy for offline opening (and for a
 network that takes over 3 seconds, which still refreshes the copy), and only
 touches the files it names, so rates never land there.
+`lib.js` is loaded as `lib.js?v=N`: any change to it raises `VERSION` in `lib.js` together with
+the `?v=` and `LIB` in `index.html` and `FILES` in `sw.js` (a test checks they agree). The Worker
+passes `?v=` upstream so Cloudflare keeps one copy per version, and a page that still meets the
+wrong `lib.js` fetches it afresh and reloads once.
 
 ## Tests
 The page's pure logic (number parsing, sums, formatting options, merging and reading the rate sources)
