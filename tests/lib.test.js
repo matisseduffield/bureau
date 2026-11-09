@@ -331,15 +331,34 @@ test('the fee reads a typed percent; blank is none, nonsense changes nothing', (
 test('a fee always costs you, whichever way round the pair is', () => {
   const { withFee } = require('../web/lib.js');
   const near = (a, b) => assert.ok(Math.abs(a / b - 1) < 1e-12, `${a} vs ${b}`);
-  // 1 AUD = 98.75 JPY; an Australian with a 3% card fee.
-  const audJpy = 98.75, jpyAud = 1 / audJpy;
-  near(withFee(audJpy, 3, 'JPY', 'AUD'), audJpy * 0.97);        // fewer yen for your dollars
-  near(withFee(jpyAud, 3, 'AUD', 'AUD'), jpyAud / 0.97);        // a yen price costs more dollars
-  assert.ok(1000 * withFee(jpyAud, 3, 'AUD', 'AUD') > 1000 * jpyAud);
-  // Swapped, the same 1000 JPY and its dollars match.
+  // The auditor's fixture: 1 USD = 1.52 AUD = 150.1 JPY; an Australian with a 3% card fee.
+  const audJpy = 150.1 / 1.52, jpyAud = 1.52 / 150.1;
+  // A 1000 yen price costs 3% more Australian dollars: 10.13 plain, 10.43 with the fee.
+  assert.equal((1000 * withFee(jpyAud, 3, 'AUD', 'AUD')).toFixed(2), '10.43');
+  near(withFee(jpyAud, 3, 'AUD', 'AUD'), jpyAud * 1.03);
+  // Your dollars buy 3% less: 103 AUD of card spend buys what 100 AUD would plain.
+  near(103 * withFee(audJpy, 3, 'JPY', 'AUD'), 100 * audJpy);
+  // A 20% fee is 20% on top, not 25%.
+  near(withFee(jpyAud, 20, 'AUD', 'AUD'), jpyAud * 1.2);
+  // With home on one side, swapped, the same 1000 JPY and its dollars match.
   near(1000 * withFee(jpyAud, 3, 'AUD', 'AUD'), 1000 / withFee(audJpy, 3, 'JPY', 'AUD'));
   // Between two foreign currencies you get less of the other.
-  near(withFee(0.9, 2, 'EUR', 'AUD'), 0.9 * 0.98);
+  near(withFee(0.92, 2, 'EUR', 'AUD'), 0.92 / 1.02);
   assert.equal(withFee(1.5, 0, 'AUD', 'AUD'), 1.5);
   assert.equal(withFee(1.5, undefined, 'JPY', 'AUD'), 1.5);
+});
+
+test('every country has its home currency', () => {
+  const { currencyOf, isCurrency } = require('../web/lib.js');
+  for (const [region, code] of Object.entries({ AU: 'AUD', AR: 'ARS', DE: 'EUR', BG: 'EUR', HR: 'EUR', CL: 'CLP', NG: 'NGN', US: 'USD', EC: 'USD', GB: 'GBP', CH: 'CHF', LI: 'CHF', BT: 'BTN', NA: 'NAD', PA: 'USD', SV: 'USD', CW: 'XCG' })) {
+    assert.equal(currencyOf(region), code, region);
+  }
+  assert.equal(currencyOf('ZZ'), null);
+  assert.equal(currencyOf(''), null);
+  assert.equal(currencyOf('constructor'), null);
+  // The page's old shortlist still lands where it did.
+  const OLD = { US: 'USD', GB: 'GBP', AU: 'AUD', NZ: 'NZD', CA: 'CAD', JP: 'JPY', CN: 'CNY', IN: 'INR', CH: 'CHF', SE: 'SEK', NO: 'NOK', DK: 'DKK', PL: 'PLN', CZ: 'CZK', HU: 'HUF', SG: 'SGD', HK: 'HKD', KR: 'KRW', ZA: 'ZAR', BR: 'BRL', MX: 'MXN', TR: 'TRY', IL: 'ILS', AE: 'AED', SA: 'SAR', TH: 'THB', ID: 'IDR', MY: 'MYR', PH: 'PHP', VN: 'VND', TW: 'TWD' };
+  for (const [region, code] of Object.entries(OLD)) assert.equal(currencyOf(region), code, region);
+  for (const region of 'AT BE BG CY DE EE ES FI FR GR HR IE IT LT LU LV MT NL PT SI SK'.split(' ')) assert.equal(currencyOf(region), 'EUR', region);
+  assert.ok(isCurrency(currencyOf('AR')));
 });

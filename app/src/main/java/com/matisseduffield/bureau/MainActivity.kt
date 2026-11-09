@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
     private val updates = AppUpdates(this, ::send)
     private var page: JavaScriptReplyProxy? = null
     private var alertPair: kotlin.Pair<String, String>? = null
+    private var keyboardShown = false
     private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { sendAlerts() }
 
     // With the bridge, Back is only intercepted while the currency picker or
@@ -113,6 +114,11 @@ class MainActivity : ComponentActivity() {
             )
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             view.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, ime.bottom))
+            // Back hides the keyboard but leaves the page's field focused; tell the page
+            // when it has really gone (not a resize, rotation or floating keyboard).
+            val keyboard = insets.isVisible(WindowInsetsCompat.Type.ime())
+            if (keyboardShown && !keyboard) send(JSONObject().put("type", "keyboard").put("open", false))
+            keyboardShown = keyboard
             WindowInsetsCompat.CONSUMED
         }
         setContentView(root)

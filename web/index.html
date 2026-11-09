@@ -587,17 +587,10 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   const FILE_FRESH_MS = 2 * 24 * 60 * 60_000;
   const TREND_TTL_MS = 6 * 60 * 60_000;
   const FETCH_TIMEOUT_MS = 8000;
-  const LIVE_GRACE_MS = 2000;
+  const GRACE_MS = 2000;       // how long a source gets before its backup is asked too
 
   const COMMON = ['USD', 'EUR', 'GBP', 'AUD', 'JPY', 'CAD', 'CHF', 'CNY', 'NZD', 'INR', 'SGD', 'HKD'];
   const { CRYPTO } = BureauLib;
-  const EURO_ZONE = 'AT BE BG CY DE EE ES FI FR GR HR IE IT LT LU LV MT NL PT SI SK'.split(' ');
-  const REGION_CURRENCY = {
-    US: 'USD', GB: 'GBP', AU: 'AUD', NZ: 'NZD', CA: 'CAD', JP: 'JPY', CN: 'CNY', IN: 'INR', CH: 'CHF',
-    SE: 'SEK', NO: 'NOK', DK: 'DKK', PL: 'PLN', CZ: 'CZK', HU: 'HUF', SG: 'SGD', HK: 'HKD', KR: 'KRW',
-    ZA: 'ZAR', BR: 'BRL', MX: 'MXN', TR: 'TRY', IL: 'ILS', AE: 'AED', SA: 'SAR', TH: 'THB', ID: 'IDR',
-    MY: 'MYR', PH: 'PHP', VN: 'VND', TW: 'TWD'
-  };
 
   // Always Latin digits, so whatever we write into a field we can parse back.
   let fmtLocale = locale;
@@ -632,7 +625,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // ---- state ----
   let region = '';
   try { region = new Intl.Locale(locale).maximize().region || ''; } catch { region = (locale.split('-').pop() || '').toUpperCase(); }
-  const home = EURO_ZONE.includes(region) ? 'EUR' : (REGION_CURRENCY[region] || 'USD');
+  // Your own money, from the phone's region: where the converter starts, and the side a fee makes dearer.
+  const home = BureauLib.currencyOf(region) || 'USD';
   const saved = store.get('pair') || {};
   const state = {
     from: settle(saved.from) || home,
@@ -723,38 +717,48 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   async function fetchDaily() {
     return BureauLib.dailyRates(await getJSON(DAILY_URL), isFiat);
   }
-  // Both mirrors are asked at once, so one that hangs costs no more than its timeout.
-  // The first answers unless it's serving an old file; then the newest wins.
+  const wait = (ms, value) => new Promise(done => setTimeout(done, ms, value));
+  // The first mirror answers unless it fails or is serving an old file; then the
+  // newest wins. The second is asked only then, or if the first is still out after
+  // GRACE_MS, so one that hangs costs no more than its timeout.
   async function fetchFile() {
-    const files = FILE_URLS.map(url => getJSON(url).then(json => BureauLib.fileRates(json, isFiat)).catch(() => null));
-    let best = null;
-    for (const pending of files) {
-      const file = await pending;
-      if (file && (!best || file.updatedAt > best.updatedAt)) best = file;
-      if (best && Date.now() - best.updatedAt < FILE_FRESH_MS) break;
-    }
-    return best;
+    const get = url => getJSON(url).then(json => BureauLib.fileRates(json, isFiat)).catch(() => null);
+    const fresh = file => !!file && Date.now() - file.updatedAt < FILE_FRESH_MS;
+    const firstP = get(FILE_URLS[0]);
+    const early = await Promise.race([firstP, wait(GRACE_MS, 'late')]);
+    if (early !== 'late' && fresh(early)) return early;
+    const [first, second] = await Promise.all([firstP, get(FILE_URLS[1])]);
+    if (fresh(first)) return first;
+    return [first, second].filter(Boolean).sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
   }
 
   // One refresh at a time: asking again while one runs joins it. `checking` is a
   // tap on the status line waiting for the answer.
   let loading = null, checking = false;
-  const loadRates = () => loading || (loading = fetchRates().finally(() => { loading = null; }));
+  const loadRates = () => loading || (loading = fetchRates().finally(() => {
+    loading = null;
+    // Even a refresh that broke stops saying "Checking…".
+    if (checking) { checking = false; renderStatus(); }
+  }));
   async function fetchRates() {
     const attempt = get => get().catch(() => null);
+    const keepDaily = daily => { if (daily) { reference = { ...daily, fetchedAt: Date.now() }; store.set('daily', reference); } };
     const needDaily = !reference || Date.now() - (reference.fetchedAt || 0) > DAILY_REFRESH_MS;
     const liveP = attempt(fetchLive);
     const firstP = needDaily ? attempt(fetchDaily) : null;
     // Coinbase answers within a second or so. If it fails, or a connection hangs past
-    // LIVE_GRACE_MS, the other two start now rather than after its timeout; its answer
-    // still wins if it comes. While Coinbase answers, the daily rates stay hourly.
-    const early = await Promise.race([liveP, new Promise(done => setTimeout(done, LIVE_GRACE_MS, 'late'))]);
-    const lateDailyP = early && early !== 'late' ? null : firstP || attempt(fetchDaily);
-    const fileP = lateDailyP ? attempt(fetchFile) : null;
+    // GRACE_MS, the other two start now rather than after its timeout; its answer
+    // still wins if it comes.
+    const early = await Promise.race([liveP, wait(GRACE_MS, 'late')]);
+    const backupP = early && early !== 'late' ? null : firstP || attempt(fetchDaily);
+    const fileP = backupP ? attempt(fetchFile) : null;
     const live = await liveP;
     // Without Coinbase, every refresh goes on to the other two.
-    const daily = await (live ? firstP : lateDailyP);
-    if (daily) { reference = { ...daily, fetchedAt: Date.now() }; store.set('daily', reference); }
+    const daily = await (live ? firstP : backupP);
+    keepDaily(daily);
+    // Coinbase won late: daily rates asked for meanwhile still count as the hour's
+    // check when they come, without holding up the live ones.
+    if (live && backupP && backupP !== firstP) backupP.then(keepDaily);
     const file = !live || !reference ? await (fileP || attempt(fetchFile)) : null;
     const yardstick = reference || file;
     const next = live ? BureauLib.liveRates(live, yardstick && yardstick.fiat, isFiat, Date.now(), yardstick && yardstick.updatedAt) : BureauLib.combineRates(state, daily, file);
@@ -767,7 +771,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     }
     checking = false;
     buildCurrencyList();
-    renderAll();
+    renderAll(true);
     refreshTrend();
   }
 
@@ -812,10 +816,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   const other = side => side === 'from' ? 'to' : 'from';
 
   // Writes only into the field you're not editing, so a refresh never touches what you type.
-  // Nor into the answer while it has focus: you tapped it to type over it, and a rewrite
-  // would drop the selection. It catches up when you type in it or leave it.
+  // A refresh (`hold`) leaves the answer alone too while it has focus: you tapped it to
+  // type over it, and a rewrite would drop the selection. It catches up when you type
+  // in it or leave it. Anything you do yourself rewrites it at once.
   let answerBehind = false;
-  function convert(rewrite) {
+  function convert(hold) {
     const src = state.edited, dst = other(src);
     const { value, isExpr } = evaluate(field(src).value);
     const hint = $(src + 'Calc');
@@ -826,7 +831,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const r = effectiveRate(state.from, state.to);
     let out = NaN;
     if (Number.isFinite(value) && value >= 0 && Number.isFinite(r)) out = src === 'from' ? value * r : value / r;
-    answerBehind = !rewrite && document.activeElement === field(dst);
+    answerBehind = !!hold && document.activeElement === field(dst);
     if (!answerBehind) field(dst).value = fmtAmount(out, state[dst]);
     // With no rate there's no answer yet, and a 0 would read like one.
     field('from').placeholder = field('to').placeholder = Number.isFinite(r) ? '0' : '–';
@@ -1080,8 +1085,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
         haptic();
         state.edited = 'from';
         field('from').value = fmtAmount(a, state.from);
-        // A tap here is meant for the answer too, even if Safari left it focused.
-        convert(true);
+        convert();
         announce();
       });
       return b;
@@ -1297,9 +1301,10 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     $('trendSection').classList.add('off');
   }
 
-  function renderAll() {
+  // `hold`: a rate refresh, which leaves a focused answer as it is (see convert).
+  function renderAll(hold) {
     renderPair();
-    convert();
+    convert(hold);
     renderRateLine();
     renderStatus();
     renderQuick();
@@ -1372,6 +1377,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
           renderAll();
           renderTrend();
         }
+      } else if (m.type === 'keyboard' && m.open === false) {
+        // Back hides the keyboard without blurring the field, which left the sign keys
+        // up. The app says when the keyboard has really gone, and the field lets go.
+        const a = document.activeElement;
+        if (a === field('from') || a === field('to')) a.blur();
       } else if (m.type === 'update' && selfUpdates) {
         if (m.state === 'available') updateReady = true;
         showUpdate(m);
@@ -1472,7 +1482,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       showOps(false);
       if (input.value === before) {
         // Left untouched: an answer held back by a refresh catches up now.
-        if (answerBehind && side !== state.edited) convert(true);
+        if (answerBehind && side !== state.edited) convert();
         return;
       }
       // Tidy what was typed (grouping, or the result of a sum) without rounding it.
@@ -1503,18 +1513,6 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     $('ops').style.paddingBottom = keyboard ? '2px' : '';
   }
   if (seen && !app) { seen.addEventListener('resize', placeOps); seen.addEventListener('scroll', placeOps); }
-  // In the app the page shrinks for the keyboard instead, and Back hides the keyboard
-  // without blurring the field, which left the keys up. Growing back to full height
-  // at the same width means the keyboard went, so the field lets go too.
-  if (app) {
-    let lastW = innerWidth, lastH = innerHeight;
-    addEventListener('resize', () => {
-      const amount = document.activeElement === field('from') || document.activeElement === field('to');
-      if (amount && innerWidth === lastW && innerHeight - lastH > 100) document.activeElement.blur();
-      lastW = innerWidth;
-      lastH = innerHeight;
-    });
-  }
   $('ops').addEventListener('pointerdown', e => e.preventDefault());   // keep the keyboard up
   $('ops').addEventListener('click', e => {
     const b = e.target.closest('button[data-op]');

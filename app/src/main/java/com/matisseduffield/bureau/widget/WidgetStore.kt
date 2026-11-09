@@ -22,10 +22,10 @@ object WidgetStore {
         val updatedAt: Long,
         /** The converter's amount in [from]; 1 shows the plain rate. */
         val amount: Double = 1.0,
-        /** The page's home currency: the fee makes a price in it dearer, as on the page. */
+        /** The page's home currency. The fee is a markup on it, as on the page: a price in it costs [fee]% more. */
         val home: String = "",
     ) {
-        val effectiveRate: Double get() = if (to == home) rate / (1 - fee / 100) else rate * (1 - fee / 100)
+        val effectiveRate: Double get() = if (to == home) rate * (1 + fee / 100) else rate / (1 + fee / 100)
     }
 
     fun load(context: Context): Pair? {

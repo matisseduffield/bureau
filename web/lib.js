@@ -66,12 +66,13 @@
     return Number.isFinite(n) && n <= MAX_FEE ? Math.round(n * 100) / 100 : NaN;
   }
 
-  // The rate after a fee of `fee` percent, which always costs you: changing your
-  // own money you get less of the other, and a price turned into your own money
-  // comes out dearer. So a swapped pair gives the same answer both ways round.
+  // The rate after a card fee of `fee` percent. Banks add it on top of what you
+  // spend in your own money, so it always costs you: a price turned into your
+  // money comes out that much dearer, and your money buys that much less. With
+  // home on one side, swapping the pair gives the same answer both ways round.
   function withFee(rate, fee, to, home) {
-    const keep = 1 - (fee || 0) / 100;
-    return to === home ? rate / keep : rate * keep;
+    const markup = 1 + (fee || 0) / 100;
+    return to === home ? rate * markup : rate / markup;
   }
 
   // One number as typed: either "." or "," can be the decimal point. When both
@@ -253,6 +254,13 @@
   // A currency is one some country uses today: browsers still know withdrawn
   // codes (SLL, HRK) and some can't name their replacements (SLE, XCG).
   const isCurrency = code => Object.prototype.hasOwnProperty.call(regionTable, code);
+  // The money a country uses, for the home currency. Where two are listed the
+  // local one wins, except where dollars are what people actually spend.
+  const DOLLARISED = { PA: 'USD', SV: 'USD' };
+  const regionCurrency = {};
+  for (const [code, regs] of Object.entries(regionTable)) for (const r of regs) if (!regionCurrency[r]) regionCurrency[r] = code;
+  Object.assign(regionCurrency, DOLLARISED);
+  const currencyOf = region => (Object.prototype.hasOwnProperty.call(regionCurrency, region) ? regionCurrency[region] : null);
 
   // English names for codes newer than some browsers' own lists.
   const NAMES = { SLE: 'Sierra Leonean Leone', XCG: 'Caribbean Guilder', ZWG: 'Zimbabwe Gold' };
@@ -329,7 +337,7 @@
     return [...(last === day ? series.slice(0, -1) : series), [day, rate]];
   }
 
-  const lib = { VERSION, CRYPTO, MAX_FEE, quickAmounts, parseFee, withFee, NAMES, REPLACED, isCurrency, currentCode, coinQuickOpts, withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  const lib = { VERSION, CRYPTO, MAX_FEE, quickAmounts, parseFee, withFee, NAMES, REPLACED, isCurrency, currencyOf, currentCode, coinQuickOpts, withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);
