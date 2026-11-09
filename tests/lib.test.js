@@ -255,3 +255,41 @@ test('currencies can be found by country', () => {
   assert.equal(searchScore('xyz', 'JPY', 'Japanese Yen', ['Japan']), null);
   assert.equal(searchScore('  ', 'JPY', 'Japanese Yen', ['Japan']), null);
 });
+
+test('only currencies in use today count, and withdrawn ones move on', () => {
+  const { isCurrency, currentCode, NAMES, REPLACED, CRYPTO } = require('../web/lib.js');
+  for (const code of ['SLE', 'XCG', 'ZWG', 'VES', 'EUR', 'USD']) assert.equal(isCurrency(code), true, code);
+  for (const code of ['SLL', 'HRK', 'BGN', 'ZWL', 'ANG', 'VEF', 'XDR', 'BTC', 'toString', '']) assert.equal(isCurrency(code), false, code);
+  assert.equal(currentCode('SLL'), 'SLE');
+  assert.equal(currentCode('HRK'), 'EUR');
+  assert.equal(currentCode('ANG'), 'XCG');
+  assert.equal(currentCode('JPY'), 'JPY');
+  assert.equal(currentCode('constructor'), 'constructor');
+  assert.equal(currentCode(undefined), undefined);
+  // every replacement is itself current, and every new code has a name to fall back on
+  for (const [old, now] of Object.entries(REPLACED)) assert.ok(isCurrency(now) && !isCurrency(old), old);
+  for (const code of ['SLE', 'XCG', 'ZWG', 'VED']) assert.ok(NAMES[code] && isCurrency(code), code);
+  assert.ok(Object.keys(CRYPTO).every(c => !isCurrency(c)));
+});
+
+test('quick amounts in a coin keep about four significant digits', () => {
+  const { coinQuickOpts } = require('../web/lib.js');
+  const fmt = n => new Intl.NumberFormat('en', coinQuickOpts(n)).format(n);
+  assert.equal(fmt(0.00000740452), '0.000007405');
+  assert.equal(fmt(0.0259287), '0.02593');
+  assert.equal(fmt(1.23456), '1.235');
+  assert.equal(fmt(1000.12), '1,000');
+  assert.equal(fmt(123456.7), '123,457');
+  assert.equal(fmt(0), '0');
+});
+
+test('a trend ends at the rate shown now', () => {
+  const { withLatest } = require('../web/lib.js');
+  const series = [['2026-11-05', 1.5], ['2026-11-06', 1.52]];
+  assert.deepEqual(withLatest(series, 1.6, '2026-11-09'), [...series, ['2026-11-09', 1.6]]);
+  // a point already dated today gives way
+  assert.deepEqual(withLatest([...series, ['2026-11-09', 1.55]], 1.6, '2026-11-09'), [...series, ['2026-11-09', 1.6]]);
+  // no rate, no change
+  assert.equal(withLatest(series, NaN, '2026-11-09'), series);
+  assert.deepEqual(withLatest([], 1.6, '2026-11-09'), []);
+});

@@ -41,16 +41,24 @@ function runPwa({ hostname = 'bureau.teloone.au', ua = SAFARI, standalone = fals
   return { calls, hint };
 }
 
-// sw.js with its events caught, to see what it would answer.
-function loadSw() {
-  const on = {};
-  const scope = { addEventListener: (type, fn) => { on[type] = fn; }, location: new URL('https://bureau.teloone.au/sw.js'), URL, Response, console, fetch: async () => new Response(''), caches: { open: async () => ({ put: async () => {} }), match: async () => undefined } };
-  vm.runInNewContext(read('sw.js').toString(), scope);
-  return request => {
-    let answered = false;
-    on.fetch({ request: { method: 'GET', mode: 'cors', ...request }, respondWith() { answered = true; }, waitUntil() {} });
-    return answered;
+// sw.js with its events caught, to see what it would answer. `net` stands in
+// for the network, `saved` for what the cache holds; timers run only when told.
+function loadSw({ net = async () => new Response(''), saved = {} } = {}) {
+  const on = {}, timers = [], kept = [];
+  const scope = {
+    addEventListener: (type, fn) => { on[type] = fn; }, location: new URL('https://bureau.teloone.au/sw.js'), URL, Response, console, Promise,
+    fetch: net, setTimeout: (fn, ms) => timers.push({ fn, ms }),
+    caches: { open: async () => ({ put: async key => { kept.push(key); } }), match: async key => saved[key] },
   };
+  vm.runInNewContext(read('sw.js').toString(), scope);
+  const respond = request => {
+    let response = null;
+    const waits = [];
+    on.fetch({ request: { method: 'GET', mode: 'cors', ...request }, respondWith(p) { response = p; }, waitUntil(p) { waits.push(p); } });
+    return { response, waits };
+  };
+  const answers = request => respond(request).response !== null;
+  return Object.assign(answers, { respond, timers, kept });
 }
 
 test('the manifest is complete and has no host in it', () => {
@@ -110,6 +118,69 @@ test('the service worker answers for the app itself', () => {
   const answers = loadSw();
   assert.equal(answers({ url: 'https://bureau.teloone.au/', mode: 'navigate' }), true);
   for (const url of KEPT) assert.equal(answers({ url: `https://bureau.teloone.au/${url}` }), true, url);
+});
+
+const INDEX_URL = 'https://bureau.teloone.au/index.html';
+const tick = () => new Promise(r => setImmediate(r));
+
+test('a slow network gets the saved copy after 3 s, and still updates it', async () => {
+  let arrive;
+  const sw = loadSw({ net: () => new Promise(r => { arrive = r; }), saved: { [INDEX_URL]: new Response('saved') } });
+  const { response, waits } = sw.respond({ url: 'https://bureau.teloone.au/', mode: 'navigate' });
+  assert.deepEqual(sw.timers.map(t => t.ms), [3000]);
+  sw.timers[0].fn();
+  assert.equal(await (await response).text(), 'saved');
+  arrive(new Response('new'));
+  await Promise.all(waits);
+  assert.deepEqual(sw.kept, [INDEX_URL]);
+});
+
+test('a network that answers in time wins', async () => {
+  const sw = loadSw({ net: async () => new Response('new'), saved: { [INDEX_URL]: new Response('saved') } });
+  const { response } = sw.respond({ url: INDEX_URL });
+  assert.equal(await (await response).text(), 'new');
+  sw.timers[0].fn();
+  await tick();
+});
+
+test('with nothing saved, a slow network is waited for', async () => {
+  let arrive;
+  const sw = loadSw({ net: () => new Promise(r => { arrive = r; }) });
+  const { response } = sw.respond({ url: INDEX_URL });
+  let settled = false;
+  response.then(() => { settled = true; });
+  sw.timers[0].fn();
+  await tick();
+  assert.equal(settled, false);
+  arrive(new Response('new'));
+  assert.equal(await (await response).text(), 'new');
+});
+
+test('no signal opens the saved copy at once, and nothing at all is an error', async () => {
+  const offline = async () => { throw new TypeError('offline'); };
+  const sw = loadSw({ net: offline, saved: { [INDEX_URL]: new Response('saved') } });
+  assert.equal(await (await sw.respond({ url: INDEX_URL }).response).text(), 'saved');
+  const empty = loadSw({ net: offline });
+  assert.equal((await empty.respond({ url: INDEX_URL }).response).type, 'error');
+});
+
+test('a page from the saved copy takes saved files, and a fresh page fresh ones', async () => {
+  const LIB = 'https://bureau.teloone.au/lib.js';
+  let arrive;
+  const sw = loadSw({ net: () => new Promise(r => { arrive = r; }), saved: { [INDEX_URL]: new Response('old page'), [LIB]: new Response('old lib') } });
+  // Fresh page: its lib.js waits for the network, however slow, with no timer.
+  const fresh = loadSw({ net: async () => new Response('new'), saved: { [LIB]: new Response('old lib') } });
+  await fresh.respond({ url: INDEX_URL, mode: 'navigate' }).response;
+  const lib = fresh.respond({ url: LIB }).response;
+  assert.equal(fresh.timers.length, 1);
+  assert.equal(await (await lib).text(), 'new');
+  // Saved page: its lib.js is the saved one at once.
+  const page = sw.respond({ url: INDEX_URL, mode: 'navigate' }).response;
+  sw.timers[0].fn();
+  assert.equal(await (await page).text(), 'old page');
+  assert.equal(await (await sw.respond({ url: LIB }).response).text(), 'old lib');
+  assert.equal(sw.timers.length, 1);
+  arrive(new Response('new'));
 });
 
 test('every file the service worker keeps exists', () => {

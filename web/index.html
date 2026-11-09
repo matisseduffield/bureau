@@ -372,7 +372,8 @@ button { cursor: pointer; }
 .empty { padding: 16px 0; font-size: .88rem; color: var(--muted); }
 
 /* Quick amounts */
-.quick { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+/* Even halves, but a column of long amounts (Rp 10,000,000 in Bitcoin) takes room from the other. */
+.quick { display: grid; grid-template-columns: repeat(2, minmax(min-content, 1fr)); gap: 20px; }
 .quick-col { display: grid; min-width: 0; }
 .quick-col h3 { margin: 0 0 4px; font-size: .8rem; font-weight: 500; color: var(--muted); }
 .quick-col button {
@@ -463,7 +464,6 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     margin: 0; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); border: 0; border-radius: 0;
   }
 }
-@media (max-width: 360px) { .rate-sub { display: none; } }
 @media (prefers-reduced-motion: reduce) {
   .trend, .swap, .swap svg, dialog, dialog::backdrop { transition: none; }
   dialog { transform: none; }
@@ -651,14 +651,16 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     let n = nameCache.get(code);
     if (n === undefined) {
       try { n = (names && names.of(code)) || code; } catch { n = code; }
+      if (n === code) n = BureauLib.NAMES[code] || code;
       nameCache.set(code, n);
     }
     return n;
   }
-  let SUPPORTED = null;
-  try { SUPPORTED = new Set(Intl.supportedValuesOf('currency')); } catch {}
-  const isFiat = code => /^[A-Z]{3}$/.test(code) && (SUPPORTED ? SUPPORTED.has(code) : nameOf(code) !== code);
-  const isKnown = code => typeof code === 'string' && (CRYPTO[code] || /^[A-Z]{3}$/.test(code));
+  // Currencies in use today (lib.js REGIONS), not every code the browser knows.
+  const isFiat = BureauLib.isCurrency;
+  const isKnown = code => typeof code === 'string' && (!!CRYPTO[code] || isFiat(code));
+  // A saved code that was withdrawn moves to its replacement; one with none is dropped.
+  const settle = code => { const c = BureauLib.currentCode(code); return isKnown(c) ? c : null; };
 
   const store = {
     get(k) { try { return JSON.parse(localStorage.getItem('bureau.' + k)); } catch { return null; } },
@@ -671,12 +673,12 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   const home = EURO_ZONE.includes(region) ? 'EUR' : (REGION_CURRENCY[region] || 'USD');
   const saved = store.get('pair') || {};
   const state = {
-    from: isKnown(saved.from) ? saved.from : home,
-    to: isKnown(saved.to) ? saved.to : (home === 'USD' ? 'EUR' : 'USD'),
+    from: settle(saved.from) || home,
+    to: settle(saved.to) || (home === 'USD' ? 'EUR' : 'USD'),
     edited: 'from',
     fee: Number(store.get('fee')) || 0,
     days: [7, 30, 365].includes(store.get('days')) ? store.get('days') : 30,
-    recent: (store.get('recent') || []).filter(isKnown).slice(0, 5),
+    recent: [...new Set((store.get('recent') || []).map(settle).filter(Boolean))].slice(0, 5),
     rates: null,        // units per 1 USD: fiat and coins together
     fiat: null,
     coins: null,
@@ -794,7 +796,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     loading = false;
     buildCurrencyList();
     renderAll();
-    if (trendFailed) renderTrend();
+    refreshTrend();
   }
 
   // ---- currency list ----
@@ -854,10 +856,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     field('from').placeholder = field('to').placeholder = Number.isFinite(r) ? '0' : '–';
     fitAll();
     store.set('amount', { side: src, value: field(src).value });
-    announce();
     tellAppPair();
   }
 
+  // Read the answer out after something the user did (typing, a swap, a quick
+  // amount, a new currency or fee), never after the minute's refresh.
   let announceTimer = 0;
   function announce() {
     clearTimeout(announceTimer);
@@ -922,6 +925,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     state.fee = Math.round(n * 100) / 100;
     store.set('fee', state.fee);
     renderAll();
+    announce();
   }
   function openFee() {
     closeAlert();
@@ -1067,21 +1071,25 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     h.textContent = `${from} → ${to}`;
     col.append(h);
     const r = effectiveRate(from, to);
+    // Coins go bare and short here: the heading names them, and a phone has no room for 0.00000740452 BTC.
+    const money = (n, code, opts) => (CRYPTO[code] ? (Number.isFinite(n) ? nf(BureauLib.coinQuickOpts(n)).format(n) : '–') : fmtMoney(n, code, opts));
+    const spoken = (text, code) => (CRYPTO[code] && text !== '–' ? `${text} ${code}` : text);
     for (const a of quickAmounts(from)) {
       const b = document.createElement('button');
       b.type = 'button';
       const left = document.createElement('span');
-      left.textContent = fmtMoney(a, from, Number.isInteger(a) ? { maximumFractionDigits: 0 } : undefined);
+      left.textContent = money(a, from, Number.isInteger(a) ? { maximumFractionDigits: 0 } : undefined);
       const right = document.createElement('span');
-      right.textContent = Number.isFinite(r) ? fmtMoney(a * r, to) : '–';
+      right.textContent = money(a * r, to);
       b.append(left, right);
-      b.setAttribute('aria-label', `Use ${left.textContent}, ${right.textContent}`);
+      b.setAttribute('aria-label', `Use ${spoken(left.textContent, from)}, ${spoken(right.textContent, to)}`);
       b.addEventListener('click', () => {
         haptic();
         if (from !== state.from) swap();
         state.edited = 'from';
         field('from').value = fmtAmount(a, state.from);
         convert();
+        announce();
       });
       col.append(b);
     }
@@ -1105,6 +1113,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   }
   let trendToken = 0;
   let trendFailed = false;
+  let trendBusy = 0;      // the token of the fetch under way, if any
+  const trendKey = () => `${state.from}${state.to}${state.days}`;
   function renderRange() {
     for (const b of $('range').querySelectorAll('button')) b.setAttribute('aria-pressed', String(Number(b.dataset.days) === state.days));
   }
@@ -1112,12 +1122,13 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const token = ++trendToken;
     const { from, to, days } = state;
     renderRange();
-    const key = `${from}${to}${days}`;
+    const key = trendKey();
     let entry = trendCache.get(key);
     const usable = entry && entry.series.length >= 2;
     if (usable) drawTrend(entry.series, key);
     if (usable && Date.now() - entry.at < TREND_TTL_MS) return;
     if (!usable) $('trend').classList.add('loading');
+    trendBusy = token;
     try {
       entry = { at: Date.now(), series: await fetchSeries(from, to, days) };
       saveTrend(key, entry);
@@ -1126,11 +1137,22 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       trendFailed = true;
       if (usable) return; // keep showing the saved chart
       return showTrendEmpty("Couldn't load the trend. It will try again with the next rate update.");
+    } finally {
+      if (trendBusy === token) trendBusy = 0;
     }
     if (token !== trendToken) return;
     trendFailed = false;
     if (entry.series.length < 2) return showTrendEmpty(`No history yet for ${from} → ${to}.`);
     drawTrend(entry.series, key);
+  }
+  // After each rate refresh: a failed or 6-hour-old trend loads again, and
+  // otherwise the chart redraws so its last point is the rate shown above it.
+  function refreshTrend() {
+    if (trendBusy) return;
+    const key = trendKey(), entry = trendCache.get(key);
+    if (trendFailed || (entry && Date.now() - entry.at >= TREND_TTL_MS)) return renderTrend();
+    const scrubbing = !!$('trend').querySelector('.probe-dot:not([hidden])');
+    if (entry && entry.series.length >= 2 && drawnKey === key && !scrubbing) drawTrend(entry.series, key);
   }
 
   // Daily ECB reference rates where they exist (one request, every working
@@ -1179,11 +1201,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   }
   // A new pair or range fades in; a quiet refresh of the same chart doesn't.
   let drawnKey = '';
+  // Today on this phone, as the series dates its days (2026-11-09).
+  const localDay = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 10); };
   function drawTrend(series, key) {
     const el = $('trend');
     el.classList.remove('loading');
     const fresh = key !== drawnKey;
     drawnKey = key;
+    series = BureauLib.withLatest(series, rate(state.from, state.to), localDay());
     const vals = series.map(p => p[1]);
     const min = Math.min(...vals), max = Math.max(...vals);
     const span = max - min || max * 0.001;
@@ -1201,7 +1226,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const change = (vals.at(-1) / vals[0] - 1) * 100;
     const changeEl = $('trendChange');
     changeEl.className = 'change ' + (change >= 0 ? 'up' : 'down');
-    changeEl.textContent = `${change >= 0 ? '+' : '−'}${Math.abs(change).toFixed(2)}%`;
+    changeEl.textContent = `${change >= 0 ? '+' : '−'}${nf({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(change))}%`;
     el.setAttribute('role', 'img');
     el.setAttribute('aria-label', `${state.from} to ${state.to}: ${fmtRate(vals[0])} to ${fmtRate(vals.at(-1))}, low ${fmtRate(min)}, high ${fmtRate(max)}`);
     const long = state.days > 60;
@@ -1423,7 +1448,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       input.select();
       showOps(true);
     });
-    input.addEventListener('input', () => { state.edited = side; convert(); });
+    input.addEventListener('input', () => { state.edited = side; convert(); announce(); });
     input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
     input.addEventListener('blur', () => {
       showOps(false);
@@ -1483,6 +1508,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     renderAll();
     renderTrend();
     slideLegs();
+    announce();
   }
   // The two rows trade places: each slides in from where the other was,
   // and the arrows turn half a turn with them.
@@ -1654,6 +1680,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     dlg.close();
     renderAll();
     renderTrend();
+    announce();
   }
   $('pickFrom').addEventListener('click', () => openPicker('from'));
   $('pickTo').addEventListener('click', () => openPicker('to'));

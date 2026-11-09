@@ -31,6 +31,13 @@
     return { minimumFractionDigits: d, maximumFractionDigits: d };
   }
 
+  // Quick amounts in a coin: about four significant digits, whole numbers kept,
+  // so a column fits a phone (0.00007405, 1,000).
+  function coinQuickOpts(n) {
+    const whole = Math.abs(n) >= 1 ? Math.floor(Math.log10(Math.abs(n))) + 1 : 0;
+    return { maximumSignificantDigits: Math.min(21, Math.max(4, whole)) };
+  }
+
   // One number as typed: either "." or "," can be the decimal point. When both
   // appear the last one is; a lone separator is grouping only when it's the
   // locale's group mark followed by exactly three digits ("1.500" in Germany).
@@ -207,6 +214,16 @@
     regionTable[code] = regs.match(/../g);
   }
   const regionsOf = code => regionTable[code] || [];
+  // A currency is one some country uses today: browsers still know withdrawn
+  // codes (SLL, HRK) and some can't name their replacements (SLE, XCG).
+  const isCurrency = code => Object.prototype.hasOwnProperty.call(regionTable, code);
+
+  // English names for codes newer than some browsers' own lists.
+  const NAMES = { SLE: 'Sierra Leonean Leone', XCG: 'Caribbean Guilder', ZWG: 'Zimbabwe Gold', VED: 'Bolívar Soberano' };
+
+  // Withdrawn codes and what replaced them, so a saved pair or recent pick moves on.
+  const REPLACED = { SLL: 'SLE', HRK: 'EUR', BGN: 'EUR', ZWL: 'ZWG', ANG: 'XCG', VEF: 'VES' };
+  const currentCode = code => (Object.prototype.hasOwnProperty.call(REPLACED, code) ? REPLACED[code] : code);
 
   // Everyday names people type that aren't the official country name.
   const REGION_ALIASES = {
@@ -266,7 +283,15 @@
     return out;
   }
 
-  const lib = { CRYPTO, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  // A trend ends at the rate shown above it, so its change, low and high include
+  // now. A point already dated today (or later) gives way to it.
+  function withLatest(series, rate, today) {
+    if (!(rate > 0) || !series.length) return series;
+    const before = series.at(-1)[0] >= today ? series.slice(0, -1) : series;
+    return [...before, [today, rate]];
+  }
+
+  const lib = { CRYPTO, NAMES, REPLACED, isCurrency, currentCode, coinQuickOpts, withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);
