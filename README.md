@@ -13,7 +13,7 @@ the Android app in `app/` wraps it in a WebView and adds self-updates.
   recently used currencies sit at the top of the picker
 - Simple sums in the amount fields (`12*3.5`, `(40+25)/2`), with + − × ÷ keys above the phone keyboard
 - Optional bank/card fee: tap "No fee" in the rate line and type a % (blank is none); it applies to every result,
-  with the plain rate shown under it
+  always against you (a foreign price comes out dearer in your own money), with the plain rate shown under it
 - 1W / 1M / 1Y trend from European Central Bank reference rates, or daily snapshots
   (fawazahmed0/currency-api) for crypto and currencies the ECB doesn't cover
 - Rate alerts (app only): the bell beside the fee opens a row in the converter to set a target; a background job checks

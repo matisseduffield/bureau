@@ -179,7 +179,7 @@ class MainActivity : ComponentActivity() {
                 if (from.isNotBlank() && to.isNotBlank() && rate.isFinite() && rate > 0) {
                     WidgetStore.save(
                         this,
-                        WidgetStore.Pair(from, to, msg.optDouble("fee", 0.0), rate, msg.optLong("updatedAt"), amount),
+                        WidgetStore.Pair(from, to, msg.optDouble("fee", 0.0), rate, msg.optLong("updatedAt"), amount, msg.optString("home")),
                     )
                     RateWidget.updateAll(this)
                 }

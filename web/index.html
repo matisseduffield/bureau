@@ -386,6 +386,8 @@ dialog {
 }
 dialog[open] { display: flex; flex-direction: column; }
 dialog::backdrop { background: var(--backdrop); }
+/* On a phone the picker itself takes focus (see openPicker); a ring round the whole screen says nothing. */
+dialog:focus { outline: none; }
 /* The picker eases in: a short rise and fade, with the backdrop fading behind it. */
 dialog, dialog::backdrop {
   transition: opacity .18s ease-out, transform .22s cubic-bezier(.2, .7, .2, 1), overlay .22s allow-discrete, display .22s allow-discrete;
@@ -543,7 +545,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   <button type="button" data-op="÷" aria-label="Divided by">÷</button>
 </div>
 
-<dialog id="picker" aria-label="Choose a currency">
+<dialog id="picker" aria-label="Choose a currency" tabindex="-1">
   <div class="picker-head">
     <input id="pickerSearch" type="search" placeholder="Currency or country" autocomplete="off" aria-label="Search currencies">
     <button type="button" id="pickerClose">Close</button>
@@ -551,14 +553,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   <ul class="picker-list" id="pickerList"></ul>
 </dialog>
 
-<script src="lib.js?v=3"></script>
+<script src="lib.js?v=4"></script>
 <script src="pwa.js"></script>
 <script>
 (() => {
   // A page and a lib.js from different releases can meet right after one (an
   // edge or saved copy of one but not the other). Fetch lib.js afresh and load
   // again, once; a second miss runs anyway rather than loop.
-  const LIB = 3;
+  const LIB = 4;
   if (!window.BureauLib || BureauLib.VERSION !== LIB) {
     let tried = true;
     try { tried = sessionStorage.getItem('bureau.libRetry') === String(LIB); sessionStorage.setItem('bureau.libRetry', String(LIB)); } catch {}
@@ -585,6 +587,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   const FILE_FRESH_MS = 2 * 24 * 60 * 60_000;
   const TREND_TTL_MS = 6 * 60 * 60_000;
   const FETCH_TIMEOUT_MS = 8000;
+  const LIVE_GRACE_MS = 2000;
 
   const COMMON = ['USD', 'EUR', 'GBP', 'AUD', 'JPY', 'CAD', 'CHF', 'CNY', 'NZD', 'INR', 'SGD', 'HKD'];
   const { CRYPTO } = BureauLib;
@@ -694,7 +697,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 
   // ---- rates ----
   const rate = (from, to) => (state.rates && state.rates[from] > 0 && state.rates[to] > 0) ? state.rates[to] / state.rates[from] : NaN;
-  const effectiveRate = (from, to) => rate(from, to) * (1 - state.fee / 100);
+  // The fee costs you either way round: a price turned into your home money comes out dearer.
+  const effectiveRate = (from, to) => BureauLib.withFee(rate(from, to), state.fee, to, home);
 
   async function getJSON(url) {
     const ctrl = new AbortController();
@@ -719,30 +723,39 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   async function fetchDaily() {
     return BureauLib.dailyRates(await getJSON(DAILY_URL), isFiat);
   }
-  // The first mirror answers unless it's serving an old file; then the newest wins.
+  // Both mirrors are asked at once, so one that hangs costs no more than its timeout.
+  // The first answers unless it's serving an old file; then the newest wins.
   async function fetchFile() {
+    const files = FILE_URLS.map(url => getJSON(url).then(json => BureauLib.fileRates(json, isFiat)).catch(() => null));
     let best = null;
-    for (const url of FILE_URLS) {
-      try {
-        const file = BureauLib.fileRates(await getJSON(url), isFiat);
-        if (file && (!best || file.updatedAt > best.updatedAt)) best = file;
-      } catch {}
+    for (const pending of files) {
+      const file = await pending;
+      if (file && (!best || file.updatedAt > best.updatedAt)) best = file;
       if (best && Date.now() - best.updatedAt < FILE_FRESH_MS) break;
     }
     return best;
   }
 
-  let loading = false;
-  async function loadRates() {
-    if (loading) return;
-    loading = true;
+  // One refresh at a time: asking again while one runs joins it. `checking` is a
+  // tap on the status line waiting for the answer.
+  let loading = null, checking = false;
+  const loadRates = () => loading || (loading = fetchRates().finally(() => { loading = null; }));
+  async function fetchRates() {
     const attempt = get => get().catch(() => null);
     const needDaily = !reference || Date.now() - (reference.fetchedAt || 0) > DAILY_REFRESH_MS;
-    const [live, first] = await Promise.all([attempt(fetchLive), needDaily ? attempt(fetchDaily) : null]);
+    const liveP = attempt(fetchLive);
+    const firstP = needDaily ? attempt(fetchDaily) : null;
+    // Coinbase answers within a second or so. If it fails, or a connection hangs past
+    // LIVE_GRACE_MS, the other two start now rather than after its timeout; its answer
+    // still wins if it comes. While Coinbase answers, the daily rates stay hourly.
+    const early = await Promise.race([liveP, new Promise(done => setTimeout(done, LIVE_GRACE_MS, 'late'))]);
+    const lateDailyP = early && early !== 'late' ? null : firstP || attempt(fetchDaily);
+    const fileP = lateDailyP ? attempt(fetchFile) : null;
+    const live = await liveP;
     // Without Coinbase, every refresh goes on to the other two.
-    const daily = first || (live || needDaily ? null : await attempt(fetchDaily));
+    const daily = await (live ? firstP : lateDailyP);
     if (daily) { reference = { ...daily, fetchedAt: Date.now() }; store.set('daily', reference); }
-    const file = !live || !reference ? await attempt(fetchFile) : null;
+    const file = !live || !reference ? await (fileP || attempt(fetchFile)) : null;
     const yardstick = reference || file;
     const next = live ? BureauLib.liveRates(live, yardstick && yardstick.fiat, isFiat, Date.now(), yardstick && yardstick.updatedAt) : BureauLib.combineRates(state, daily, file);
     state.error = !!next.offline;
@@ -752,7 +765,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       state.rates = { ...state.fiat, ...state.coins };
       store.set('rates', { v: 2, fiat: state.fiat, coins: state.coins, fiatAt: state.fiatAt, coinAt: state.coinAt, dated: state.dated, source, fetchedAt: state.fetchedAt });
     }
-    loading = false;
+    checking = false;
     buildCurrencyList();
     renderAll();
     refreshTrend();
@@ -799,7 +812,10 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   const other = side => side === 'from' ? 'to' : 'from';
 
   // Writes only into the field you're not editing, so a refresh never touches what you type.
-  function convert() {
+  // Nor into the answer while it has focus: you tapped it to type over it, and a rewrite
+  // would drop the selection. It catches up when you type in it or leave it.
+  let answerBehind = false;
+  function convert(rewrite) {
     const src = state.edited, dst = other(src);
     const { value, isExpr } = evaluate(field(src).value);
     const hint = $(src + 'Calc');
@@ -810,7 +826,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const r = effectiveRate(state.from, state.to);
     let out = NaN;
     if (Number.isFinite(value) && value >= 0 && Number.isFinite(r)) out = src === 'from' ? value * r : value / r;
-    field(dst).value = fmtAmount(out, state[dst]);
+    answerBehind = !rewrite && document.activeElement === field(dst);
+    if (!answerBehind) field(dst).value = fmtAmount(out, state[dst]);
     // With no rate there's no answer yet, and a 0 would read like one.
     field('from').placeholder = field('to').placeholder = Number.isFinite(r) ? '0' : '–';
     fitAll();
@@ -1015,7 +1032,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   function renderStatus() {
     const el = $('status');
     let text = '';
-    if (!state.rates) text = state.error ? 'Offline · no saved rates yet' : '';
+    if (checking) text = 'Checking…';
+    else if (!state.rates) text = state.error ? 'Offline · no saved rates yet' : '';
     else {
       const { kind, at, byDay } = BureauLib.rateStatus(state, Number.isFinite(rate(state.from, state.to)), Date.now());
       const when = byDay ? dayText(at) : whenText(at);
@@ -1045,7 +1063,6 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     // Big amounts read short: the round ones to convert from 10,000 up (10K), answers
     // without cents from 10,000 and in millions as Rp 13.59M. Screen readers hear them whole.
     const short = n => (Math.abs(n) >= 1e6 ? { notation: 'compact', maximumSignificantDigits: 4 } : Math.abs(n) >= 1e4 ? { maximumFractionDigits: 0 } : undefined);
-    const spoken = (text, code) => (CRYPTO[code] ? `${text} ${code}` : text);
     const usdValue = state.rates[from] > 0 ? 1 / state.rates[from] : 1;
     const rows = BureauLib.quickAmounts(usdValue).map(a => {
       const b = document.createElement('button');
@@ -1057,12 +1074,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       const right = document.createElement('span');
       right.textContent = money(a * r, to, CRYPTO[to] ? undefined : short(a * r));
       b.append(left, right);
-      b.setAttribute('aria-label', `Use ${spoken(money(a, from, CRYPTO[from] ? undefined : whole), from)}, ${spoken(money(a * r, to), to)}`);
+      // Read out by name, as announce() does: "$1, $0.66" can't say which dollars.
+      b.setAttribute('aria-label', `${nf(whole || amountOpts(a, from)).format(a)} ${nameOf(from)} is ${fmtAmount(a * r, to)} ${nameOf(to)}`);
       b.addEventListener('click', () => {
         haptic();
         state.edited = 'from';
         field('from').value = fmtAmount(a, state.from);
-        convert();
+        // A tap here is meant for the answer too, even if Safari left it focused.
+        convert(true);
         announce();
       });
       return b;
@@ -1307,7 +1326,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       const r = rate(state.from, state.to);
       // The home-screen widget shows the "You have" amount (1 shows the plain rate).
       const amount = evaluate(field('from').value).value;
-      if (Number.isFinite(r)) toApp({ type: 'pair', from: state.from, to: state.to, fee: state.fee, rate: r, updatedAt: pairAt(), amount: amount > 0 ? amount : 1 });
+      if (Number.isFinite(r)) toApp({ type: 'pair', from: state.from, to: state.to, fee: state.fee, home, rate: r, updatedAt: pairAt(), amount: amount > 0 ? amount : 1 });
     }, 400);
   }
   if (app) {
@@ -1451,7 +1470,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
     input.addEventListener('blur', () => {
       showOps(false);
-      if (input.value === before) return;
+      if (input.value === before) {
+        // Left untouched: an answer held back by a refresh catches up now.
+        if (answerBehind && side !== state.edited) convert(true);
+        return;
+      }
       // Tidy what was typed (grouping, or the result of a sum) without rounding it.
       const { value } = evaluate(input.value);
       if (Number.isFinite(value) && value >= 0) {
@@ -1480,6 +1503,18 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     $('ops').style.paddingBottom = keyboard ? '2px' : '';
   }
   if (seen && !app) { seen.addEventListener('resize', placeOps); seen.addEventListener('scroll', placeOps); }
+  // In the app the page shrinks for the keyboard instead, and Back hides the keyboard
+  // without blurring the field, which left the keys up. Growing back to full height
+  // at the same width means the keyboard went, so the field lets go too.
+  if (app) {
+    let lastW = innerWidth, lastH = innerHeight;
+    addEventListener('resize', () => {
+      const amount = document.activeElement === field('from') || document.activeElement === field('to');
+      if (amount && innerWidth === lastW && innerHeight - lastH > 100) document.activeElement.blur();
+      lastW = innerWidth;
+      lastH = innerHeight;
+    });
+  }
   $('ops').addEventListener('pointerdown', e => e.preventDefault());   // keep the keyboard up
   $('ops').addEventListener('click', e => {
     const b = e.target.closest('button[data-op]');
@@ -1530,9 +1565,10 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     });
   }
   $('swap').addEventListener('click', () => { haptic(); swap(); });
+  // A tap always shows it's checking, joining a refresh already under way.
   $('status').addEventListener('click', () => {
-    if (loading) return;
-    $('status').textContent = 'Checking…';
+    checking = true;
+    renderStatus();
     loadRates();
   });
   $('feeBtn').addEventListener('click', openFee);
@@ -1582,8 +1618,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     pickingSide = side;
     $('pickerSearch').value = '';
     renderPickerList('');
+    // With a mouse or keyboard you type at once. On a touch screen the keyboard would
+    // cover half the list, so the picker itself takes focus (a screen reader hears its
+    // name) and search waits for a tap.
+    const search = !coarse.matches;
+    dlg.autofocus = !search;
+    $('pickerSearch').autofocus = search;
     dlg.showModal();
-    $('pickerSearch').focus();
+    (search ? $('pickerSearch') : dlg).focus();
     toApp({ type: 'picker', open: true });
   }
   dlg.addEventListener('close', () => toApp({ type: 'picker', open: false }));

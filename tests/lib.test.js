@@ -327,3 +327,19 @@ test('the fee reads a typed percent; blank is none, nonsense changes nothing', (
   assert.equal(parseFee(String(MAX_FEE), ','), MAX_FEE);
   for (const bad of ['21', 'abc', '1.2.3', '-1']) assert.ok(Number.isNaN(parseFee(bad, ',')), bad);
 });
+
+test('a fee always costs you, whichever way round the pair is', () => {
+  const { withFee } = require('../web/lib.js');
+  const near = (a, b) => assert.ok(Math.abs(a / b - 1) < 1e-12, `${a} vs ${b}`);
+  // 1 AUD = 98.75 JPY; an Australian with a 3% card fee.
+  const audJpy = 98.75, jpyAud = 1 / audJpy;
+  near(withFee(audJpy, 3, 'JPY', 'AUD'), audJpy * 0.97);        // fewer yen for your dollars
+  near(withFee(jpyAud, 3, 'AUD', 'AUD'), jpyAud / 0.97);        // a yen price costs more dollars
+  assert.ok(1000 * withFee(jpyAud, 3, 'AUD', 'AUD') > 1000 * jpyAud);
+  // Swapped, the same 1000 JPY and its dollars match.
+  near(1000 * withFee(jpyAud, 3, 'AUD', 'AUD'), 1000 / withFee(audJpy, 3, 'JPY', 'AUD'));
+  // Between two foreign currencies you get less of the other.
+  near(withFee(0.9, 2, 'EUR', 'AUD'), 0.9 * 0.98);
+  assert.equal(withFee(1.5, 0, 'AUD', 'AUD'), 1.5);
+  assert.equal(withFee(1.5, undefined, 'JPY', 'AUD'), 1.5);
+});
