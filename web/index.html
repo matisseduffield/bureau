@@ -231,14 +231,15 @@ button { cursor: pointer; }
 
 /* Under the amounts, one line: the rate, then the alert bell and the fee at fixed spots on the right. */
 .rateline {
-  display: flex; align-items: center; gap: 0 2px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px;
   min-height: 52px; padding: 4px 6px 4px 22px;
   border-top: 1px solid var(--line);
   font-size: .86rem;
 }
-.rate-text { flex: 1; min-width: 0; margin: 0; padding: 6px 0; line-height: 1.4; }
-.rate-main { display: block; color: var(--ink); overflow-wrap: anywhere; }
-.rate-main b { font-weight: 600; }
+/* The rate never breaks inside its number; with big text the bell and fee go under it instead. */
+.rate-text { flex: 1; min-width: min-content; margin: 0; padding: 6px 0; line-height: 1.4; }
+.rate-main { display: block; color: var(--ink); overflow-wrap: break-word; }
+.rate-main b { font-weight: 600; white-space: nowrap; }
 .rate-sub { display: block; font-size: .8rem; color: var(--muted); }
 .rate-sub:empty { display: none; }
 /* The last row keeps the slip's rounded corner under its focus bar. */
@@ -252,6 +253,8 @@ button { cursor: pointer; }
 @media (hover: hover) { .legal a:hover { color: var(--ink); } }
 
 /* Fee: "No fee" until tapped, then a bare percent field in its place, typed like the amounts. */
+/* Bell and fee move as one: beside the rate, or together under it at the right. */
+.rate-tools { flex: none; display: flex; align-items: center; margin-left: auto; }
 .fee { flex: none; display: flex; align-items: center; color: var(--muted); }
 .fee-btn {
   min-height: 44px; padding: 0 12px;
@@ -269,6 +272,7 @@ button { cursor: pointer; }
 }
 @supports (field-sizing: content) { .inline-in { width: auto; min-width: 1ch; field-sizing: content; } }
 .inline-in::placeholder { color: var(--faint); font-weight: 400; }
+.inline-in[aria-invalid="true"] { color: var(--down); }
 .rateline:has(.inline-in:focus), .alert-row:has(.inline-in:focus) { box-shadow: inset 2px 0 0 var(--accent); }
 
 /* Rate alert: a bell beside the fee; filled while this pair has an alert. */
@@ -303,13 +307,13 @@ button { cursor: pointer; }
 
 /* Sections */
 .section { display: grid; gap: 10px; }
-.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-bottom: -6px; }
+.section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 12px; min-height: 44px; margin-bottom: -6px; }
 .section h2 { margin: 0; font-size: .95rem; font-weight: 600; line-height: 1.3; }
 .change { margin-left: 8px; font-weight: 600; }
 .change.up { color: var(--up); }
 .change.down { color: var(--down); }
 
-.range { display: flex; margin-right: -10px; }
+.range { display: flex; margin-left: auto; margin-right: -10px; }
 .range button {
   min-width: 44px; min-height: 44px; padding: 0 10px;
   background: none; border: 0;
@@ -324,7 +328,8 @@ button { cursor: pointer; }
 .trend .line { fill: none; stroke: var(--accent); stroke-width: 1.75; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .trend .end { position: absolute; left: calc(100% - 6px); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); }
 .trend-axis { display: flex; justify-content: space-between; gap: 12px; font-size: .78rem; color: var(--muted); }
-.trend-axis .mid { text-align: center; }
+/* With very big text a long low/high may break inside a number rather than run off the page. */
+.trend-axis .mid { min-width: 0; text-align: center; overflow-wrap: anywhere; }
 .trend-axis .mid.active { color: var(--ink); font-weight: 500; }
 .trend { touch-action: pan-y; }
 .trend .probe-line { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -.5px; background: var(--muted); opacity: .5; pointer-events: none; }
@@ -339,7 +344,7 @@ button { cursor: pointer; }
 /* Quick amounts: one column, the way the converter runs now. The heading names the
    pair, so the amounts on the left are bare numbers. A row too long for the width
    puts the answer on a second line, right-aligned. */
-.quick-pair { margin-left: 8px; font-weight: 400; color: var(--muted); }
+.quick-pair { margin-left: 4px; font-weight: 400; color: var(--muted); }
 .quick { display: grid; min-width: 0; }
 .quick button {
   display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 12px;
@@ -490,12 +495,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     <p class="sr-only" id="announce" aria-live="polite"></p>
     <div class="rateline">
       <p class="rate-text"><span class="rate-main" id="rateMain">Waiting for rates</span><span class="rate-sub" id="rateSub"></span></p>
+      <div class="rate-tools">
       <button class="bell" id="alertBtn" type="button" aria-expanded="false" aria-controls="alertRow" aria-label="Set a rate alert" hidden>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path class="bell-body" d="M8 2.2a3.6 3.6 0 0 0-3.6 3.6v2.4L3 10.8h10L11.6 8.2V5.8A3.6 3.6 0 0 0 8 2.2Z"/><path d="M6.5 12.8a1.6 1.6 0 0 0 3 0"/></svg>
       </button>
       <div class="fee" id="feeBox">
         <button class="fee-btn" id="feeBtn" type="button">No fee</button>
         <label class="fee-edit" id="feeEdit" hidden><input class="inline-in" id="feeInput" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0" aria-label="Bank or card fee in percent, blank for none"><span aria-hidden="true">% fee</span></label>
+      </div>
       </div>
     </div>
     <div class="alert-row" id="alertRow" role="group" aria-label="Rate alert" hidden>
@@ -522,7 +529,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   </section>
 
   <section class="section" id="quickSection" hidden>
-    <div class="section-head"><h2>Quick amounts<span class="quick-pair" id="quickPair"></span></h2></div>
+    <div class="section-head"><h2>Quick amounts <span class="quick-pair" id="quickPair"></span></h2></div>
     <div class="quick" id="quick"></div>
   </section>
 
@@ -847,6 +854,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   function renderRateLine() {
     renderFee();
     renderBell();
+    // An open alert row keeps its "x% above now" true to the rate.
+    if (!$('alertRow').hidden) renderAlertHint();
     const r = rate(state.from, state.to);
     const main = $('rateMain'), sub = $('rateSub');
     if (!Number.isFinite(r)) {
@@ -890,11 +899,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     toApp({ type: 'picker', open: true });
   }
   // On blur: the field gives way to the button again, showing the fee in force.
-  function closeFee() {
+  // Closed from the keyboard (or Back), focus goes back to the button.
+  function closeFee(refocus) {
     if ($('feeEdit').hidden) return;
     $('feeEdit').hidden = true;
     $('feeBtn').hidden = false;
+    $('feeInput').removeAttribute('aria-invalid');
     renderFee();
+    if (refocus) $('feeBtn').focus();
     toApp({ type: 'picker', open: false });
   }
 
@@ -924,8 +936,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     } else if (Number.isFinite(r)) text = `Now ${fmtRate(r)}`;
     $('alertHint').textContent = text;
     $('alertAllow').hidden = notifyOn;
-    $('alertRemove').hidden = !notifyOn || !isSet;
-    $('alertSet').hidden = notifyOn && isSet;
+    $('alertRemove').hidden = !isSet;
+    $('alertSet').hidden = isSet;
     fitAlertHint();
   }
   // The hint drops under the number when the row can't hold it whole.
@@ -1086,7 +1098,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const usable = entry && entry.series.length >= 2;
     if (usable) drawTrend(entry.series, key);
     if (usable && Date.now() - entry.at < TREND_TTL_MS) return;
-    if (!usable) $('trend').classList.add('loading');
+    if (!usable) {
+      $('trend').classList.add('loading');
+      $('trendSection').classList.remove('off');
+      $('trendNote').hidden = true;
+    }
     trendBusy = token;
     try {
       entry = { at: Date.now(), series: await fetchSeries(from, to, days) };
@@ -1520,15 +1536,17 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     loadRates();
   });
   $('feeBtn').addEventListener('click', openFee);
-  // The fee applies as you type; one that can't be read leaves the last good one.
+  // The fee applies as you type; one that can't be read (or over 20%) leaves the
+  // last good one, and shows in red until it can be.
   $('feeInput').addEventListener('input', e => {
     const n = BureauLib.parseFee(e.target.value, GROUP);
+    e.target.setAttribute('aria-invalid', String(!Number.isFinite(n)));
     if (Number.isFinite(n) && n !== state.fee) setFee(n);
   });
   $('feeInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); $('feeInput').blur(); }
+    if (e.key === 'Enter') { e.preventDefault(); closeFee(true); }
     // Escape puts back the fee from before.
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (state.fee !== feeBefore) setFee(feeBefore); $('feeInput').blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (state.fee !== feeBefore) setFee(feeBefore); closeFee(true); }
   });
   $('feeInput').addEventListener('blur', () => { closeFee(); });
   $('alertBtn').addEventListener('click', () => ($('alertRow').hidden ? openAlert() : closeAlert()));
@@ -1543,8 +1561,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   });
   // The app's Back gesture calls this first: it closes the fee field, the alert row or the picker.
   window.bureauBack = () => {
-    if (!$('feeEdit').hidden) { $('feeInput').blur(); closeFee(); return true; }
-    if (!$('alertRow').hidden) { closeAlert(); return true; }
+    if (!$('feeEdit').hidden) { closeFee(true); return true; }
+    if (!$('alertRow').hidden) { closeAlert(true); return true; }
     if (dlg.open) { dlg.close(); return true; }
     return false;
   };
