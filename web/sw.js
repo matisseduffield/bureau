@@ -10,7 +10,7 @@ const CACHE = 'bureau-2';
 const WAIT_MS = 3000;
 const at = file => new URL(file, location).href;
 const INDEX = at('index.html');
-const FILES = ['index.html', 'lib.js?v=4', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2', 'fonts/hanken-grotesk-latin-ext.woff2'].map(at);
+const FILES = ['index.html', 'lib.js?v=5', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2', 'fonts/hanken-grotesk-latin-ext.woff2'].map(at);
 // Past the browser's own cache, which could hold a copy older than the network's.
 const fresh = key => (key.endsWith('.woff2') ? 'default' : 'reload');
 
@@ -55,7 +55,9 @@ addEventListener('fetch', e => {
   e.respondWith(new Promise(resolve => {
     let done = false;
     const answer = res => { if (res && !done) { done = true; resolve(res); } };
-    network.then(answer, () => saved().then(hit => answer(hit || Response.error())));
+    // An error page from the server (GitHub down behind the Worker) is no better than no answer.
+    const orSaved = res => saved().then(hit => answer(hit || res));
+    network.then(res => (res.ok ? answer(res) : orSaved(res)), () => orSaved(Response.error()));
     // With no saved copy the network gets as long as it needs.
     setTimeout(() => saved().then(answer), WAIT_MS);
   }));

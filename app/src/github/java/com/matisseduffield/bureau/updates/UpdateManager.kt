@@ -30,6 +30,10 @@ object UpdateManager {
     private const val LATEST_RAW =
         "https://raw.githubusercontent.com/matisseduffield/bureau-releases/main/latest.json"
 
+    // The only place an APK may come from, whatever latest.json says, and the most it may weigh.
+    private const val APK_PREFIX = "https://raw.githubusercontent.com/matisseduffield/bureau-releases/"
+    private const val MAX_APK_BYTES = 50L * 1024 * 1024
+
     data class UpdateInfo(
         val versionCode: Int,
         val versionName: String,
@@ -96,6 +100,8 @@ object UpdateManager {
         info: UpdateInfo,
         onProgress: (Float) -> Unit,
     ): File = withContext(Dispatchers.IO) {
+        require(info.apkUrl.startsWith(APK_PREFIX)) { "The update isn't from Bureau's releases" }
+        val limit = if (info.sizeBytes in 1..MAX_APK_BYTES) info.sizeBytes else MAX_APK_BYTES
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         dir.listFiles()?.forEach { it.delete() }
         val out = File(dir, "update-${info.versionName}.apk")
@@ -114,6 +120,7 @@ object UpdateManager {
                     var read = input.read(buf)
                     var done = 0L
                     while (read >= 0) {
+                        if (done + read > limit) error("The download was larger than the published update")
                         sink.write(buf, 0, read)
                         digest.update(buf, 0, read)
                         done += read

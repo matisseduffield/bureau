@@ -23,7 +23,9 @@ export default {
     // copy of the last release's lib.js can't answer for this one's.
     const version = /^\?v=\d+$/.test(url.search) ? url.search : '';
     const res = await fetch(`${RELEASES}web/${file}${version}`, { cf: { cacheTtl: 300, cacheEverything: true } });
-    if (!res.ok) return new Response('Not found', { status: 404, headers: HEADERS });
+    if (res.status === 404) return new Response('Not found', { status: 404, headers: HEADERS });
+    // GitHub having a bad moment isn't a missing file: nothing keeps this answer.
+    if (!res.ok) return new Response('Bad gateway', { status: 502, headers: { 'Cache-Control': 'no-store', ...HEADERS } });
     const cache = file.endsWith('.html') ? 'no-cache' : version || file.endsWith('.woff2') ? 'public, max-age=604800' : 'public, max-age=60';
     return new Response(res.body, { headers: { 'Content-Type': TYPES[file.split('.').pop()], 'Cache-Control': cache, ...HEADERS } });
   },

@@ -362,3 +362,52 @@ test('every country has its home currency', () => {
   for (const region of 'AT BE BG CY DE EE ES FI FR GR HR IE IT LT LU LV MT NL PT SI SK'.split(' ')) assert.equal(currencyOf(region), 'EUR', region);
   assert.ok(isCurrency(currencyOf('AR')));
 });
+
+test('parseNumber reads Indian grouping where the comma groups', () => {
+  assert.equal(parseNumber('1,50,000', ','), 150000);
+  assert.equal(parseNumber('10,00,000', ','), 1000000);
+  assert.equal(parseNumber('1,00,00,000', ','), 10000000);
+  assert.equal(parseNumber('1,50,000.75', ','), 150000.75);
+  assert.equal(evaluate('1,50,000 + 50,000', ',').value, 200000);
+  // What en-IN writes comes back as the same number, with and without decimals
+  for (const n of [1234, 150000, 1000000, 89000000, 1234567]) {
+    for (const digits of [0, 2]) {
+      const text = new Intl.NumberFormat('en-IN', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n);
+      assert.equal(parseNumber(text, ','), n, text);
+    }
+  }
+  // Shapes that aren't grouping stay as they were
+  assert.equal(parseNumber('1,50', ','), 1.5);
+  assert.equal(parseNumber('1,50', '.'), 1.5);
+  assert.equal(parseNumber('12,50', ','), 12.5);
+  for (const bad of ['1,50,00', '1,5,000', '0,50,000', '123,50,000', '1,50,0000']) assert.ok(Number.isNaN(parseNumber(bad, ',')), bad);
+  // Only as the locale's own grouping: where the comma is the decimal, two of them are a typo
+  assert.ok(Number.isNaN(parseNumber('1,50,000', '.')));
+  assert.ok(Number.isNaN(parseNumber('1.50.000', ',')));
+});
+
+test('an alert target reads back as the field shows it', () => {
+  // The page's fmtRate, and its check that the typed target is the one already set.
+  const fmtRate = (r, locale) => new Intl.NumberFormat(locale, r >= 100 ? { maximumFractionDigits: 2 } : { maximumSignificantDigits: 5 }).format(r);
+  const isSet = (typed, target, locale) => Math.abs(parseNumber(typed, ',') / parseNumber(fmtRate(target, locale), ',') - 1) < 1e-9;
+  for (const [target, locale] of [[0.123456, 'en-US'], [150.123, 'en-US'], [1.5, 'en-US'], [8912345.678, 'en-IN'], [8912345.678, 'en-US']]) {
+    assert.ok(isSet(fmtRate(target, locale), target, locale), `${target} ${locale}`);
+  }
+  assert.equal(isSet('0.13', 0.123456, 'en-US'), false);
+  const page = require('node:fs').readFileSync(require('node:path').join(__dirname, '../web/index.html'), 'utf8');
+  assert.ok(page.includes('Math.abs(t / parseNumber(fmtRate(a.target)) - 1) < 1e-9'));
+});
+
+test('no trend is drawn from the file for currencies it gets wrong', () => {
+  const { crossSeries, fileRates, FILE_SKIP } = require('../web/lib.js');
+  const snaps = [{ usd: { eur: 0.9, sdg: 6, syp: 130 } }, { usd: { eur: 0.8, sdg: 6, syp: 130 } }];
+  for (const code of FILE_SKIP) {
+    assert.deepEqual(crossSeries(['d1', 'd2'], snaps, 'USD', code), [], code);
+    assert.deepEqual(crossSeries(['d1', 'd2'], snaps, code, 'EUR'), [], code);
+  }
+  assert.equal(crossSeries(['d1', 'd2'], snaps, 'USD', 'EUR').length, 2);
+  assert.ok(FILE_SKIP.has('SDG') && FILE_SKIP.has('SYP'));
+  // The page doesn't fetch the files for them either
+  const page = require('node:fs').readFileSync(require('node:path').join(__dirname, '../web/index.html'), 'utf8');
+  assert.ok(page.includes('if (BureauLib.FILE_SKIP.has(from) || BureauLib.FILE_SKIP.has(to)) return [];'));
+});

@@ -9,7 +9,7 @@ const WEB = path.join(__dirname, '../web');
 const read = file => fs.readFileSync(path.join(WEB, file));
 const NAME = 'Bureau';
 const PASS_THROUGH = ['https://api.coinbase.com/v2/exchange-rates?currency=USD', 'https://open.er-api.com/v6/latest/USD', 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json', 'https://api.frankfurter.dev/v1/latest', 'https://bureau.teloone.au/app', 'https://bureau.teloone.au/manifest.json'];
-const KEPT = ['lib.js?v=4', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2'];
+const KEPT = ['lib.js?v=5', 'pwa.js', 'fonts/hanken-grotesk-latin.woff2'];
 
 const SAFARI = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1';
 const CHROME_IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/138.0.7204.156 Mobile/15E148 Safari/604.1';
@@ -165,7 +165,7 @@ test('no signal opens the saved copy at once, and nothing at all is an error', a
 });
 
 test('a versioned file answers from its saved copy, unless the page asks afresh', async () => {
-  const LIB = 'https://bureau.teloone.au/lib.js?v=4';
+  const LIB = 'https://bureau.teloone.au/lib.js?v=5';
   let calls = 0;
   const sw = loadSw({ net: async () => { calls++; return new Response('network lib'); }, saved: { [LIB]: new Response('saved lib') } });
   assert.equal(await (await sw.respond({ url: LIB }).response).text(), 'saved lib');
@@ -178,7 +178,7 @@ test('a versioned file answers from its saved copy, unless the page asks afresh'
   assert.deepEqual(sw.kept, [LIB]);
   // A version not saved yet waits for the network, however long.
   const other = loadSw({ net: async () => new Response('v4') });
-  assert.equal(await (await other.respond({ url: 'https://bureau.teloone.au/lib.js?v=4' }).response).text(), 'v4');
+  assert.equal(await (await other.respond({ url: 'https://bureau.teloone.au/lib.js?v=5' }).response).text(), 'v4');
   assert.equal(other.timers.length, 0);
 });
 
@@ -276,4 +276,46 @@ test('the app-only controls start hidden, and only the bridge shows them', () =>
   assert.match(page, /id="updateCard"[^>]*hidden/);
   assert.match(page, /href="https:\/\/www\.exchangerate-api\.com"/);
   assert.match(page, /href="https:\/\/teloone\.au\/apps\/bureau\/privacy\/"/);
+});
+
+test('an error from the server opens the saved copy, and is passed on with nothing saved', async () => {
+  for (const status of [404, 502]) {
+    const down = async () => new Response('Not found', { status });
+    const sw = loadSw({ net: down, saved: { [INDEX_URL]: new Response('saved') } });
+    const { response, waits } = sw.respond({ url: 'https://bureau.teloone.au/', mode: 'navigate' });
+    assert.equal(await (await response).text(), 'saved', status);
+    await Promise.all(waits);
+    assert.deepEqual(sw.kept, [], status);
+    const empty = loadSw({ net: down });
+    assert.equal((await empty.respond({ url: INDEX_URL }).response).status, status);
+  }
+});
+
+test('the Worker tells a missing file from GitHub being down', async t => {
+  const worker = await loadWorker();
+  let status = 404;
+  t.mock.method(globalThis, 'fetch', async () => new Response('', { status }));
+  const missing = await worker.fetch(new Request('https://bureau.teloone.au/nothing.js'));
+  assert.equal(missing.status, 404);
+  for (status of [429, 500, 503]) {
+    const down = await worker.fetch(new Request('https://bureau.teloone.au/'));
+    assert.equal(down.status, 502, status);
+    assert.equal(down.headers.get('Cache-Control'), 'no-store', status);
+    assert.equal(down.headers.get('X-Content-Type-Options'), 'nosniff', status);
+  }
+});
+
+test('the currency symbol beside an amount is readable in both themes', () => {
+  const page = read('index.html').toString();
+  assert.match(page, /\.sym \{[^}]*color: var\(--muted\)/);
+  const lum = hex => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  // Each theme's --muted on its --surface, as the page declares them (light first, then dark).
+  const pick = name => [...page.matchAll(new RegExp(`--${name}: (#[0-9A-Fa-f]{6});`, 'g'))].map(m => m[1]);
+  const muted = pick('muted'), surface = pick('surface');
+  assert.ok(muted.length >= 2 && muted.length === surface.length);
+  muted.forEach((ink, i) => assert.ok(contrast(ink, surface[i]) >= 4.5, `${ink} on ${surface[i]}`));
 });

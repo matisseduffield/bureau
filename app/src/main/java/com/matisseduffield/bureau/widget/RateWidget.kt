@@ -85,7 +85,10 @@ class RateWidget : AppWidgetProvider() {
         private fun formatAmount(n: Double): String =
             NumberFormat.getNumberInstance().apply { maximumFractionDigits = 8 }.format(n)
 
-        /** A converted amount: the currency's own decimals, or 6 significant digits for a coin. */
+        /**
+         * A converted amount: the currency's own decimals, or 6 significant digits for a coin.
+         * As on the page, an amount that would round to zero gets 3 significant digits instead.
+         */
         private fun formatResult(n: Double, code: String): String {
             val nf = NumberFormat.getNumberInstance()
             if (code in Rates.CRYPTO) {
@@ -94,6 +97,11 @@ class RateWidget : AppWidgetProvider() {
                 return nf.format(rounded)
             }
             val digits = runCatching { Currency.getInstance(code).defaultFractionDigits }.getOrDefault(2).coerceAtLeast(0)
+            if (n != 0.0 && Math.abs(n) < 5 * Math.pow(10.0, -digits.toDouble())) {
+                val rounded = BigDecimal(n).round(MathContext(3)).stripTrailingZeros()
+                nf.maximumFractionDigits = maxOf(0, rounded.scale())
+                return nf.format(rounded)
+            }
             nf.minimumFractionDigits = digits
             nf.maximumFractionDigits = digits
             return nf.format(n)

@@ -113,6 +113,10 @@ class AppUpdates(
             } catch (e: Exception) {
                 installing = false
                 sendUpdateState("failed") { put("message", e.message ?: "The download didn't finish.") }
+                // A newer release replaces the file this one named, so "Try again" takes
+                // whatever is published now; with no answer the old one stays to retry.
+                val latest = UpdateManager.check()
+                if (latest is UpdateManager.CheckResult.Available) pendingUpdate = latest.info
             }
         }
     }

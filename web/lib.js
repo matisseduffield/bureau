@@ -5,7 +5,7 @@
   // Raised with every change here, together with lib.js?v= in index.html and
   // FILES in sw.js. The page checks it, so a page and a lib.js from different
   // releases never run together.
-  const VERSION = 4;
+  const VERSION = 5;
 
   // The most traded coins, in market order; Coinbase quotes them all live, and
   // the daily rate file has them for when it can't.
@@ -92,7 +92,10 @@
       // and a lone mark must be the locale's: "1.234.567" anywhere, "1.500" in Germany,
       // but "0.500" is a half and "1.5." is a typo, not 15.
       const threes = /^\d*[1-9]\d*$/.test(parts[0]) && parts.slice(1).every(p => p.length === 3);
-      if (threes && (parts.length > 2 || ch === group)) s = parts.join('');
+      // Indian grouping (1,50,000): twos, then a last three. Only as the locale's own grouping.
+      const lakhs = ch === group && parts.length > 2 && /^[1-9]\d?$/.test(parts[0])
+        && parts.slice(1, -1).every(p => p.length === 2) && parts[parts.length - 1].length === 3;
+      if (lakhs || threes && (parts.length > 2 || ch === group)) s = parts.join('');
       else if (parts.length > 2) return NaN;
       else s = (parts[0] || '0') + '.' + parts[1];
     }
@@ -317,6 +320,8 @@
   // codes, as the snapshot files use). Days missing either currency are skipped.
   function crossSeries(dates, snapshots, from, to) {
     const out = [];
+    // The file's figures for these are wrong (see FILE_SKIP): no trend beats a false one.
+    if (FILE_SKIP.has(from) || FILE_SKIP.has(to)) return out;
     const per = (usd, code) => (code === 'USD' ? 1 : usd[code.toLowerCase()]);
     dates.forEach((date, i) => {
       const usd = snapshots[i] && snapshots[i].usd;
@@ -337,7 +342,7 @@
     return [...(last === day ? series.slice(0, -1) : series), [day, rate]];
   }
 
-  const lib = { VERSION, CRYPTO, MAX_FEE, quickAmounts, parseFee, withFee, NAMES, REPLACED, isCurrency, currencyOf, currentCode, coinQuickOpts, withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  const lib = { VERSION, CRYPTO, MAX_FEE, quickAmounts, parseFee, withFee, NAMES, REPLACED, isCurrency, currencyOf, currentCode, coinQuickOpts, withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, FILE_SKIP, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else root.BureauLib = lib;
 })(this);

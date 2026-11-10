@@ -191,7 +191,7 @@ button { cursor: pointer; }
   display: flex; justify-content: flex-end; align-items: baseline; gap: 6px;
   cursor: text;
 }
-.sym { flex: none; font-size: clamp(1.15rem, 5vw, 1.5rem); color: var(--faint); }
+.sym { flex: none; font-size: clamp(1.15rem, 5vw, 1.5rem); color: var(--muted); }
 .sym:empty { display: none; }
 .amount-wrap .amount { flex: 0 1 auto; min-width: 1ch; field-sizing: content; }
 @supports not (field-sizing: content) {
@@ -553,14 +553,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   <ul class="picker-list" id="pickerList"></ul>
 </dialog>
 
-<script src="lib.js?v=4"></script>
+<script src="lib.js?v=5"></script>
 <script src="pwa.js"></script>
 <script>
 (() => {
   // A page and a lib.js from different releases can meet right after one (an
   // edge or saved copy of one but not the other). Fetch lib.js afresh and load
   // again, once; a second miss runs anyway rather than loop.
-  const LIB = 4;
+  const LIB = 5;
   if (!window.BureauLib || BureauLib.VERSION !== LIB) {
     let tried = true;
     try { tried = sessionStorage.getItem('bureau.libRetry') === String(LIB); sessionStorage.setItem('bureau.libRetry', String(LIB)); } catch {}
@@ -949,7 +949,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   function renderAlertHint() {
     const r = rate(state.from, state.to), a = alertFor(state.from, state.to);
     const t = parseNumber($('alertTarget').value.trim());
-    const isSet = !!a && t > 0 && Math.abs(t / a.target - 1) < 1e-9;
+    // Against the target as the field shows it: a rounded one still reads as set.
+    const isSet = !!a && t > 0 && Math.abs(t / parseNumber(fmtRate(a.target)) - 1) < 1e-9;
     let text = '';
     if (!notifyOn) text = 'Notifications off';
     else if (Number.isFinite(t) && t > 0 && Number.isFinite(r)) {
@@ -1168,6 +1169,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
         if (e.status !== 404 && e.status !== 422) throw e;
       }
     }
+    if (BureauLib.FILE_SKIP.has(from) || BureauLib.FILE_SKIP.has(to)) return [];
     const dates = BureauLib.sampleDates(days, new Date());
     const snaps = await Promise.all(dates.map(d => dayRates(d).catch(() => null)));
     if (!snaps.some(Boolean)) throw new Error('No snapshots');
