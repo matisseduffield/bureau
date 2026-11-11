@@ -1412,8 +1412,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       const sum = a && b ? `${a} ${state.from} = ${b} ${state.to}` : '';
       const line = [$('rateMain').textContent.trim(), $('rateSub').textContent.trim()].filter(Boolean).join(', ');
       haptic();
-      toApp({ type: 'share', text: [sum, line].filter(Boolean).join('
-') });
+      toApp({ type: 'share', text: [sum, line].filter(Boolean).join('\n') });
     });
     // Tapping the version checks for updates; once one is known it reopens the card.
     $('version').addEventListener('click', () => {

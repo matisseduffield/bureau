@@ -319,3 +319,11 @@ test('the currency symbol beside an amount is readable in both themes', () => {
   assert.ok(muted.length >= 2 && muted.length === surface.length);
   muted.forEach((ink, i) => assert.ok(contrast(ink, surface[i]) >= 4.5, `${ink} on ${surface[i]}`));
 });
+
+// A page whose script doesn't parse shows no rates at all, and nothing else here would notice.
+test('the page script parses', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'web', 'index.html'), 'utf8');
+  const scripts = [...page.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  assert.ok(scripts.length > 0);
+  for (const code of scripts) assert.doesNotThrow(() => new Function(code));
+});
