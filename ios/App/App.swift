@@ -18,7 +18,13 @@ enum App {
     static func setUp(_ shell: Shell) {
         // Read by the page before it draws: no widget, no rate alerts, and the
         // keys above the keyboard placed as they are in Safari.
-        shell.scripts = ["window.bureauApp.ios = true;"]
+        var scripts = ["window.bureauApp.ios = true;"]
+        // Numbers are written the way this phone writes them.
+        if let language = Locale.preferredLanguages.first,
+           language.range(of: "^[A-Za-z0-9-]{2,35}$", options: .regularExpression) != nil {
+            scripts.append("window.bureauApp.locale = \"\(language)\";")
+        }
+        shell.scripts = scripts
         shell.onMessage = { type, _ in
             switch type {
             case "notificationSettings":
