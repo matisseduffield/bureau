@@ -1317,6 +1317,9 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // for the home-screen widget, the picker state for the Back gesture, and
   // answers with its version and update checks.
   const app = window.bureauApp || null;
+  // The iPhone app sets this before the page runs. It has no widget, no Back
+  // gesture and no background checks, so no rate alerts.
+  const ios = !!(app && app.ios);
   function toApp(msg) {
     if (!app) return;
     try { app.postMessage(JSON.stringify(msg)); } catch {}
@@ -1327,7 +1330,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   const haptic = (kind = 'tap') => toApp({ type: 'haptic', kind });
   let pairTimer = 0;
   function tellAppPair() {
-    if (!app) return;
+    if (!app || ios) return;
     clearTimeout(pairTimer);
     pairTimer = setTimeout(() => {
       const r = rate(state.from, state.to);
@@ -1396,7 +1399,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     });
     // Put away, the card leaves "Update available" at the top right to bring it back.
     $('updateLater').addEventListener('click', () => { $('updateCard').hidden = true; markUpdateReady(); });
-    $('alertBtn').hidden = false;
+    $('alertBtn').hidden = ios;
     // Tapping the version checks for updates; once one is known it reopens the card.
     $('version').addEventListener('click', () => {
       if (updateReady && $('updateCard').hidden) {
@@ -1514,7 +1517,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     $('ops').style.bottom = `${keyboard}px`;
     $('ops').style.paddingBottom = keyboard ? '2px' : '';
   }
-  if (seen && !app) { seen.addEventListener('resize', placeOps); seen.addEventListener('scroll', placeOps); }
+  if (seen && (!app || ios)) { seen.addEventListener('resize', placeOps); seen.addEventListener('scroll', placeOps); }
   $('ops').addEventListener('pointerdown', e => e.preventDefault());   // keep the keyboard up
   $('ops').addEventListener('click', e => {
     const b = e.target.closest('button[data-op]');
@@ -1594,6 +1597,11 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   $('alertRow').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeAlert(true); } });
   document.addEventListener('pointerdown', e => {
     if (!$('alertRow').hidden && !$('alertRow').contains(e.target) && !$('alertBtn').contains(e.target)) closeAlert();
+  });
+  // With no Back on an iPhone, a tap away from a field puts the keyboard down (and so closes the fee field).
+  if (ios) document.addEventListener('pointerdown', e => {
+    const a = document.activeElement;
+    if (a && a.tagName === 'INPUT' && e.target !== a && !e.target.closest('input, label, .ops, .amount-wrap')) a.blur();
   });
   // The app's Back gesture calls this first: it closes the fee field, the alert row or the picker.
   window.bureauBack = () => {
