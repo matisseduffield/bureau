@@ -134,6 +134,8 @@ button { cursor: pointer; }
 }
 @media (hover: hover) { .version:hover { color: var(--ink); } }
 .version[data-state="available"] { color: var(--accent); font-weight: 600; }
+/* On an iPhone it is plain text: updates come from the store, so there is nothing to tap. */
+span.version { min-height: 0; }
 @media (hover: hover) { .status:hover { color: var(--ink); } }
 
 /* Update card (only inside the app, when a new version is published), as in
@@ -249,7 +251,7 @@ button { cursor: pointer; }
 .foot { font-size: .8rem; color: var(--muted); }
 /* The rates credit stays on the page (ExchangeRate-API's terms ask for it), here with the legal links. */
 .legal { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 20px; }
-.legal a { padding: 12px 4px; font-size: .8rem; color: var(--muted); text-decoration: none; }
+.legal a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font-size: .8rem; color: var(--muted); text-decoration: none; }
 @media (hover: hover) { .legal a:hover { color: var(--ink); } }
 
 /* Fee: "No fee" until tapped, then a bare percent field in its place, typed like the amounts. */
@@ -523,9 +525,9 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     <div class="section-head">
       <h2>Trend<span class="change" id="trendChange"></span></h2>
       <div class="range" role="group" aria-label="Trend range" id="range">
-        <button type="button" data-days="7" aria-pressed="false">1W</button>
-        <button type="button" data-days="30" aria-pressed="true">1M</button>
-        <button type="button" data-days="365" aria-pressed="false">1Y</button>
+        <button type="button" data-days="7" aria-pressed="false" aria-label="1 week">1W</button>
+        <button type="button" data-days="30" aria-pressed="true" aria-label="1 month">1M</button>
+        <button type="button" data-days="365" aria-pressed="false" aria-label="1 year">1Y</button>
       </div>
     </div>
     <div class="trend" id="trend"></div>
@@ -538,7 +540,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     <div class="quick" id="quick"></div>
   </section>
 
-  <footer class="foot"><nav class="legal" aria-label="Legal"><a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy</a><a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms</a><a href="https://www.exchangerate-api.com" rel="noreferrer">Rates By Exchange Rate API</a></nav></footer>
+  <footer class="foot"><nav class="legal" aria-label="Legal"><a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy</a><a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms</a><a id="contact" href="mailto:support@teloone.au?subject=Bureau" hidden>Contact</a><a href="https://www.exchangerate-api.com" rel="noreferrer">Rates By Exchange Rate API</a></nav></footer>
 </main>
 
 <div class="ops" id="ops" hidden>
@@ -600,7 +602,21 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   let fmtLocale = locale;
   try { fmtLocale = new Intl.Locale(locale, { numberingSystem: 'latn' }).toString(); } catch {}
   const sepParts = new Intl.NumberFormat(fmtLocale).formatToParts(12345.6);
-  const GROUP = (sepParts.find(p => p.type === 'group') || { value: ',' }).value;
+  const sepOf = type => (sepParts.find(p => p.type === type) || {}).value;
+  let GROUP = sepOf('group') || ',';
+  // An iPhone's number format can be set apart from its language (English with a
+  // decimal comma), and its keypad follows that setting. The app passes the phone's
+  // decimal and thousands marks; where they differ from the language's, amounts are
+  // read and written with them. Nowhere else.
+  let marks = null;
+  {
+    const a = window.bureauApp, dec = a && a.ios && a.decimal, grp = a && a.ios && a.group;
+    if ((dec === '.' || dec === ',') && typeof grp === 'string' && /^[.,'’\s]$/.test(grp) && grp !== dec
+      && (dec !== sepOf('decimal') || grp !== GROUP)) {
+      marks = { decimal: dec, group: grp };
+      GROUP = grp;
+    }
+  }
 
   let names = null;
   try { names = new Intl.DisplayNames([locale], { type: 'currency' }); } catch {}
@@ -665,15 +681,33 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // Coins get decimals to suit their price (see cryptoDigits).
   const usdPrice = code => (state.rates && state.rates[code] > 0 ? 1 / state.rates[code] : undefined);
   const amountOpts = (n, code) => BureauLib.amountOpts(n, code, usdPrice(code));
-  const parseNumber = s => BureauLib.parseNumber(s, GROUP);
-  const evaluate = text => BureauLib.evaluate(text, GROUP);
+  // Arabic, Persian, Hindi and Bengali digits are read as 0 to 9. The Arabic decimal
+  // mark becomes whichever of . and , can't be taken for grouping here; the Arabic
+  // thousands mark is dropped.
+  const POINT = GROUP === '.' ? ',' : '.';
+  const ascii = s => String(s)
+    .replace(/[\u0660-\u0669\u06F0-\u06F9\u0966-\u096F\u09E6-\u09EF]/g, c => { const n = c.charCodeAt(0); return String(n < 0x0900 ? n & 15 : (n & 15) - 6); })
+    .replace(/\u066B/g, POINT).replace(/\u066C/g, '');
+  const parseNumber = s => BureauLib.parseNumber(ascii(s), GROUP);
+  const evaluate = text => BureauLib.evaluate(ascii(text), GROUP);
   // Building a formatter is far slower than using one, and a render formats
   // dozens of numbers with a handful of option sets, so each set is built once.
   const formatters = new Map();
   function nf(opts) {
     const key = JSON.stringify(opts);
     let f = formatters.get(key);
-    if (!f) { f = new Intl.NumberFormat(fmtLocale, opts); formatters.set(key, f); }
+    if (!f) {
+      f = new Intl.NumberFormat(fmtLocale, opts);
+      if (marks) {
+        // The same number, with the phone's own marks in place of the language's.
+        const plain = f;
+        f = {
+          format: n => plain.formatToParts(n).map(p => (p.type === 'group' ? marks.group : p.type === 'decimal' ? marks.decimal : p.value)).join(''),
+          formatToParts: n => plain.formatToParts(n),
+        };
+      }
+      formatters.set(key, f);
+    }
     return f;
   }
   const dateFormatters = new Map();
@@ -899,6 +933,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     // An open alert row keeps its "x% above now" true to the rate.
     if (!$('alertRow').hidden) renderAlertHint();
     const r = rate(state.from, state.to);
+    // Sharing is the iPhone app's, and only once there is a rate to share.
+    $('shareBtn').hidden = !ios || !Number.isFinite(r);
     const main = $('rateMain'), sub = $('rateSub');
     if (!Number.isFinite(r)) {
       const missing = [state.from, state.to].filter(c => !(state.rates && state.rates[c] > 0));
@@ -1366,6 +1402,13 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       if (m.type === 'info') {
         appVersion = m.version;
         selfUpdates = m.updates === true;
+        // On an iPhone the version is plain text, not a button that does nothing.
+        if (ios && $('version').tagName === 'BUTTON') {
+          const label = document.createElement('span');
+          label.id = 'version';
+          label.className = 'version';
+          $('version').replaceWith(label);
+        }
         $('version').disabled = !selfUpdates;
         if (!selfUpdates) $('version').removeAttribute('title');
         $('version').hidden = false;
@@ -1407,6 +1450,10 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
         // up. The app says when the keyboard has really gone, and the field lets go.
         const a = document.activeElement;
         if (a === field('from') || a === field('to')) a.blur();
+      } else if (m.type === 'active') {
+        // The iPhone app is in front again: the page isn't always told it was away.
+        if (Date.now() - state.fetchedAt > REFRESH_MS) loadRates();
+        renderStatus();
       } else if (m.type === 'update' && selfUpdates) {
         if (m.state === 'available') updateReady = true;
         showUpdate(m);
@@ -1420,15 +1467,19 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     // Put away, the card leaves "Update available" at the top right to bring it back.
     $('updateLater').addEventListener('click', () => { $('updateCard').hidden = true; markUpdateReady(); });
     $('alertBtn').hidden = ios;
-    // The iPhone app shares the conversion on screen through the phone's share sheet.
-    $('shareBtn').hidden = !ios;
+    $('contact').hidden = !ios;
+    // The iPhone app shares the conversion on screen through the phone's share sheet
+    // (the button shows once there is a rate: see renderRateLine).
     $('shareBtn').addEventListener('click', () => {
       if (!Number.isFinite(rate(state.from, state.to))) return;
       const a = $('fromAmount').value.trim(), b = $('toAmount').value.trim();
       const sum = a && b ? `${a} ${state.from} = ${b} ${state.to}` : '';
       const line = [$('rateMain').textContent.trim(), $('rateSub').textContent.trim()].filter(Boolean).join(', ');
+      // A rate that isn't live says when it is from.
+      const { kind, at, byDay } = BureauLib.rateStatus(state, true, Date.now());
+      const dated = kind !== 'live' && at > 0 ? `Rate from ${byDay ? dayText(at) : whenText(at)}` : '';
       haptic();
-      toApp({ type: 'share', text: [sum, line].filter(Boolean).join('\n') });
+      toApp({ type: 'share', text: [sum, line, dated].filter(Boolean).join('\n') });
     });
     // Tapping the version checks for updates; once one is known it reopens the card.
     $('version').addEventListener('click', () => {
@@ -1610,7 +1661,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // The fee applies as you type; one that can't be read (or over 20%) leaves the
   // last good one, and shows in red until it can be.
   $('feeInput').addEventListener('input', e => {
-    const n = BureauLib.parseFee(e.target.value, GROUP);
+    const n = BureauLib.parseFee(ascii(e.target.value), GROUP);
     e.target.setAttribute('aria-invalid', String(!Number.isFinite(n)));
     if (Number.isFinite(n) && n !== state.fee) setFee(n);
   });
@@ -1669,6 +1720,17 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     toApp({ type: 'picker', open: true });
   }
   dlg.addEventListener('close', () => toApp({ type: 'picker', open: false }));
+  // An iPhone's keyboard covers the page rather than shrinking it, so while it is
+  // up the list ends with that much room and its last rows can be reached.
+  function padPicker() {
+    const keyboard = Math.max(0, Math.round(innerHeight - seen.height - seen.offsetTop));
+    $('pickerList').style.paddingBottom = dlg.open && keyboard ? `${keyboard + 12}px` : '';
+  }
+  if (seen && ios) {
+    seen.addEventListener('resize', padPicker);
+    seen.addEventListener('scroll', padPicker);
+    dlg.addEventListener('close', padPicker);
+  }
   function itemButton(code, hint) {
     const li = document.createElement('li');
     const b = document.createElement('button');

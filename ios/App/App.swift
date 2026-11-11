@@ -24,7 +24,15 @@ enum App {
            language.range(of: "^[A-Za-z0-9-]{2,35}$", options: .regularExpression) != nil {
             scripts.append("window.bureauApp.locale = \"\(language)\";")
         }
+        // The decimal and thousands marks can be set apart from the language, and
+        // the keypad follows them. Passed as character numbers, so nothing needs quoting.
+        if let decimal = Locale.current.decimalSeparator?.unicodeScalars.first?.value,
+           let group = Locale.current.groupingSeparator?.unicodeScalars.first?.value {
+            scripts.append("window.bureauApp.decimal = String.fromCodePoint(\(decimal)); window.bureauApp.group = String.fromCodePoint(\(group));")
+        }
         shell.scripts = scripts
+        // Back in front: the page checks whether its rates are due a refresh.
+        shell.onActive = { [weak shell] in shell?.send(["type": "active"]) }
         shell.onMessage = { type, _ in
             switch type {
             case "notificationSettings":
