@@ -858,11 +858,27 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // Long amounts shrink to fit instead of being cut off, though not on an iPhone
   // below the 16px that stops it zooming into the field.
   const smallest = CSS.supports('-webkit-touch-callout', 'none') ? 16 : 0;
+  // Whether an amount is wider than its room. Measured with a ruler of our own:
+  // browsers disagree about a field's scrollWidth, and Safari's said every amount
+  // was too wide, which hid the currency's name on an iPhone.
+  const ruler = document.createElement('span');
+  ruler.setAttribute('aria-hidden', 'true');
+  ruler.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre;pointer-events:none';
+  document.body.appendChild(ruler);
+  function over(input) {
+    const wrap = input.parentElement, sym = wrap.querySelector('.sym');
+    let room = wrap.clientWidth;
+    if (!room) return false;
+    if (sym && sym.offsetWidth) room -= sym.offsetWidth + 6;
+    const cs = getComputedStyle(input);
+    for (const k of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'fontVariantNumeric', 'fontFeatureSettings']) ruler.style[k] = cs[k];
+    ruler.textContent = input.value || input.placeholder || '';
+    return ruler.getBoundingClientRect().width > room - 1;
+  }
   function fit(input, floor = 15) {
     input.style.fontSize = '';
     let size = parseFloat(getComputedStyle(input).fontSize);
-    // Safari rounds scrollWidth up, so 1px over isn't over.
-    while (input.scrollWidth > input.clientWidth + 1 && size > floor) {
+    while (over(input) && size > floor) {
       size *= 0.92;
       input.style.fontSize = Math.max(size, smallest) + 'px';
     }
@@ -873,7 +889,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     const leg = input.closest('.leg');
     leg.classList.remove('tight');
     fit(input);
-    if (input.scrollWidth > input.clientWidth + 1) { leg.classList.add('tight'); fit(input, 10); }
+    if (over(input)) { leg.classList.add('tight'); fit(input, 10); }
   }
   const fitAll = () => { fitLeg(field('from')); fitLeg(field('to')); };
 
