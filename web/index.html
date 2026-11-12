@@ -126,7 +126,7 @@ button { cursor: pointer; }
 }
 /* A 44px tap area without spacing the header out. */
 .status::before { content: ""; position: absolute; inset: -8px 0; }
-/* App version, top right; tap to check for updates */
+/* Top right: About, or that an update is waiting */
 .version {
   min-height: 44px; margin-right: -8px; padding: 0 8px;
   background: none; border: 0;
@@ -134,8 +134,6 @@ button { cursor: pointer; }
 }
 @media (hover: hover) { .version:hover { color: var(--ink); } }
 .version[data-state="available"] { color: var(--accent); font-weight: 600; }
-/* On an iPhone it is plain text: updates come from the store, so there is nothing to tap. */
-span.version { min-height: 0; }
 @media (hover: hover) { .status:hover { color: var(--ink); } }
 
 /* Update card (only inside the app, when a new version is published), as in
@@ -248,11 +246,10 @@ span.version { min-height: 0; }
 .rateline:has(+ .alert-row[hidden]), .alert-row { border-radius: 0 0 5px 5px; }
 .install-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; font-size: .84rem; line-height: 1.35; color: var(--muted); }
 .install-hint button { flex: none; width: 44px; height: 44px; margin: -10px -12px -10px 0; padding: 0; background: none; border: 0; font-size: 1.2rem; color: var(--muted); }
-.foot { font-size: .8rem; color: var(--muted); }
-/* The rates credit stays on the page (ExchangeRate-API's terms ask for it), here with the legal links. */
-.legal { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 20px; }
-.legal a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; font-size: .8rem; color: var(--muted); text-decoration: none; }
-@media (hover: hover) { .legal a:hover { color: var(--ink); } }
+/* The rates credit stays on the page (ExchangeRate-API's terms ask for it): one quiet line at the foot. */
+.foot { text-align: center; font-size: .8rem; color: var(--muted); }
+.foot a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; color: inherit; text-decoration: none; }
+@media (hover: hover) { .foot a:hover { color: var(--ink); } }
 
 /* Fee: "No fee" until tapped, then a bare percent field in its place, typed like the amounts. */
 /* Bell and fee move as one: beside the rate, or together under it at the right. */
@@ -426,6 +423,19 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 .picker-list .tick { color: var(--accent); }
 .picker-list .hint { color: var(--muted); }
 
+/* About: the picker's sheet, with a name where the search goes and plain rows under it */
+.picker-head h2 { flex: 1; min-width: 0; align-self: center; margin: 0; padding-left: 4px; font-size: 1rem; font-weight: 600; }
+.about-list { padding: 4px 0 12px; overflow-y: auto; overscroll-behavior: contain; }
+.about-list > * {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; min-height: 48px; padding: 0 16px;
+  border: 0; background: none; color: inherit; text-align: left; text-decoration: none;
+}
+.about-list > [hidden] { display: none; }
+@media (hover: hover) { .about-list > a:hover, .about-list > button:hover { background: var(--accent-soft); } }
+.about-list > :focus-visible { background: var(--accent-soft); outline: none; }
+.about-list .v { color: var(--muted); white-space: nowrap; }
+
 @media (max-width: 520px) {
   body { padding-block: calc(12px + env(safe-area-inset-top, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)); }
   .leg { padding: 16px; gap: 12px; }
@@ -456,7 +466,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       <h1 class="mark">Bureau</h1>
       <button class="status" id="status" type="button" title="Try to refresh rates" hidden></button>
     </div>
-    <button class="version" id="version" type="button" title="Check for updates" aria-live="polite" hidden></button>
+    <button class="version" id="version" type="button" aria-haspopup="dialog">About</button>
   </header>
 
   <section class="update" id="updateCard" aria-label="App update" hidden>
@@ -540,7 +550,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     <div class="quick" id="quick"></div>
   </section>
 
-  <footer class="foot"><nav class="legal" aria-label="Legal"><a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy</a><a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms</a><a id="contact" href="mailto:support@teloone.au?subject=Bureau" hidden>Contact</a><a href="https://www.exchangerate-api.com" rel="noreferrer">Rates By Exchange Rate API</a></nav></footer>
+  <footer class="foot"><a href="https://www.exchangerate-api.com" rel="noreferrer">Rates By Exchange Rate API</a></footer>
 </main>
 
 <div class="ops" id="ops" hidden>
@@ -556,6 +566,21 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     <button type="button" id="pickerClose">Close</button>
   </div>
   <ul class="picker-list" id="pickerList"></ul>
+</dialog>
+
+<!-- About: the version, and the way to the policy, the terms and us -->
+<dialog id="aboutDlg" aria-labelledby="aboutTitle" tabindex="-1" autofocus>
+  <div class="picker-head">
+    <h2 id="aboutTitle">Bureau</h2>
+    <button type="button" id="aboutClose">Close</button>
+  </div>
+  <div class="about-list">
+    <div id="aboutApp" hidden><span>Version</span><span class="v" id="aboutVer"></span></div>
+    <button type="button" id="aboutCheck" hidden><span>Check for updates</span><span class="v" id="aboutNote" aria-live="polite"></span></button>
+    <a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy</a>
+    <a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms</a>
+    <a href="mailto:support@teloone.au?subject=Bureau"><span>Contact</span><span class="v">support@teloone.au</span></a>
+  </div>
 </dialog>
 
 <script src="lib.js?v=5"></script>
@@ -1402,29 +1427,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       if (m.type === 'info') {
         appVersion = m.version;
         selfUpdates = m.updates === true;
-        // On an iPhone the version is plain text, not a button that does nothing.
-        if (ios && $('version').tagName === 'BUTTON') {
-          const label = document.createElement('span');
-          label.id = 'version';
-          label.className = 'version';
-          $('version').replaceWith(label);
-        }
-        $('version').disabled = !selfUpdates;
-        if (!selfUpdates) $('version').removeAttribute('title');
-        $('version').hidden = false;
-        // Right after an update installs, confirm it for a few seconds.
-        const seen = store.get('seenVersion');
-        store.set('seenVersion', appVersion);
-        if (selfUpdates && !updateReady && seen && seen !== appVersion) {
-          showVersion(`Updated to v${appVersion}`, 'available');
-          versionTimer = setTimeout(() => showVersion(`v${appVersion}`), 4000);
-        } else if (!updateReady) {
-          showVersion(`v${appVersion}`);
-        }
+        $('aboutVer').textContent = appVersion || '';
+        $('aboutApp').hidden = !appVersion;
+        $('aboutCheck').hidden = !selfUpdates;
+        showLabel();
       } else if (m.type === 'updateStatus' && selfUpdates) {
         if (m.state === 'available') return markUpdateReady();
-        showVersion(m.state === 'latest' ? 'Up to date' : "Couldn't check");
-        versionTimer = setTimeout(() => showVersion(`v${appVersion}`), 2500);
+        showNote(m.state === 'latest' ? 'Up to date' : "Couldn't check");
+        versionTimer = setTimeout(() => showNote(''), 4000);
       } else if (m.type === 'alerts') {
         const list = Array.isArray(m.list) ? m.list.filter(a => a && typeof a.from === 'string' && typeof a.to === 'string' && a.target > 0) : [];
         // An alert on a withdrawn code could never be seen or removed here, so the app
@@ -1457,7 +1467,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       } else if (m.type === 'update' && selfUpdates) {
         if (m.state === 'available') updateReady = true;
         showUpdate(m);
-        showVersion(versionLabel(), updateReady && $('updateCard').hidden ? 'available' : '');
+        showLabel();
       }
     };
     $('updateGo').addEventListener('click', () => {
@@ -1467,7 +1477,6 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     // Put away, the card leaves "Update available" at the top right to bring it back.
     $('updateLater').addEventListener('click', () => { $('updateCard').hidden = true; markUpdateReady(); });
     $('alertBtn').hidden = ios;
-    $('contact').hidden = !ios;
     // The iPhone app shares the conversion on screen through the phone's share sheet
     // (the button shows once there is a rate: see renderRateLine).
     $('shareBtn').addEventListener('click', () => {
@@ -1481,35 +1490,51 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       haptic();
       toApp({ type: 'share', text: [sum, line, dated].filter(Boolean).join('\n') });
     });
-    // Tapping the version checks for updates; once one is known it reopens the card.
-    $('version').addEventListener('click', () => {
-      if (updateReady && $('updateCard').hidden) {
+    // Checking for updates; once one is known the row brings its card back instead.
+    $('aboutCheck').addEventListener('click', () => {
+      if (updateReady) {
+        about.close();
         $('updateCard').hidden = false;
-        showVersion(versionLabel());
+        showLabel();
         scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
-      if (updateReady) return;
-      showVersion('Checking…');
+      showNote('Checking…');
       toApp({ type: 'checkUpdate' });
     });
   }
 
-  // ---- version, top right ----
-  // selfUpdates is off until the app says otherwise: Play builds update through
-  // the store, so there the version is a plain label with nothing to tap.
+  // ---- About, top right ----
+  // The sheet has the version (once the app has said it), the update check and the
+  // links. selfUpdates is off until the app says otherwise: Play builds and iPhones
+  // update through their store, so there the sheet has no check.
+  const about = $('aboutDlg');
   let appVersion = '', selfUpdates = false, updateReady = false, versionTimer = 0;
-  function showVersion(text, state) {
-    clearTimeout(versionTimer);
-    $('version').textContent = text;
-    $('version').dataset.state = state || '';
+  // While the update card shows, the top right stays About: the card says the rest.
+  function showLabel() {
+    const waiting = updateReady && $('updateCard').hidden;
+    $('version').textContent = waiting ? 'Update available' : 'About';
+    $('version').dataset.state = waiting ? 'available' : '';
+    if (updateReady) showNote('Available');
   }
-  // While the update card shows, the top right keeps the version: the card says the rest.
-  const versionLabel = () => (updateReady && $('updateCard').hidden ? 'Update available' : `v${appVersion}`);
+  function showNote(text) {
+    clearTimeout(versionTimer);
+    $('aboutNote').textContent = text;
+  }
   function markUpdateReady() {
     updateReady = true;
-    showVersion(versionLabel(), $('updateCard').hidden ? 'available' : '');
+    showLabel();
   }
+  // The sheet itself takes focus, never a row. The app hears of it as it does the
+  // picker, so Back closes it.
+  $('version').addEventListener('click', () => {
+    about.showModal();
+    about.focus();
+    toApp({ type: 'picker', open: true });
+  });
+  about.addEventListener('close', () => toApp({ type: 'picker', open: false }));
+  $('aboutClose').addEventListener('click', () => about.close());
+  about.addEventListener('click', e => { if (e.target === about) about.close(); });
 
   // The update card. The app sends: available (version, notes, size),
   // downloading (progress 0..1), installing, and failed (message).
@@ -1691,6 +1716,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     if (!$('feeEdit').hidden) { closeFee(true); return true; }
     if (!$('alertRow').hidden) { closeAlert(true); return true; }
     if (dlg.open) { dlg.close(); return true; }
+    if (about.open) { about.close(); return true; }
     return false;
   };
   $('range').addEventListener('click', e => {

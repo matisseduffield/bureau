@@ -272,10 +272,14 @@ test('a release publishes the website', () => {
 test('the app-only controls start hidden, and only the bridge shows them', () => {
   const page = read('index.html').toString();
   assert.match(page, /<button[^>]*id="alertBtn"[^>]*hidden/);
-  assert.match(page, /<button[^>]*id="version"[^>]*hidden|id="version"[^>]*hidden/);
+  // About is for everyone; its version and update rows wait for the bridge.
+  assert.match(page, /<button[^>]*id="version"[^>]*>About<\/button>/);
+  assert.match(page, /id="aboutApp"[^>]*hidden/);
+  assert.match(page, /<button[^>]*id="aboutCheck"[^>]*hidden/);
   assert.match(page, /id="updateCard"[^>]*hidden/);
   assert.match(page, /href="https:\/\/www\.exchangerate-api\.com"/);
   assert.match(page, /href="https:\/\/teloone\.au\/apps\/bureau\/privacy\/"/);
+  assert.match(page, /href="https:\/\/teloone\.au\/apps\/bureau\/terms\/"/);
 });
 
 test('an error from the server opens the saved copy, and is passed on with nothing saved', async () => {
