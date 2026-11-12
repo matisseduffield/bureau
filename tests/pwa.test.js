@@ -274,7 +274,7 @@ test('the app-only controls start hidden, and only the bridge shows them', () =>
   assert.match(page, /<button[^>]*id="alertBtn"[^>]*hidden/);
   // About is for everyone; its version and update rows wait for the bridge.
   assert.match(page, /<button[^>]*id="version"[^>]*>About<\/button>/);
-  assert.match(page, /id="aboutApp"[^>]*hidden/);
+  assert.match(page, /id="aboutVer"[^>]*hidden/);
   assert.match(page, /<button[^>]*id="aboutCheck"[^>]*hidden/);
   assert.match(page, /id="updateCard"[^>]*hidden/);
   assert.match(page, /href="https:\/\/www\.exchangerate-api\.com"/);

@@ -107,6 +107,7 @@ jobs:
           RAW="https://raw.githubusercontent.com/matisseduffield/bureau-releases/main"
           mkdir pub && cp "$APK_NAME" pub/ && cp "$APK_NAME" pub/Bureau.apk
           cp -r web pub/web
+          sed -i "s/__VERSION__/$VERSION_NAME/" pub/web/index.html
           cd pub
           SHA=$(sha256sum "$APK_NAME" | cut -d' ' -f1)
           SIZE=$(stat -c%s "$APK_NAME")

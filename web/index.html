@@ -425,17 +425,24 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 
 /* About: the picker's sheet, with a name where the search goes and plain rows under it */
 .picker-head h2 { flex: 1; min-width: 0; align-self: center; margin: 0; padding-left: 4px; font-size: 1rem; font-weight: 600; }
-.about-list { padding: 4px 0 12px; overflow-y: auto; overscroll-behavior: contain; }
-.about-list > * {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  width: 100%; min-height: 48px; padding: 0 16px;
-  border: 0; background: none; color: inherit; text-align: left; text-decoration: none;
-}
-.about-list > [hidden] { display: none; }
-@media (hover: hover) { .about-list > a:hover, .about-list > button:hover { background: var(--accent-soft); } }
-.about-list > :focus-visible { background: var(--accent-soft); outline: none; }
-.about-list .v { color: var(--muted); white-space: nowrap; }
-
+.about-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; }
+.about-id { display: grid; justify-items: center; gap: 4px; padding: 30px 16px 22px; text-align: center; }
+.about-id img { margin-bottom: 10px; border-radius: 15px; }
+.about-id p { margin: 0; }
+.about-name { font-size: 1.4rem; font-weight: 600; letter-spacing: -.02em; }
+.about-tag { color: var(--muted); }
+.about-ver { margin-top: 8px !important; padding: 4px 12px; border: 1px solid var(--line); border-radius: 99px; font-size: .82rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+/* About's links: plain centred text, no rows */
+.about-links { display: grid; justify-items: center; text-align: center; }
+.about-links a, .about-links button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; background: none; border: 0; font-size: .95rem; color: var(--ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); text-underline-offset: 4px; }
+.about-links [hidden] { display: none; }
+.about-links .about-mail { font-weight: 600; }
+.about-legal { display: flex; align-items: center; justify-content: center; }
+.about-legal i { flex: none; width: 3px; height: 3px; border-radius: 50%; background: var(--muted); }
+.about-links .about-upd { min-height: 40px; margin-bottom: 10px; padding: 0 18px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 99px; text-decoration: none; }
+.about-upd span { color: var(--muted); }
+.about-upd span:empty { display: none; }
+.about-foot { margin: auto 0 0; padding: 22px 20px max(18px, env(safe-area-inset-bottom, 0px)); text-align: center; text-wrap: balance; font-size: .8rem; line-height: 1.7; color: var(--muted); }
 @media (max-width: 520px) {
   body { padding-block: calc(12px + env(safe-area-inset-top, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)); }
   .leg { padding: 16px; gap: 12px; }
@@ -571,15 +578,22 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 <!-- About: the version, and the way to the policy, the terms and us -->
 <dialog id="aboutDlg" aria-labelledby="aboutTitle" tabindex="-1" autofocus>
   <div class="picker-head">
-    <h2 id="aboutTitle">Bureau</h2>
-    <button type="button" id="aboutClose">Close</button>
+    <button type="button" id="aboutClose" aria-label="Back"><svg width="10" height="16" viewBox="0 0 10 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg></button>
+    <h2 id="aboutTitle">About</h2>
   </div>
-  <div class="about-list">
-    <div id="aboutApp" hidden><span>Version</span><span class="v" id="aboutVer"></span></div>
-    <button type="button" id="aboutCheck" hidden><span>Check for updates</span><span class="v" id="aboutNote" aria-live="polite"></span></button>
-    <a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy</a>
-    <a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms</a>
-    <a href="mailto:support@teloone.au?subject=Bureau"><span>Contact</span><span class="v">support@teloone.au</span></a>
+  <div class="about-body">
+    <div class="about-id">
+      <img src="icons/icon-192.png" width="64" height="64" alt="" onerror="this.hidden=true">
+      <p class="about-name">Bureau</p>
+      <p class="about-tag">Live rates for currencies and coins.</p>
+      <p class="about-ver" id="aboutVer" hidden></p>
+    </div>
+    <div class="about-links">
+      <button class="about-upd" type="button" id="aboutCheck" hidden>Check for updates<span id="aboutNote" aria-live="polite"></span></button>
+      <a class="about-mail" href="mailto:support@teloone.au?subject=Bureau">support@teloone.au</a>
+      <div class="about-legal"><a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy policy</a><i aria-hidden="true"></i><a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms of use</a></div>
+    </div>
+    <p class="about-foot">Rates are for information only.<br>From Coinbase, Exchange Rate API, Frankfurter and currency-api.<br>Made in Adelaide by Telo One</p>
   </div>
 </dialog>
 
@@ -1427,8 +1441,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       if (m.type === 'info') {
         appVersion = m.version;
         selfUpdates = m.updates === true;
-        $('aboutVer').textContent = appVersion || '';
-        $('aboutApp').hidden = !appVersion;
+        showVersion();
         $('aboutCheck').hidden = !selfUpdates;
         showLabel();
       } else if (m.type === 'updateStatus' && selfUpdates) {
@@ -1510,6 +1523,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // update through their store, so there the sheet has no check.
   const about = $('aboutDlg');
   let appVersion = '', selfUpdates = false, updateReady = false, versionTimer = 0;
+  // The app says which build it is. The website's copy is stamped with its version when it is published.
+  const WEB_VERSION = '__VERSION__';
+  function showVersion() {
+    const v = appVersion || (WEB_VERSION.startsWith('__') ? '' : WEB_VERSION);
+    $('aboutVer').textContent = v ? 'Version ' + v : '';
+    $('aboutVer').hidden = !v;
+  }
+  showVersion();
   // While the update card shows, the top right stays About: the card says the rest.
   function showLabel() {
     const waiting = updateReady && $('updateCard').hidden;
