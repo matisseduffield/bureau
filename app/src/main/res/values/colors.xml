@@ -1,8 +1,8 @@
 <resources>
     <!-- Match the page background token in web/index.html so there is no flash before the page paints. -->
-    <color name="page_bg">#E8ECE5</color>
+    <color name="page_bg">#F0F1F3</color>
     <color name="icon_bg">#F4C52E</color>
-    <color name="widget_bg">#F7F8F4</color>
-    <color name="widget_ink">#14211C</color>
-    <color name="widget_muted">#5B6861</color>
+    <color name="widget_bg">#FFFFFF</color>
+    <color name="widget_ink">#17181B</color>
+    <color name="widget_muted">#5F6168</color>
 </resources>

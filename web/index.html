@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#E8ECE5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0E1412" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F0F1F3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171719" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='18 18 72 72'%3E%3Crect x='18' y='18' width='72' height='72' rx='16' fill='%23F4C52E'/%3E%3Cpath d='M42 32v44M30 64l12 12 12-12M66 76V32M54 44l12-12 12 12' fill='none' stroke='%2314211C' stroke-width='6.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -30,71 +30,96 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* Layout: one narrow working column. The conversion slip on top, then the trend, then quick amounts. */
+/* Layout: one narrow column. The two amounts on top, a card each, with the swap
+   beside them; then the rate, the trend and quick amounts, a card each.
+   Colour: plain greys and one blue. A near-black page (pale grey by day), one
+   lighter grey for every card, blue for the amount you typed and the one thing
+   to press. Keys are lit a little from above, with a thin rim; the round buttons
+   in a header are flat discs, quieter than keys. */
 :root {
-  --bg: #E8ECE5;
-  --surface: #F7F8F4;
-  --ink: #14211C;
-  --muted: #5B6861;
-  --faint: #8D9992;
-  --line: #CDD5CC;
+  --bg: #F0F1F3;
+  --surface: #FFFFFF;
+  --ink: #17181B;
+  --muted: #5F6168;
+  --faint: #696B72;
+  --line: #E1E2E6;
+  --line-strong: #8D8F96;
   --accent: #2C53C4;
-  --accent-soft: rgba(44, 83, 196, .08);
-  --accent-faint: rgba(44, 83, 196, .04);
-  --key: #E8ECE5;
+  --accent-soft: rgba(44, 83, 196, .09);
   --accent-ink: #FFFFFF;
   --up: #1D7548;
   --down: #B0392D;
-  --warn: #8F5D08;
-  --backdrop: rgba(10, 16, 14, .4);
-  --shadow: rgba(20, 33, 28, .12);
+  --key: #D6D8DE;
+  --key-hi: #E4E5EA;
+  --key-down: #C6C8CF;
+  --pop: #FFFFFF;
+  --pop-line: rgba(0, 0, 0, .06);
+  --disc: #FFFFFF;
+  --disc-edge: inset 0 0 0 1px rgba(0, 0, 0, .05), 0 2px 6px rgba(0, 0, 0, .08);
+  --rim: inset 0 0 0 1px rgba(0, 0, 0, .04), inset 0 1px 0 rgba(255, 255, 255, .6);
+  --lift: 0 1px 3px rgba(0, 0, 0, .12);
+  --backdrop: rgba(12, 13, 16, .4);
   --font: "Hanken Grotesk", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0E1412;
-    --surface: #18211E;
-    --ink: #E4EAE5;
-    --muted: #8C9992;
-    --faint: #5F6C66;
-    --line: #2E3A35;
+    --bg: #171719;
+    --surface: #2F2F2F;
+    --ink: #EAEAEA;
+    --muted: #A0A0A3;
+    --faint: #949497;
+    --line: #434345;
+    --line-strong: #6E6E72;
     --accent: #85A2FF;
-    --accent-soft: rgba(133, 162, 255, .10);
-  --accent-faint: rgba(133, 162, 255, .05);
-  --key: #26302C;
-    --accent-ink: #0E1412;
+    --accent-soft: rgba(133, 162, 255, .12);
+    --accent-ink: #171719;
     --up: #5FC890;
     --down: #F08476;
-    --warn: #E0AA48;
+    --key: #303132;
+    --key-hi: #47484A;
+    --key-down: #555658;
+    --pop: #121213;
+    --pop-line: rgba(255, 255, 255, .14);
+    --disc: #252526;
+    --disc-edge: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 4px 10px rgba(0, 0, 0, .35);
+    --rim: inset 0 0 0 1px rgba(255, 255, 255, .05), inset 0 1px 0 rgba(255, 255, 255, .1);
+    --lift: 0 2px 5px rgba(0, 0, 0, .35);
     --backdrop: rgba(0, 0, 0, .6);
-    --shadow: rgba(0, 0, 0, .45);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0E1412;
-  --surface: #18211E;
-  --ink: #E4EAE5;
-  --muted: #8C9992;
-  --faint: #5F6C66;
-  --line: #2E3A35;
+  --bg: #171719;
+  --surface: #2F2F2F;
+  --ink: #EAEAEA;
+  --muted: #A0A0A3;
+  --faint: #949497;
+  --line: #434345;
+  --line-strong: #6E6E72;
   --accent: #85A2FF;
-  --accent-soft: rgba(133, 162, 255, .10);
-  --accent-faint: rgba(133, 162, 255, .05);
-  --key: #26302C;
-  --accent-ink: #0E1412;
+  --accent-soft: rgba(133, 162, 255, .12);
+  --accent-ink: #171719;
   --up: #5FC890;
   --down: #F08476;
-  --warn: #E0AA48;
+  --key: #303132;
+  --key-hi: #47484A;
+  --key-down: #555658;
+  --pop: #121213;
+  --pop-line: rgba(255, 255, 255, .14);
+  --disc: #252526;
+  --disc-edge: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 4px 10px rgba(0, 0, 0, .35);
+  --rim: inset 0 0 0 1px rgba(255, 255, 255, .05), inset 0 1px 0 rgba(255, 255, 255, .1);
+  --lift: 0 2px 5px rgba(0, 0, 0, .35);
   --backdrop: rgba(0, 0, 0, .6);
-  --shadow: rgba(0, 0, 0, .45);
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
+/* Never wider than the screen, however large the phone's text */
+html, body { overflow-x: hidden; overflow-x: clip; }
 body {
   background: var(--bg);
   color: var(--ink);
@@ -102,7 +127,7 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
-  padding-block: calc(28px + env(safe-area-inset-top, 0px)) calc(48px + env(safe-area-inset-bottom, 0px));
+  padding-block: calc(8px + env(safe-area-inset-top, 0px)) calc(40px + env(safe-area-inset-bottom, 0px));
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
@@ -111,87 +136,114 @@ button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.wrap { max-width: 600px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+.wrap { max-width: 600px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 
-/* Top bar */
-.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: -8px; }
-.brand { display: grid; justify-items: start; }
-.mark { margin: 0; font-size: 1.2rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
-/* Rates freshness under the name; tap to refresh */
-.status {
-  position: relative;
-  min-height: 28px; margin: -2px 0 0 -6px; padding: 0 6px;
-  background: none; border: 0;
-  font-size: .8rem; color: var(--muted);
+/* Top bar: the name at the left, a round button at the right */
+.top { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 56px; }
+.mark { min-width: 0; margin: 0; padding-left: 4px; font-size: 1.35rem; font-weight: 500; letter-spacing: -.01em; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.icon-btn {
+  position: relative; display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0;
+  background: var(--disc); border: 0; border-radius: 50%; box-shadow: var(--disc-edge); color: var(--ink);
 }
-/* A 44px tap area without spacing the header out. */
-.status::before { content: ""; position: absolute; inset: -8px 0; }
-/* Top right: About, or that an update is waiting */
-.version {
-  min-height: 44px; margin-right: -8px; padding: 0 8px;
-  background: none; border: 0;
-  font-size: .82rem; color: var(--muted);
+.icon-btn:active { background: var(--key-down); }
+@media (hover: hover) { .icon-btn:hover { background: var(--key); } }
+
+/* The round button opens About. Where there is something to share as well (the iPhone app)
+   it is three dots instead, and opens a panel with a row for each. */
+#menuBtn .for-menu, #menuBtn[data-menu] .for-about { display: none; }
+#menuBtn[data-menu] .for-menu { display: block; }
+/* More: a small panel that drops from its button, a picture and a word for each thing */
+.menu {
+  position: absolute; z-index: 6; top: calc(100% + 4px); right: 0;
+  min-width: 192px; max-width: 100%; padding: 9px 8px;
+  background: var(--pop); border: 1px solid var(--pop-line); border-radius: 28px; box-shadow: 0 12px 32px rgba(0, 0, 0, .4);
+  transform-origin: top right; animation: pop .14s ease-out;
 }
-@media (hover: hover) { .version:hover { color: var(--ink); } }
-.version[data-state="available"] { color: var(--accent); font-weight: 600; }
-@media (hover: hover) { .status:hover { color: var(--ink); } }
+@keyframes pop { from { opacity: 0; transform: scale(.94); } }
+.menu-row {
+  display: flex; align-items: center; gap: 15px; width: 100%; min-height: 46px; padding: 0 20px 0 16px;
+  background: none; border: 0; border-radius: 18px;
+  font-size: 1.06rem; text-align: left; white-space: nowrap;
+}
+.menu-row:active { background: var(--key); }
+@media (hover: hover) { .menu-row:hover { background: var(--key); } }
+.menu-row svg { flex: none; }
+/* About's picture is drawn here: its words are set by the script (About, or that an update is waiting) */
+#version::before {
+  content: ""; flex: none; width: 22px; height: 22px; background: currentColor;
+  -webkit-mask: var(--info) center / contain no-repeat; mask: var(--info) center / contain no-repeat;
+  --info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%23000'/%3E%3C/svg%3E");
+}
+.menu-row[data-state="available"] { color: var(--accent); }
+/* An update is waiting: a dot on the button */
+.top:has(.menu-row[data-state="available"]) #menuBtn::after { content: ""; position: absolute; top: 9px; right: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+/* Buttons are pills: grey and lit from above, or the accent for the one to press */
+.btn-secondary, .link { background: linear-gradient(var(--key-hi), var(--key)); box-shadow: var(--rim); color: var(--ink); }
+.btn-secondary:active, .link:active { background: var(--key-down); }
+.btn-primary, #alertSet { background: var(--accent); box-shadow: none; color: var(--accent-ink); }
+.btn-primary:active, #alertSet:active { background: var(--accent); opacity: .85; }
 
 /* Update card (only inside the app, when a new version is published), as in
    Nudge: title and size, what's new, then two buttons or a progress bar. */
-.update { display: grid; gap: 12px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+.update { display: grid; gap: 14px; padding: 20px; background: var(--surface); border-radius: 24px; }
 .update p { margin: 0; }
-.update-title { font-weight: 600; line-height: 1.3; }
-.update-sub, .update-msg { font-size: .84rem; color: var(--muted); }
-.update-notes { margin: 0; padding: 0 0 0 18px; font-size: .9rem; line-height: 1.4; }
-.update-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.update-actions button { min-height: 44px; border: 0; border-radius: 6px; font-size: .92rem; font-weight: 600; }
-.btn-secondary { background: var(--key); color: var(--ink); }
-.btn-primary { background: var(--accent); color: var(--accent-ink); }
-@media (hover: hover) { .update-actions button:hover { filter: brightness(1.05); } }
-.update-progress { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.update-title { font-size: 1.06rem; font-weight: 500; line-height: 1.3; }
+.update-sub, .update-msg { font-size: .88rem; color: var(--muted); }
+.update-notes { margin: 0; padding: 0 0 0 18px; font-size: .92rem; line-height: 1.45; }
+.update-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.update-actions button { min-height: 52px; padding: 0 18px; border: 0; border-radius: 99px; font-size: .95rem; font-weight: 500; }
+.update-progress { display: flex; align-items: center; gap: 12px; min-height: 52px; }
 .update-track { flex: 1; height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; }
 .update-track span { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--accent); transition: width .2s; }
-.update-pct { min-width: 3.2ch; text-align: right; font-size: .86rem; font-weight: 600; }
+.update-pct { min-width: 3.2ch; text-align: right; font-size: .9rem; font-weight: 500; }
 
-/* Conversion slip */
-.slip { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
-.legs { position: relative; }
+/* The converter: a card for each amount, the swap a tall card beside the two */
+.slip { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.legs { display: grid; grid-template-columns: minmax(0, 1fr) 64px; gap: 10px; }
+/* In a card: the label across the top, then the amount, with a sum's answer at its right on the same baseline */
 .leg {
-  position: relative;
-  display: flex; align-items: center; gap: 16px;
-  min-height: 96px; padding: 18px 22px;
+  position: relative; grid-column: 1;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: center; gap: 0;
+  min-width: 0; min-height: 112px; padding: 14px 20px 14px;
+  background: var(--surface); border-radius: 24px;
 }
-.leg + .leg { border-top: 1px solid var(--line); }
-/* Currency pickers are plain text with a chevron: the code reads as the label. */
+/* The narrowest phones: a little less at the sides, so "Australian Dollar AUD" is whole */
+@media (max-width: 340px) { .leg { padding-inline: 16px; } }
+/* The currency is the card's label: its name and code in grey, with a chevron. Tap it to change. */
 .pick {
-  flex: none;
-  max-width: 48%; min-height: 52px;
-  display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
-  margin: -4px -8px; padding: 4px 8px;
-  background: none; border: 0; border-radius: 6px;
-  text-align: left;
+  position: relative; z-index: 1; grid-column: 1 / -1; justify-self: start; display: flex; align-items: center; gap: 6px;
+  max-width: 100%; min-height: 44px; margin: -8px 0 -6px; padding: 0;
+  background: none; border: 0;
+  font-size: 1rem; line-height: 1.4; color: var(--muted); text-align: left;
 }
-@media (hover: hover) { .pick:hover .code { color: var(--accent); } }
-.pick:active { background: var(--accent-soft); }
-.pick .code {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 1.3rem; font-weight: 600; line-height: 1.2; letter-spacing: .01em;
-}
+@media (hover: hover) { .pick:hover { color: var(--ink); } }
+.pick:active { color: var(--ink); }
+.pick .name { order: -1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick .code { flex: none; display: inline-flex; align-items: center; gap: 10px; }
 .pick .code::after {
-  content: ""; width: 6px; height: 6px; margin-top: -4px;
-  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+  content: ""; width: 7px; height: 7px; margin-right: 3px;
+  border: solid currentColor; border-width: 1.5px 1.5px 0 0;
   transform: rotate(45deg);
 }
-.pick .name { max-width: 100%; font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.leg.tight .pick .name { display: none; }
-.leg.tight { gap: 10px; }
+/* A sum being typed shows its answer at the card's bottom right, on the amount's baseline.
+   It has a column of its own, so the sum is fitted to the room left and the two never meet. */
+.calc {
+  grid-column: 2; align-self: baseline;
+  max-width: calc(38vw - 40px); padding-left: 10px;
+  font-size: .9rem; line-height: 1.3; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 /* The amount sizes to its text so the muted symbol can sit right beside it. */
 .amount-wrap {
-  flex: 1; min-width: 0;
-  display: flex; justify-content: flex-end; align-items: baseline; gap: 6px;
+  grid-column: 1; align-self: baseline;
+  position: relative; z-index: 0; min-width: 0;
+  display: flex; justify-content: flex-start; align-items: baseline; gap: 6px;
   cursor: text;
 }
-.sym { flex: none; font-size: clamp(1.15rem, 5vw, 1.5rem); color: var(--muted); }
+/* A tap anywhere in the card under its label lands on the amount, however small a long one is drawn */
+.amount-wrap::before { content: ""; position: absolute; z-index: -1; inset: 0 -20px -14px; }
+.sym { flex: none; font-size: clamp(1.15rem, 5vw, 1.4rem); color: var(--muted); }
 .sym:empty { display: none; }
 .amount-wrap .amount { flex: 0 1 auto; min-width: 1ch; field-sizing: content; }
 @supports not (field-sizing: content) {
@@ -200,188 +252,216 @@ button { cursor: pointer; }
 }
 .amount {
   flex: 1; min-width: 0;
-  padding: 4px 0;
+  padding: 2px 0;
   border: 0; background: transparent;
-  font-size: clamp(1.9rem, 8vw, 2.6rem); font-weight: 500; line-height: 1.15; letter-spacing: -.02em;
-  text-align: right;
+  font-size: clamp(1.9rem, 8.4vw, 2.3rem); font-weight: 400; line-height: 1.2; letter-spacing: -.015em;
+  text-align: left;
   caret-color: var(--accent);
 }
 .amount:focus { outline: none; }
-.amount::placeholder { color: var(--faint); }
-.leg:focus-within { box-shadow: inset 2px 0 0 var(--accent); }
-/* So the focus bar follows the slip's rounded corner. */
-.leg:first-child { border-radius: 5px 5px 0 0; }
-.calc {
-  position: absolute; right: 22px; bottom: 8px;
-  font-size: .8rem; color: var(--muted);
-}
-/* The swap button sits over the first row's bottom right, so its sum goes beside it. */
-.leg:first-child .calc { right: 74px; }
+.amount::placeholder { color: var(--muted); opacity: 1; }
+/* The amount you typed is the blue one; the other is its answer */
+.legs[data-edited="from"] #fromAmount, .legs[data-edited="to"] #toAmount { color: var(--accent); }
 
 .swap {
-  position: absolute; top: 50%; right: 22px; z-index: 2;
-  width: 44px; height: 44px; margin-top: -22px;
-  display: grid; place-items: center;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 50%;
-  color: var(--muted);
-  transition: color .12s, border-color .12s;
+  grid-column: 2; grid-row: 1 / span 2;
+  display: grid; place-items: center; padding: 0;
+  background: var(--surface); border: 0; border-radius: 24px;
+  color: var(--ink);
 }
-@media (hover: hover) { .swap:hover { color: var(--accent); border-color: var(--accent); } }
+.swap:active { background: var(--key-down); }
+@media (hover: hover) { .swap:hover { background: var(--key); } }
 .swap svg { transition: transform .28s cubic-bezier(.2, .7, .2, 1); }
 
-/* Under the amounts, one line: the rate, then the alert bell and the fee at fixed spots on the right. */
-.rateline {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px;
-  min-height: 52px; padding: 4px 6px 4px 22px;
-  border-top: 1px solid var(--line);
-  font-size: .86rem;
+/* Under the amounts: how old the rates are, with a turning arrow. Tap to refresh. */
+.status {
+  justify-self: center; display: inline-flex; align-items: center; gap: 9px;
+  max-width: 100%; min-height: 44px; padding: 0 12px;
+  background: none; border: 0; border-radius: 99px;
+  font-size: .9rem; line-height: 1.3; color: var(--muted);
 }
-/* The rate never breaks inside its number; with big text the bell and fee go under it instead. */
-.rate-text { flex: 1; min-width: min-content; margin: 0; padding: 6px 0; line-height: 1.4; }
+.status::after {
+  content: ""; flex: none; width: 17px; height: 17px; background: currentColor;
+  -webkit-mask: var(--turn) center / contain no-repeat; mask: var(--turn) center / contain no-repeat;
+  --turn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16.5 10a6.5 6.5 0 1 1-2.1-4.8'/%3E%3Cpath d='M16.6 2.6v3.6H13'/%3E%3C/svg%3E");
+}
+@media (hover: hover) { .status:hover { color: var(--ink); } }
+.status:active { color: var(--ink); }
+/* With nothing to say yet it keeps its line, so the cards under it don't move when the rates come */
+.status[hidden] { display: inline-flex !important; visibility: hidden; }
+
+/* The rate in a card of its own, with the alert bell and the fee at the right. */
+.ratecard { background: var(--surface); border-radius: 24px; }
+.rateline {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+  min-height: 72px; padding: 12px 14px 12px 20px;
+  font-size: 1.06rem;
+}
+/* The rate stays on one line while it can: where the bell and fee don't fit beside it they go
+   under it, at the right. With very big text it breaks between words, never inside its number. */
+.rate-text { flex: 1 1 auto; min-width: min-content; margin: 0; padding: 2px 0; line-height: 1.4; }
 .rate-main { display: block; color: var(--ink); overflow-wrap: break-word; }
-.rate-main b { font-weight: 600; white-space: nowrap; }
-.rate-sub { display: block; font-size: .8rem; color: var(--muted); }
+.rate-main b { font-weight: 500; white-space: nowrap; }
+.rate-sub { display: block; font-size: .88rem; color: var(--muted); }
 .rate-sub:empty { display: none; }
-/* The last row keeps the slip's rounded corner under its focus bar. */
-.rateline:has(+ .alert-row[hidden]), .alert-row { border-radius: 0 0 5px 5px; }
-.install-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; font-size: .84rem; line-height: 1.35; color: var(--muted); }
+.install-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; padding: 0 4px; font-size: .88rem; line-height: 1.35; color: var(--muted); }
 .install-hint button { flex: none; width: 44px; height: 44px; margin: -10px -12px -10px 0; padding: 0; background: none; border: 0; font-size: 1.2rem; color: var(--muted); }
 /* The rates credit stays on the page (ExchangeRate-API's terms ask for it): one quiet line at the foot. */
-.foot { text-align: center; font-size: .8rem; color: var(--muted); }
-.foot a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; color: inherit; text-decoration: none; }
+.foot { text-align: center; font-size: .9rem; color: var(--muted); }
+.foot a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; color: inherit; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 4px; }
 @media (hover: hover) { .foot a:hover { color: var(--ink); } }
 
 /* Fee: "No fee" until tapped, then a bare percent field in its place, typed like the amounts. */
 /* Bell and fee move as one: beside the rate, or together under it at the right. */
-.rate-tools { flex: none; display: flex; align-items: center; margin-left: auto; }
-.fee { flex: none; display: flex; align-items: center; color: var(--muted); }
+.rate-tools { flex: none; display: flex; align-items: center; gap: 8px; margin-left: auto; }
+/* On the narrowest phones, where they go under the rate, they start at its left edge */
+@media (max-width: 340px) { .rate-tools { margin-left: 0; } }
+.fee { flex: none; display: flex; align-items: center; }
 .fee-btn {
-  min-height: 44px; padding: 0 12px;
-  border: 0; border-radius: 6px; background: transparent;
-  font-size: .86rem; color: inherit; white-space: nowrap;
+  min-height: 44px; padding: 0 16px;
+  border: 0; border-radius: 99px; background: linear-gradient(var(--key-hi), var(--key)); box-shadow: var(--rim);
+  font-size: .95rem; font-weight: 500; color: var(--ink); white-space: nowrap;
 }
-.fee-btn.on { color: var(--accent); font-weight: 600; }
-.fee-edit { display: flex; align-items: center; gap: 1px; min-height: 44px; padding: 0 12px; cursor: text; white-space: nowrap; }
-/* Small inputs inside the slip's rows: no box, like the amounts; the row shows the focus bar. */
+.fee-btn:active { background: var(--key-down); }
+/* A fee in force sits in a well, the page's colour, in blue: plainly on, in both themes */
+.fee-btn.on { background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); color: var(--accent); }
+.fee-btn.on:active { background: var(--bg); opacity: .8; }
+/* Being typed, the fee sits in a hollow of the same shape */
+.fee-edit { display: flex; align-items: center; gap: 1px; min-height: 44px; padding: 0 16px; border-radius: 99px; background: var(--bg); font-size: .95rem; color: var(--muted); cursor: text; white-space: nowrap; }
+/* Small inputs inside the rate card: no box, like the amounts. */
 .inline-in {
   width: 4ch; padding: 0;
   border: 0; background: none; outline: none;
-  font-weight: 600; color: var(--ink); text-align: right;
+  font-weight: 500; color: var(--ink); text-align: right;
   caret-color: var(--accent);
 }
 @supports (field-sizing: content) { .inline-in { width: auto; min-width: 1ch; field-sizing: content; } }
-.inline-in::placeholder { color: var(--faint); font-weight: 400; }
+.inline-in::placeholder { color: var(--muted); opacity: 1; font-weight: 400; }
 .inline-in[aria-invalid="true"] { color: var(--down); }
-.rateline:has(.inline-in:focus), .alert-row:has(.inline-in:focus) { box-shadow: inset 2px 0 0 var(--accent); }
 
-/* Rate alert: a bell beside the fee; filled while this pair has an alert. */
+/* Rate alert: a round bell beside the fee; filled while this pair has an alert. */
 .bell {
   flex: none; display: grid; place-items: center;
-  width: 44px; height: 44px;
-  background: none; border: 0; border-radius: 50%;
-  color: var(--muted);
+  width: 44px; height: 44px; padding: 0;
+  background: linear-gradient(var(--key-hi), var(--key)); border: 0; border-radius: 50%; box-shadow: var(--rim);
+  color: var(--ink);
 }
+.bell:active { background: var(--key-down); }
 .bell.on { color: var(--accent); }
 .bell.on .bell-body { fill: currentColor; }
-@media (hover: hover) { .fee-btn:hover, .bell:hover { color: var(--ink); } .fee-btn.on:hover, .bell.on:hover { color: var(--accent); } }
-/* The alert opens as one more row of the slip: "Alert at 0.9 USD", how far that is, Set. */
+/* The alert opens as a second row of the rate's card, under a hairline: "Alert at 0.9 USD", how far that is, Set. */
 .alert-row {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px;
-  min-height: 52px; padding: 4px 6px 4px 22px;
-  border-top: 1px solid var(--line);
-  font-size: .86rem;
+  position: relative;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px;
+  min-height: 64px; padding: 10px 14px 10px 20px;
+  font-size: 1rem;
 }
+.alert-row::before { content: ""; position: absolute; top: 0; left: 20px; right: 20px; height: 1px; background: var(--line); }
 .alert-field { display: flex; align-items: center; gap: 5px; min-height: 44px; color: var(--muted); cursor: text; white-space: nowrap; }
 .alert-field .inline-in { min-width: 2ch; text-align: left; }
-.alert-hint { flex: 1 1 0; min-width: 0; padding: 0 4px 0 10px; text-align: right; font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert-hint { flex: 1 1 0; min-width: 0; padding: 0 2px 0 6px; text-align: right; font-size: .88rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Where the hint doesn't fit beside the number, it takes a line of its own. */
 .alert-row.wrap .alert-field { flex: 1; }
-.alert-row.wrap .alert-hint { order: 1; flex-basis: 100%; margin-top: -8px; padding: 0 0 8px; text-align: left; }
+.alert-row.wrap .alert-hint { order: 1; flex-basis: 100%; margin-top: -4px; padding: 0 0 6px; text-align: left; }
 .link {
-  flex: none; min-height: 44px; padding: 0 10px;
-  border: 0; border-radius: 6px; background: none;
-  font-size: .86rem; font-weight: 600; color: var(--accent);
+  flex: none; min-height: 44px; padding: 0 18px;
+  border: 0; border-radius: 99px;
+  font-size: .95rem; font-weight: 500;
 }
-@media (hover: hover) { .link:hover { color: var(--ink); } }
 
-/* Sections */
-.section { display: grid; gap: 10px; }
-.section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 12px; min-height: 44px; margin-bottom: -6px; }
-.section h2 { margin: 0; font-size: .95rem; font-weight: 600; line-height: 1.3; }
-.change { margin-left: 8px; font-weight: 600; }
+/* The trend and the quick amounts: a card each, a small grey label at its top */
+.section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 18px 20px; background: var(--surface); border-radius: 24px; }
+.section-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 12px; }
+.section h2 { margin: 0; font-size: 1rem; font-weight: 400; line-height: 1.4; color: var(--muted); }
+/* How far the rate has moved is the trend card's value: large and light, green up and red down */
+/* Its line is kept while the trend loads, so the card is the same height before and after */
+.change { display: block; min-height: 1.25em; margin-top: 2px; font-size: 1.75rem; letter-spacing: -.015em; line-height: 1.25; white-space: nowrap; }
 .change.up { color: var(--up); }
 .change.down { color: var(--down); }
 
-.range { display: flex; margin-left: auto; margin-right: -10px; }
+/* The range is a switch: a pill track, with a raised pill for the one chosen */
+.range { display: flex; gap: 2px; margin-left: auto; padding: 3px; border-radius: 99px; background: var(--bg); }
 .range button {
-  min-width: 44px; min-height: 44px; padding: 0 10px;
-  background: none; border: 0;
-  font-size: .85rem; color: var(--muted);
+  position: relative; min-width: 44px; min-height: 34px; padding: 0 12px;
+  background: none; border: 0; border-radius: 99px;
+  font-size: .92rem; font-weight: 500; color: var(--muted);
 }
+/* A 44px tap area on a 34px pill */
+.range button::before { content: ""; position: absolute; inset: -8px 0; }
 @media (hover: hover) { .range button:hover { color: var(--ink); } }
-.range button[aria-pressed="true"] { color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; text-decoration-color: var(--accent); }
+.range button[aria-pressed="true"] { background: linear-gradient(var(--key-hi), var(--key)); box-shadow: var(--rim); color: var(--ink); }
 
 .trend { position: relative; height: 116px; border-bottom: 1px solid var(--line); transition: opacity .2s; }
 .trend.loading { opacity: .35; }
 .trend svg { position: absolute; top: 0; bottom: 0; left: 0; right: 6px; width: calc(100% - 6px); height: 100%; overflow: visible; }
 .trend .line { fill: none; stroke: var(--accent); stroke-width: 1.75; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 .trend .end { position: absolute; left: calc(100% - 6px); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); }
-.trend-axis { display: flex; justify-content: space-between; gap: 12px; font-size: .78rem; color: var(--muted); }
-/* With very big text a long low/high may break inside a number rather than run off the page. */
-.trend-axis .mid { min-width: 0; text-align: center; overflow-wrap: anywhere; }
+/* Under the chart, one line: a date at each end, low and high between them. Nothing breaks.
+   Where low and high don't fit between the dates they take a line of their own under them
+   (.stack, see fitAxis; always on the narrowest phones), and only there, with very big
+   text, may a long one break inside a number rather than run off the page. */
+.trend-axis { display: flex; justify-content: space-between; gap: 0 12px; min-height: 1.5em; font-size: .78rem; color: var(--muted); }
+.trend-axis span { flex: none; white-space: nowrap; }
+.trend-axis .mid { flex: 0 1 auto; min-width: 0; text-align: center; overflow: hidden; text-overflow: ellipsis; }
+.trend-axis.stack { flex-wrap: wrap; }
+.trend-axis.stack .mid { order: 1; flex: 1 0 100%; white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 340px) {
+  .trend-axis { flex-wrap: wrap; min-height: 3em; }
+  .trend-axis .mid { order: 1; flex: 1 0 100%; white-space: normal; overflow-wrap: anywhere; }
+}
 .trend-axis .mid.active { color: var(--ink); font-weight: 500; }
 .trend { touch-action: pan-y; }
 .trend .probe-line { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -.5px; background: var(--muted); opacity: .5; pointer-events: none; }
 .trend .probe-dot {
   position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
-  background: var(--accent); box-shadow: 0 0 0 3px var(--bg); pointer-events: none;
+  background: var(--accent); box-shadow: 0 0 0 3px var(--surface); pointer-events: none;
 }
-/* A trend that can't load is one grey line, with nothing to switch between. */
-.trend-note { margin: 0; font-size: .86rem; color: var(--muted); }
+/* A trend that can't load is one grey line on the page, with no card and nothing to switch between. */
+.trend-note { margin: 0; font-size: .9rem; color: var(--muted); text-align: center; }
+.section.off { padding: 6px 20px; background: none; }
 .section.off > :not(.trend-note) { display: none; }
 
 /* Quick amounts: one column, the way the converter runs now. The heading names the
    pair, so the amounts on the left are bare numbers. A row too long for the width
    puts the answer on a second line, right-aligned. */
-.quick-pair { margin-left: 4px; font-weight: 400; color: var(--muted); }
+#quickSection { gap: 6px; padding-bottom: 6px; }
+.quick-pair { margin-left: 4px; }
 .quick { display: grid; min-width: 0; }
 .quick button {
   display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 12px;
-  min-height: 44px; padding: 4px 2px;
-  background: none; border: 0; border-top: 1px solid var(--line);
-  font-size: .9rem; text-align: left;
+  min-height: 52px; padding: 6px 0;
+  background: none; border: 0;
+  font-size: 1.06rem; line-height: 1.35; text-align: left;
 }
+.quick button + button { border-top: 1px solid var(--line); }
 .quick button span:first-child { color: var(--muted); }
-.quick button span:last-child { margin-left: auto; font-weight: 500; white-space: nowrap; }
+.quick button span:last-child { margin-left: auto; white-space: nowrap; }
 @media (hover: hover) { .quick button:hover span:last-child { color: var(--accent); } }
-.quick button:active { background: var(--accent-soft); }
+.quick button:active span:last-child { color: var(--accent); }
 
 
-/* Operator keys above the phone keyboard (Android's number pad has none) */
+/* Sign keys above the phone keyboard (Android's number pad has none): four round keys */
 .ops {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  padding: 2px max(8px, env(safe-area-inset-right, 0px)) calc(2px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
-  background: var(--surface); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(2px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: var(--bg);
+  user-select: none; -webkit-user-select: none;
 }
 .ops button {
-  position: relative;
-  min-height: 48px; border: 0; border-radius: 6px;
-  background: none; color: var(--ink);
-  font-size: 1.45rem; font-weight: 400; line-height: 1;
+  min-height: 48px; margin-bottom: 6px; padding: 0; border: 0; border-radius: 99px;
+  background: linear-gradient(var(--key-hi), var(--key)); box-shadow: var(--rim), var(--lift); color: var(--ink);
+  font-size: 1.5rem; font-weight: 400; line-height: 1;
+  touch-action: manipulation;
 }
-.ops button + button::before {
-  content: ""; position: absolute; left: 0; top: 30%; bottom: 30%;
-  width: 1px; background: var(--line);
-}
-.ops button:active { background: var(--accent-soft); color: var(--accent); }
+.ops button:active { background: var(--key-down); }
 
-/* Currency picker */
+/* Currency picker: a sheet on a wide screen, a page of its own on a phone */
 dialog {
   width: min(440px, calc(100vw - 32px));
-  max-height: min(600px, calc(100dvh - 64px));
-  padding: 0; border: 1px solid var(--line); border-radius: 6px;
-  background: var(--surface); color: var(--ink);
+  max-height: min(640px, calc(100dvh - 64px));
+  padding: 0; border: 0; border-radius: 28px; box-shadow: 0 0 0 1px var(--pop-line);
+  background: var(--bg); color: var(--ink);
 }
 dialog[open] { display: flex; flex-direction: column; }
 dialog::backdrop { background: var(--backdrop); }
@@ -398,66 +478,78 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   dialog[open], dialog[open]::backdrop { opacity: 0; }
   dialog[open] { transform: translateY(12px); }
 }
-.picker-head { display: flex; gap: 4px; padding: 10px 6px 10px 12px; border-bottom: 1px solid var(--line); }
+/* The sheet's top: a round button to leave by, then the search (or, in About, its name) */
+.picker-head { flex: none; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 14px 16px 8px; }
 .picker-head input {
-  flex: 1; min-width: 0; min-height: 44px; padding: 0 12px;
-  border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
+  flex: 1; min-width: 0; min-height: 46px; padding: 0 18px;
+  border: 0; border-radius: 99px; background: var(--surface);
+  font-size: 1rem;
 }
-.picker-head input:focus { outline: none; border-color: var(--accent); }
-.picker-head button { min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--muted); font-size: .9rem; }
-@media (hover: hover) { .picker-head button:hover { color: var(--ink); } }
-.picker-list { list-style: none; margin: 0; padding: 4px 0 12px; overflow-y: auto; overscroll-behavior: contain; }
-.picker-list .group { padding: 14px 16px 4px; font-size: .8rem; font-weight: 500; color: var(--muted); }
+.picker-head input::placeholder { color: var(--muted); opacity: 1; }
+.picker-head input:focus { outline: none; box-shadow: inset 0 0 0 1.5px var(--accent); }
+/* The list is in groups, each a rounded card under its grey label, a hairline between its rows */
+.picker-list { list-style: none; margin: 0; padding: 0 16px 18px; overflow-y: auto; overscroll-behavior: contain; }
+.picker-list .group { padding: 16px 20px 8px; font-size: .92rem; color: var(--muted); }
 .picker-list button {
-  width: 100%; min-height: 48px;
-  display: grid; grid-template-columns: 48px 1fr 18px; align-items: center; gap: 10px;
-  padding: 0 16px; border: 0; background: none; text-align: left;
+  position: relative;
+  width: 100%; min-height: 56px;
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 0;
+  padding: 8px 20px; border: 0; background: var(--surface);
+  font-size: 1.06rem; line-height: 1.3; text-align: left;
 }
+.picker-list li:first-child > button, .picker-list .group + li > button { border-top-left-radius: 24px; border-top-right-radius: 24px; }
+.picker-list li:last-child > button, .picker-list li:has(+ .group) > button { border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; }
+.picker-list li:not(.group) + li:not(.group) > button::before { content: ""; position: absolute; top: 0; left: 20px; right: 20px; height: 1px; background: var(--line); }
 /* Hover only where there's a mouse: on a phone a tapped row would stay shaded and read as a second choice. */
-@media (hover: hover) { .picker-list button:hover { background: var(--accent-soft); } }
-.picker-list button:focus-visible { background: var(--accent-soft); outline: none; }
-/* The current currency: the tick, on a lighter shade than hover. */
-.picker-list button[aria-current="true"] { background: var(--accent-faint); }
-.picker-list .c { font-weight: 600; letter-spacing: .01em; }
-.picker-list .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.picker-list .tick { color: var(--accent); }
+@media (hover: hover) { .picker-list button:hover { background: var(--key); } }
+.picker-list button:active { background: var(--key); }
+.picker-list button:focus-visible { background: var(--key); outline: 2px solid var(--accent); outline-offset: -2px; }
+/* The current currency has the tick. */
+.picker-list .c { font-weight: 500; }
+/* A long name goes on to a second line; only the chosen row gives room to a tick */
+.picker-list .n { padding-left: 10px; overflow-wrap: anywhere; }
+.picker-list .tick { padding-left: 12px; color: var(--accent); }
+.picker-list .tick:empty { display: none; }
 .picker-list .hint { color: var(--muted); }
 
-/* About: the picker's sheet, with a name where the search goes and plain rows under it */
-.picker-head h2 { flex: 1; min-width: 0; align-self: center; margin: 0; padding-left: 4px; font-size: 1rem; font-weight: 600; }
-.about-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; }
-.about-id { display: grid; justify-items: center; gap: 4px; padding: 30px 16px 22px; text-align: center; }
+/* About is a page of its own: it fills the screen and Back leaves it. Who this is,
+   then rounded lists, a row for each thing, with a hairline between them. */
+#aboutDlg { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; padding: env(safe-area-inset-top, 0px) 0 0; border-radius: 0; box-shadow: none; }
+#aboutDlg > * { width: 100%; max-width: 480px; margin-inline: auto; }
+.picker-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 1.35rem; font-weight: 500; letter-spacing: -.01em; line-height: 1.3; }
+.about-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 18px; padding: 30px 16px max(22px, env(safe-area-inset-bottom, 0px)); overflow-y: auto; overscroll-behavior: contain; }
+.about-id { display: grid; justify-items: center; gap: 4px; margin-bottom: 8px; padding: 4px 0 2px; text-align: center; }
 .about-id img { margin-bottom: 10px; border-radius: 15px; }
 .about-id p { margin: 0; }
-.about-name { font-size: 1.4rem; font-weight: 600; letter-spacing: -.02em; }
+.about-name { font-size: 1.4rem; font-weight: 500; letter-spacing: -.02em; line-height: 1.2; }
 .about-tag { color: var(--muted); }
-.about-ver { margin-top: 8px !important; padding: 4px 12px; border: 1px solid var(--line); border-radius: 99px; font-size: .82rem; font-variant-numeric: tabular-nums; color: var(--muted); }
-/* About's links: plain centred text, no rows */
-.about-links { display: grid; justify-items: center; text-align: center; }
-.about-links a, .about-links button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; background: none; border: 0; font-size: .95rem; color: var(--ink); text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); text-underline-offset: 4px; }
-.about-links [hidden] { display: none; }
-.about-links .about-mail { font-weight: 600; }
-.about-legal { display: flex; align-items: center; justify-content: center; }
-.about-legal i { flex: none; width: 3px; height: 3px; border-radius: 50%; background: var(--muted); }
-.about-links .about-upd { min-height: 40px; margin-bottom: 10px; padding: 0 18px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); border-radius: 99px; text-decoration: none; }
-.about-upd span { color: var(--muted); }
-.about-upd span:empty { display: none; }
-.about-foot { margin: auto 0 0; padding: 22px 20px max(18px, env(safe-area-inset-bottom, 0px)); text-align: center; text-wrap: balance; font-size: .8rem; line-height: 1.7; color: var(--muted); }
+.about-links { flex: none; display: grid; padding: 0 20px; background: var(--surface); border-radius: 24px; }
+/* A card with nothing to show (the version, on a page that has none) isn't drawn */
+.about-links:not(:has(> .about-row:not([hidden]))) { display: none; }
+.about-legal { display: contents; }
+.about-links .about-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 56px; margin: 0; padding: 8px 0;
+  background: none; border: 0;
+  font-size: 1.125rem; line-height: 1.3; color: var(--ink); text-align: left; text-decoration: none; overflow-wrap: anywhere;
+}
+.about-links > :not([hidden]) ~ .about-row, .about-legal .about-row { border-top: 1px solid var(--line); }
+/* The row's name stays on one line; what's said at its right gives way if it must */
+.about-row > span:first-child { flex: none; white-space: nowrap; }
+.about-row > span + span { flex: 0 1 auto; min-width: 0; margin-left: -4px; font-size: .86rem; color: var(--muted); text-align: right; overflow-wrap: break-word; }
+.about-row > span + span:empty { display: none; }
+a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-right: 3px; border: solid var(--line-strong); border-width: 1.5px 1.5px 0 0; transform: rotate(45deg); }
+.about-foot { flex: none; margin: auto 0 0; padding-top: 8px; text-align: center; text-wrap: balance; font-size: .84rem; line-height: 1.7; color: var(--muted); }
 @media (max-width: 520px) {
-  body { padding-block: calc(12px + env(safe-area-inset-top, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)); }
-  .leg { padding: 16px; gap: 12px; }
-  .calc { right: 16px; }
-  .leg:first-child .calc { right: 68px; }
-  .swap { right: 16px; }
-  .rateline, .alert-row { padding-left: 16px; }
   dialog {
     width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
-    margin: 0; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); border: 0; border-radius: 0;
+    margin: 0; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); border: 0; border-radius: 0; box-shadow: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .trend, .swap, .swap svg, dialog, dialog::backdrop { transition: none; }
+  .trend, .swap svg, dialog, dialog::backdrop { transition: none; }
   dialog { transform: none; }
+  .menu { animation: none; }
 }
 /* iPhones zoom the page into any field under 16px; only iOS matches this. */
 @supports (-webkit-touch-callout: none) {
@@ -467,14 +559,15 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 </head>
 <body>
 <main class="wrap">
-  <p class="install-hint" id="installHint" hidden><span>Keep Bureau on your iPhone: tap Share, then Add to Home Screen.</span><button type="button" aria-label="Dismiss">×</button></p>
   <header class="top">
-    <div class="brand">
-      <h1 class="mark">Bureau</h1>
-      <button class="status" id="status" type="button" title="Try to refresh rates" hidden></button>
+    <h1 class="mark">Bureau</h1>
+    <button class="icon-btn" id="menuBtn" type="button" aria-label="About" aria-haspopup="dialog"><svg class="for-about" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><circle cx="12" cy="7.7" r=".5" fill="currentColor"/></svg><svg class="for-menu" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="10" cy="3.6" r="1.7"/><circle cx="10" cy="10" r="1.7"/><circle cx="10" cy="16.4" r="1.7"/></svg></button>
+    <div class="menu" id="menu" role="menu" hidden>
+      <button class="menu-row" id="shareBtn" type="button" role="menuitem" hidden><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8M5 13v5.5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V13"/></svg><span>Share this rate</span></button>
+      <button class="menu-row" id="version" type="button" role="menuitem" aria-haspopup="dialog">About</button>
     </div>
-    <button class="version" id="version" type="button" aria-haspopup="dialog">About</button>
   </header>
+  <p class="install-hint" id="installHint" hidden><span>Keep Bureau on your iPhone: tap Share, then Add to Home Screen.</span><button type="button" aria-label="Dismiss">×</button></p>
 
   <section class="update" id="updateCard" aria-label="App update" hidden>
     <div>
@@ -510,18 +603,17 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
         <span class="calc" id="toCalc" hidden></span>
       </div>
       <button class="swap" id="swap" type="button" aria-label="Swap currencies">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v11M2 10l3 3 3-3M11 14V3M8 6l3-3 3 3"/></svg>
+        <svg width="22" height="22" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v11M2 10l3 3 3-3M11 14V3M8 6l3-3 3 3"/></svg>
       </button>
     </div>
     <p class="sr-only" id="announce" aria-live="polite"></p>
+    <button class="status" id="status" type="button" title="Try to refresh rates" hidden></button>
+    <div class="ratecard">
     <div class="rateline">
       <p class="rate-text"><span class="rate-main" id="rateMain">Waiting for rates</span><span class="rate-sub" id="rateSub"></span></p>
       <div class="rate-tools">
       <button class="bell" id="alertBtn" type="button" aria-expanded="false" aria-controls="alertRow" aria-label="Set a rate alert" hidden>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path class="bell-body" d="M8 2.2a3.6 3.6 0 0 0-3.6 3.6v2.4L3 10.8h10L11.6 8.2V5.8A3.6 3.6 0 0 0 8 2.2Z"/><path d="M6.5 12.8a1.6 1.6 0 0 0 3 0"/></svg>
-      </button>
-      <button class="bell" id="shareBtn" type="button" aria-label="Share this rate" hidden>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M8 10V1.8M5.2 4.4 8 1.6l2.8 2.8M4.6 7H3.4v7.2h9.2V7h-1.2"/></svg>
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path class="bell-body" d="M8 2.2a3.6 3.6 0 0 0-3.6 3.6v2.4L3 10.8h10L11.6 8.2V5.8A3.6 3.6 0 0 0 8 2.2Z"/><path d="M6.5 12.8a1.6 1.6 0 0 0 3 0"/></svg>
       </button>
       <div class="fee" id="feeBox">
         <button class="fee-btn" id="feeBtn" type="button">No fee</button>
@@ -535,6 +627,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       <button class="link" id="alertAllow" type="button" hidden>Allow</button>
       <button class="link" id="alertRemove" type="button" hidden>Remove</button>
       <button class="link" id="alertSet" type="button">Set</button>
+    </div>
     </div>
   </section>
 
@@ -569,8 +662,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 
 <dialog id="picker" aria-label="Choose a currency" tabindex="-1">
   <div class="picker-head">
+    <button class="icon-btn" type="button" id="pickerClose" aria-label="Close"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12H3M10.5 4.5 3 12l7.5 7.5"/></svg></button>
     <input id="pickerSearch" type="search" placeholder="Currency or country" autocomplete="off" aria-label="Search currencies">
-    <button type="button" id="pickerClose">Close</button>
   </div>
   <ul class="picker-list" id="pickerList"></ul>
 </dialog>
@@ -578,7 +671,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 <!-- About: the version, and the way to the policy, the terms and us -->
 <dialog id="aboutDlg" aria-labelledby="aboutTitle" tabindex="-1" autofocus>
   <div class="picker-head">
-    <button type="button" id="aboutClose" aria-label="Back"><svg width="10" height="16" viewBox="0 0 10 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2 2 8l6 6"/></svg></button>
+    <button class="icon-btn" type="button" id="aboutClose" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12H3M10.5 4.5 3 12l7.5 7.5"/></svg></button>
     <h2 id="aboutTitle">About</h2>
   </div>
   <div class="about-body">
@@ -586,12 +679,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       <img src="icons/icon-192.png" width="64" height="64" alt="" onerror="this.hidden=true">
       <p class="about-name">Bureau</p>
       <p class="about-tag">Live rates for currencies and coins.</p>
-      <p class="about-ver" id="aboutVer" hidden></p>
     </div>
     <div class="about-links">
-      <button class="about-upd" type="button" id="aboutCheck" hidden>Check for updates<span id="aboutNote" aria-live="polite"></span></button>
-      <a class="about-mail" href="mailto:support@teloone.au?subject=Bureau">support@teloone.au</a>
-      <div class="about-legal"><a href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy policy</a><i aria-hidden="true"></i><a href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms of use</a></div>
+      <p class="about-row" id="aboutVer" hidden></p>
+      <button class="about-row" type="button" id="aboutCheck" hidden><span>Check for updates</span><span id="aboutNote" aria-live="polite"></span></button>
+    </div>
+    <div class="about-links">
+      <a class="about-row" href="mailto:support@teloone.au?subject=Bureau">support@teloone.au</a>
+      <div class="about-legal"><a class="about-row" href="https://teloone.au/apps/bureau/privacy/" rel="noreferrer">Privacy policy</a><a class="about-row" href="https://teloone.au/apps/bureau/terms/" rel="noreferrer">Terms of use</a></div>
     </div>
     <p class="about-foot">Rates are for information only.<br>From Coinbase, Exchange Rate API, Frankfurter and currency-api.<br>Made in Adelaide by Telo One</p>
   </div>
@@ -899,6 +994,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   let answerBehind = false;
   function convert(hold) {
     const src = state.edited, dst = other(src);
+    // For the page's colours only: the amount you typed is the blue one.
+    field(src).closest('.legs').dataset.edited = src;
     const { value, isExpr } = evaluate(field(src).value);
     const hint = $(src + 'Calc');
     hint.hidden = !(isExpr && Number.isFinite(value) && value >= 0);
@@ -964,7 +1061,15 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     fit(input);
     if (over(input)) { leg.classList.add('tight'); fit(input, 10); }
   }
-  const fitAll = () => { fitLeg(field('from')); fitLeg(field('to')); };
+  // Both amounts are drawn the same size: each is fitted, then the larger comes down to the
+  // smaller, though never under 15px for the sake of one squeezed far past that.
+  const fitAll = () => {
+    const pair = [field('from'), field('to')];
+    pair.forEach(input => fitLeg(input));
+    const sizes = pair.map(input => parseFloat(getComputedStyle(input).fontSize));
+    const size = Math.max(Math.min(...sizes), 15);
+    pair.forEach((input, i) => { if (sizes[i] > size) input.style.fontSize = size + 'px'; });
+  };
 
   function renderRateLine() {
     renderFee();
@@ -1345,6 +1450,14 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       $('trendAxis').append(s);
     }
     scrub = { series, y, H, rest: `Low ${fmtRate(min)} · High ${fmtRate(max)}` };
+    fitAxis();
+  }
+  // For the page's layout only: low and high go on a line of their own under the
+  // dates where they don't fit between them (the styles do the rest).
+  function fitAxis() {
+    const axis = $('trendAxis'), mid = axis.querySelector('.mid');
+    axis.classList.remove('stack');
+    if (mid && mid.scrollWidth > mid.clientWidth + 1) axis.classList.add('stack');
   }
 
   // Touch or hover the chart to read the rate on a given day. The reading
@@ -1415,6 +1528,8 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   // The iPhone app sets this before the page runs. It has no widget, no Back
   // gesture and no background checks, so no rate alerts.
   const ios = !!(app && app.ios);
+  // Only there is there more than About for the top right button to open (see "The round button").
+  const useMenu = ios;
   function toApp(msg) {
     if (!app) return;
     try { app.postMessage(JSON.stringify(msg)); } catch {}
@@ -1487,7 +1602,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
       showUpdate({ state: 'downloading', progress: 0 });
       toApp({ type: 'installUpdate' });
     });
-    // Put away, the card leaves "Update available" at the top right to bring it back.
+    // Put away, the card leaves "Update available" in the menu (and a dot on its button) to bring it back.
     $('updateLater').addEventListener('click', () => { $('updateCard').hidden = true; markUpdateReady(); });
     $('alertBtn').hidden = ios;
     // The iPhone app shares the conversion on screen through the phone's share sheet
@@ -1517,7 +1632,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     });
   }
 
-  // ---- About, top right ----
+  // ---- About, in the menu ----
   // The sheet has the version (once the app has said it), the update check and the
   // links. selfUpdates is off until the app says otherwise: Play builds and iPhones
   // update through their store, so there the sheet has no check.
@@ -1527,15 +1642,21 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   const WEB_VERSION = '__VERSION__';
   function showVersion() {
     const v = appVersion || (WEB_VERSION.startsWith('__') ? '' : WEB_VERSION);
-    $('aboutVer').textContent = v ? 'Version ' + v : '';
+    // A row of About's list: the word at the left, the number at the right.
+    const word = document.createElement('span'), number = document.createElement('span');
+    word.textContent = 'Version';
+    number.textContent = v;
+    $('aboutVer').replaceChildren(word, ' ', number);
     $('aboutVer').hidden = !v;
   }
   showVersion();
-  // While the update card shows, the top right stays About: the card says the rest.
+  // While the update card shows, the menu's row stays About: the card says the rest.
   function showLabel() {
     const waiting = updateReady && $('updateCard').hidden;
     $('version').textContent = waiting ? 'Update available' : 'About';
     $('version').dataset.state = waiting ? 'available' : '';
+    // Where the button opens About itself, it is named the same (and has the dot: see the styles).
+    if (!useMenu) $('menuBtn').setAttribute('aria-label', waiting ? 'Update available' : 'About');
     if (updateReady) showNote('Available');
   }
   function showNote(text) {
@@ -1548,14 +1669,37 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   }
   // The sheet itself takes focus, never a row. The app hears of it as it does the
   // picker, so Back closes it.
-  $('version').addEventListener('click', () => {
+  function openAbout() {
     about.showModal();
     about.focus();
     toApp({ type: 'picker', open: true });
-  });
+  }
+  $('version').addEventListener('click', openAbout);
   about.addEventListener('close', () => toApp({ type: 'picker', open: false }));
   $('aboutClose').addEventListener('click', () => about.close());
   about.addEventListener('click', e => { if (e.target === about) about.close(); });
+
+  // ---- The round button, top right ----
+  // It opens About. In the iPhone app, which has a rate to share as well, it is
+  // three dots and opens a panel with a row for each. Choosing a row puts the
+  // panel away, as does a tap anywhere else, or Escape.
+  const menu = $('menu');
+  if (useMenu) {
+    $('menuBtn').dataset.menu = '';
+    $('menuBtn').setAttribute('aria-label', 'More');
+    $('menuBtn').setAttribute('aria-haspopup', 'menu');
+    $('menuBtn').setAttribute('aria-expanded', 'false');
+    $('menuBtn').setAttribute('aria-controls', 'menu');
+  }
+  function showMenu(on) {
+    if (!useMenu) return;
+    menu.hidden = !on;
+    $('menuBtn').setAttribute('aria-expanded', String(on));
+  }
+  $('menuBtn').addEventListener('click', () => (useMenu ? showMenu(menu.hidden) : openAbout()));
+  menu.addEventListener('click', e => { if (e.target.closest('.menu-row')) showMenu(false); });
+  document.addEventListener('pointerdown', e => { if (!menu.hidden && !e.target.closest('#menu, #menuBtn')) showMenu(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { showMenu(false); $('menuBtn').focus(); } });
 
   // The update card. The app sends: available (version, notes, size),
   // downloading (progress 0..1), installing, and failed (message).
@@ -1734,6 +1878,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
   });
   // The app's Back gesture calls this first: it closes the fee field, the alert row or the picker.
   window.bureauBack = () => {
+    if (!$('menu').hidden) { $('menu').hidden = true; $('menuBtn').setAttribute('aria-expanded', 'false'); return true; }
     if (!$('feeEdit').hidden) { closeFee(true); return true; }
     if (!$('alertRow').hidden) { closeAlert(true); return true; }
     if (dlg.open) { dlg.close(); return true; }
@@ -1914,8 +2059,9 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
     if (!document.hidden && Date.now() - state.fetchedAt > REFRESH_MS) loadRates();
   });
   addEventListener('online', loadRates);
-  addEventListener('resize', () => { fitAll(); if (!$('alertRow').hidden) renderAlertHint(); });
-  if (document.fonts) document.fonts.ready.then(fitAll);
+  const scrubbing = () => !!$('trend').querySelector('.probe-dot:not([hidden])');
+  addEventListener('resize', () => { fitAll(); if (!scrubbing()) fitAxis(); if (!$('alertRow').hidden) renderAlertHint(); });
+  if (document.fonts) document.fonts.ready.then(() => { fitAll(); if (!scrubbing()) fitAxis(); });
 })();
 </script>
 </body>
