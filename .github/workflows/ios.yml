@@ -38,10 +38,11 @@ jobs:
         run: |
           cd ios
           cat > pick.py <<'PY'
-          import json, sys
+          import json, re, sys
           d = json.load(sys.stdin)['devices']
           rt = sorted(k for k in d if 'iOS' in k and d[k])[-1]
-          ph = [x for x in d[rt] if x['name'].startswith('iPhone') and 'Fold' not in x['name']]
+          # An ordinary numbered iPhone, with one screen: the largest there is.
+          ph = [x for x in d[rt] if re.match('iPhone [0-9]+', x['name'])]
           best = [x for x in ph if 'Pro Max' in x['name']] or ph
           print(best[-1]['name'], file=sys.stderr)
           print(best[-1]['udid'])
