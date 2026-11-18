@@ -18,7 +18,6 @@ the Android app in `app/` wraps it in a WebView and adds self-updates.
   (fawazahmed0/currency-api) for crypto and currencies the ECB doesn't cover
 - Rate alerts (app only): the bell beside the fee opens a row in the converter to set a target; a background job checks
   about every 30 minutes and sends one notification when it's reached
-- Quick amounts (1 to 100, scaled for very cheap or dear money) for the way the converter runs now
 - Remembers the pair, amount, fee and trend range; light and dark themes
 - Home-screen widget with the converter's amount (or the plain rate) for the current pair
   (refreshes about every 30 minutes and whenever the app is used, and shows when it last updated)
@@ -50,6 +49,32 @@ touches the files it names, so rates never land there.
 the `?v=` and `LIB` in `index.html` and `FILES` in `sw.js` (a test checks they agree). The Worker
 passes `?v=` upstream so Cloudflare keeps one copy per version, and a page that still meets the
 wrong `lib.js` fetches it afresh and reloads once.
+
+## The iPhone app
+
+`ios/` is a small Swift shell (XcodeGen, built by `.github/workflows/ios.yml` and `ios-release.yml`)
+that shows the page from inside the app. It does not bundle `web/` as it is: `scripts/ios-bundle.mjs`
+makes `ios/bundle/web` (not in git), a copy without what the iPhone app doesn't have, and the app
+bundles that. Left out are the website's files (`pwa.js`, `sw.js`, `manifest.json`, the home-screen
+icons) and every part of `index.html` and `lib.js` between these marks:
+
+```
+/* ios:cut */ ... /* ios:end */          in scripts and styles
+<!-- ios:cut --> ... <!-- ios:end -->    in markup
+```
+
+The marks are comments, so the website and the Android app are not changed by them. Marked today:
+the updater and its card, rate alerts, the widget hand-off, the Back gesture, the install hint and
+home-screen tags, the website's version stamp and its `lib.js` check, and the `ios` flag itself, so
+the copy has no platform switch in it. The script stops the build on a mark without its partner, on
+a file in `web/` it hasn't been told about, and if any word on its `FORBIDDEN` list is still in the
+copy. **Anything new that only the website or the Android app uses goes between marks**, and its
+names on that list.
+
+```
+node scripts/ios-bundle.mjs               # make ios/bundle/web and check it (run before xcodegen)
+node scripts/ios-bundle.mjs --check DIR   # check a folder, such as the one inside a built app
+```
 
 ## Tests
 The page's pure logic (number parsing, sums, formatting options, merging and reading the rate sources)

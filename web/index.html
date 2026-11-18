@@ -3,15 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- ios:cut -->
 <meta name="theme-color" content="#F0F1F3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#171719" media="(prefers-color-scheme: dark)">
+<!-- ios:end -->
+<!-- ios:cut -->
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<!-- ios:end -->
+<!-- ios:cut -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='18 18 72 72'%3E%3Crect x='18' y='18' width='72' height='72' rx='16' fill='%23F4C52E'/%3E%3Cpath d='M42 32v44M30 64l12 12 12-12M66 76V32M54 44l12-12 12 12' fill='none' stroke='%2314211C' stroke-width='6.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<!-- ios:end -->
+<!-- ios:cut -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Bureau">
+<!-- ios:end -->
 <title>Bureau</title>
 <style>
 /* Hanken Grotesk ships with the page (fonts/, SIL OFL) so the app looks the same offline. */
@@ -32,7 +40,7 @@
 
 /* Layout: one narrow column, a screen long. The two amounts on top, a card each, with
    the swap on the seam between them; one line for the rate and how old it is; the trend
-   in a card; the rates credit. The fee and the rate alert are in the menu, top right.
+   in a card; the rates credit. Settings and About are in the menu, top right.
    Colour: plain greys and one blue. A near-black page (pale grey by day), one
    lighter grey for every card, blue for the amount you typed and the one thing
    to press. Keys are lit a little from above, with a thin rim; the round buttons
@@ -67,7 +75,7 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root/* ios:cut */:not([data-theme="light"])/* ios:end */ {
     --bg: #171719;
     --surface: #2F2F2F;
     --ink: #EAEAEA;
@@ -96,6 +104,7 @@
     color-scheme: dark;
   }
 }
+/* ios:cut */
 :root[data-theme="dark"] {
   --bg: #171719;
   --surface: #2F2F2F;
@@ -124,6 +133,7 @@
   --backdrop: rgba(0, 0, 0, .6);
   color-scheme: dark;
 }
+/* ios:end */
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -170,7 +180,10 @@ button { cursor: pointer; }
 @media (hover: hover) { .icon-btn:hover { background: var(--key); } }
 
 /* More: a small panel that drops from its button, a picture and a word for each thing:
-   Settings, sharing (in the iPhone app), About. */
+   Settings, sharing, About. */
+/* ios:cut */
+/* (Sharing is in the iPhone app only.) */
+/* ios:end */
 .menu {
   position: absolute; z-index: 6; top: calc(100% + 4px); right: 0;
   min-width: 208px; max-width: 100%; padding: 9px 8px;
@@ -186,16 +199,22 @@ button { cursor: pointer; }
 .menu-row:active { background: var(--key); }
 @media (hover: hover) { .menu-row:hover { background: var(--key); } }
 .menu-row svg { flex: none; }
-/* About's picture is drawn here: its words are set by the script (About, or that an update is waiting) */
+/* About's picture is drawn here, before its word */
+/* ios:cut */
+/* Its words are set by the script: About, or that an update is waiting */
+/* ios:end */
 #version::before {
   content: ""; flex: none; width: 22px; height: 22px; background: currentColor;
   -webkit-mask: var(--info) center / contain no-repeat; mask: var(--info) center / contain no-repeat;
   --info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5.5'/%3E%3Ccircle cx='12' cy='7.7' r='.5' fill='%23000'/%3E%3C/svg%3E");
 }
+/* ios:cut */
 .menu-row[data-state="available"] { color: var(--accent); }
 /* An update is waiting: a dot on the button */
 .top:has(.menu-row[data-state="available"]) #menuBtn::after { content: ""; position: absolute; top: 9px; right: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+/* ios:end */
 
+/* ios:cut */
 /* Buttons are pills: grey and lit from above, or the accent for the one to press.
    They all sit on cards, so the grey is the lighter one made for a card. */
 .btn-secondary, .link { background: linear-gradient(var(--card-key-hi), var(--card-key)); box-shadow: var(--rim); color: var(--ink); }
@@ -216,6 +235,7 @@ button { cursor: pointer; }
 .update-track { flex: 1; height: 6px; border-radius: 3px; background: var(--accent-soft); overflow: hidden; }
 .update-track span { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--accent); transition: width .2s; }
 .update-pct { min-width: 3.2ch; text-align: right; font-size: .9rem; font-weight: 500; }
+/* ios:end */
 
 /* The converter: a card for each amount, the full width, and a round swap button
    on the seam between the two, at the right */
@@ -344,17 +364,22 @@ button { cursor: pointer; }
 .status:active { color: var(--ink); }
 /* With no rates and no way to get them, that one line says so: there is no trend to show either */
 .norates #trendSection.off { display: none; }
+/* ios:cut */
 .install-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; padding: 0 4px; font-size: .88rem; line-height: 1.35; color: var(--muted); }
 .install-hint button { flex: none; width: 44px; height: 44px; margin: -10px -12px -10px 0; padding: 0; background: none; border: 0; font-size: 1.2rem; color: var(--muted); }
+/* ios:end */
 /* The rates credit stays on the page (ExchangeRate-API's terms ask for it): one quiet line
    at the foot of the screen, or of the page where that is longer. */
 .foot { margin-top: auto; text-align: center; font-size: .9rem; color: var(--muted); }
 .foot a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; color: inherit; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 4px; }
 @media (hover: hover) { .foot a:hover { color: var(--ink); } }
 
-/* Settings (a page like About: see "Pages" below) has the fee, and in the Android app the
-   rate alert. A field sits at the right of its row: a hollow in the page's colour, with the
-   number typed bare inside it, like the amounts, and its unit beside it. */
+/* Settings (a page like About: see "Pages" below) has the fee. A field sits at the right
+   of its row: a hollow in the page's colour, with the number typed bare inside it, like
+   the amounts, and its unit beside it. */
+/* ios:cut */
+/* In the Android app Settings has the rate alert as well (see "Rate alert" below). */
+/* ios:end */
 .about-row > .row-field {
   flex: none; display: flex; align-items: center; gap: 4px; min-height: 40px; margin: -6px 0; padding: 0 16px;
   border-radius: 99px; background: var(--bg);
@@ -375,6 +400,7 @@ label.about-row { cursor: text; }
 .inline-in::placeholder { color: var(--muted); opacity: 1; font-weight: 400; }
 .inline-in[aria-invalid="true"] { color: var(--neg); }
 
+/* ios:cut */
 /* Rate alert (a row of Settings, in the Android app): the row opens the alert's own rows
    under it in the same card. "Alert when 1 GBP reaches" with the rate at its right, then
    how far that is from the rate now, with the buttons at its right. A target that is
@@ -399,6 +425,7 @@ label.about-row { cursor: text; }
   border: 0; border-radius: 99px;
   font-size: .95rem; font-weight: 500;
 }
+/* ios:end */
 
 /* The trend: a card, a small grey label at its top */
 .section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 18px 20px; background: var(--surface); border-radius: 24px; }
@@ -452,7 +479,7 @@ label.about-row { cursor: text; }
 .section.off { padding: 6px 20px; background: none; }
 .section.off > :not(.trend-note) { display: none; }
 
-/* Sign keys above the phone keyboard (Android's number pad has none): four round keys */
+/* Sign keys above the phone keyboard (a phone's number pad has none): four round keys */
 .ops {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
@@ -501,7 +528,7 @@ dialog[open], dialog[open]::backdrop { opacity: 1; transform: none; }
 .picker-head input::placeholder { color: var(--muted); opacity: 1; }
 .picker-head input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
 /* The search's clear button is a small disc inside its right end: 24px to the eye, 44px to
-   the finger. The browser's own search x gives way to it. */
+   the finger. The field's own x gives way to it. */
 #pickerSearch { padding-right: 46px; }
 #pickerSearch::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
 .clear-btn { position: relative; flex: none; display: grid; place-items: center; width: 24px; height: 24px; margin: 0 11px 0 -45px; padding: 0; background: var(--card-key); border: 0; border-radius: 50%; color: var(--ink); }
@@ -564,7 +591,10 @@ dialog.page, dialog.page::backdrop { transition: none; }
 .about-row > span:first-child { flex: none; white-space: nowrap; }
 /* A second line under a row's name, in grey: the address to write to */
 .about-row small { display: block; margin-top: 2px; font-size: .9rem; color: var(--muted); }
-/* What a row is set to, at its right in grey: the version's number, how the update check went */
+/* What a row is set to, at its right in grey: the version's number */
+/* ios:cut */
+/* (and, in the Android app, how the update check went) */
+/* ios:end */
 .about-row > span + span { flex: 0 1 auto; min-width: 0; font-size: 1rem; color: var(--muted); text-align: right; overflow-wrap: break-word; }
 .about-row > span + span:empty { display: none; }
 a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-right: 3px; border: solid var(--line-strong); border-width: 1.5px 1.5px 0 0; transform: rotate(45deg); }
@@ -580,10 +610,15 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   dialog { transform: none; }
   .menu { animation: none; }
 }
-/* iPhones zoom the page into any field under 16px; only iOS matches this. */
+/* A field under 16px would make an iPhone zoom into the page. */
+/* ios:cut */
+/* Only WebKit on a phone matches this; the iPhone app's copy has the rule bare. */
 @supports (-webkit-touch-callout: none) {
+/* ios:end */
   input:not(.amount), select { font-size: 16px; }
+/* ios:cut */
 }
+/* ios:end */
 </style>
 </head>
 <body>
@@ -600,8 +635,11 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
       <button class="menu-row" id="version" type="button" role="menuitem" aria-haspopup="dialog">About</button>
     </div>
   </header>
+  <!-- ios:cut -->
   <p class="install-hint" id="installHint" hidden><span>Keep Bureau on your iPhone: tap Share, then Add to Home Screen.</span><button type="button" aria-label="Dismiss">×</button></p>
+  <!-- ios:end -->
 
+  <!-- ios:cut -->
   <section class="update" id="updateCard" aria-label="App update" hidden>
     <div>
       <p class="update-title" id="updateTitle">Update available</p>
@@ -618,6 +656,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
       <button class="btn-primary" id="updateGo" type="button">Update</button>
     </div>
   </section>
+  <!-- ios:end -->
 
   <section class="slip" aria-label="Converter">
     <div class="legs">
@@ -681,8 +720,10 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   <ul class="picker-list" id="pickerList"></ul>
 </dialog>
 
-<!-- Settings: the fee the bank or the card adds, which applies as it is typed, and (in
-     the Android app only) the rate alert: its row opens the rate to be told of -->
+<!-- Settings: the fee the bank or the card adds, which applies as it is typed -->
+<!-- ios:cut -->
+<!-- and (in the Android app only) the rate alert: its row opens the rate to be told of -->
+<!-- ios:end -->
 <dialog class="page" id="settingsDlg" aria-labelledby="settingsTitle">
   <div class="picker-head">
     <button class="icon-btn" type="button" id="settingsClose" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12H3M10.5 4.5 3 12l7.5 7.5"/></svg></button>
@@ -693,6 +734,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
       <label class="about-row"><span>Fee</span><span class="row-field"><input class="inline-in" id="feeInput" type="text" inputmode="decimal" maxlength="5" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0" aria-label="Bank or card fee in percent, blank for none"><span aria-hidden="true">%</span></span></label>
     </div>
     <p class="page-note" id="rateSub"></p>
+    <!-- ios:cut -->
     <div class="about-links">
       <button class="about-row" type="button" id="alertBtn" aria-expanded="false" aria-controls="alertRow" aria-label="Set a rate alert" hidden><span>Rate alert</span><span id="alertVal"></span></button>
       <div id="alertRow" hidden>
@@ -707,6 +749,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
         </div>
       </div>
     </div>
+    <!-- ios:end -->
   </div>
 </dialog>
 
@@ -724,7 +767,9 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     </div>
     <div class="about-links">
       <p class="about-row" id="aboutVer" hidden></p>
+      <!-- ios:cut -->
       <button class="about-row" type="button" id="aboutCheck" hidden><span>Check for updates</span><span id="aboutNote" aria-live="polite"></span></button>
+      <!-- ios:end -->
     </div>
     <div class="about-links">
       <a class="about-row" href="mailto:support@teloone.au?subject=Bureau"><span>Contact support<small>support@teloone.au</small></span></a>
@@ -735,9 +780,12 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
 </dialog>
 
 <script src="lib.js?v=6"></script>
+<!-- ios:cut -->
 <script src="pwa.js"></script>
+<!-- ios:end -->
 <script>
 (() => {
+  /* ios:cut */
   // A page and a lib.js from different releases can meet right after one (an
   // edge or saved copy of one but not the other). Fetch lib.js afresh and load
   // again, once; a second miss runs anyway rather than loop.
@@ -751,9 +799,10 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     }
   }
   try { sessionStorage.removeItem('bureau.libRetry'); } catch {}
+  /* ios:end */
   const $ = id => document.getElementById(id);
   // The iPhone app passes the phone's own language and region, which the page isn't always told.
-  const locale = (window.bureauApp && window.bureauApp.locale) || navigator.language || 'en-US';
+  const locale = /* ios:cut */(window.bureauApp && /* ios:end */window.bureauApp.locale/* ios:cut */) || navigator.language/* ios:end */ || 'en-US';
   // Coinbase's live rates come first, for currencies and the ten coins. ExchangeRate-API's
   // daily rates check them, and stand in if Coinbase is down; the daily file, which has
   // two mirrors, stands in behind that and brings the coins.
@@ -787,7 +836,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   // read and written with them. Nowhere else.
   let marks = null;
   {
-    const a = window.bureauApp, dec = a && a.ios && a.decimal, grp = a && a.ios && a.group;
+    const a = window.bureauApp, dec = /* ios:cut */a && a.ios && /* ios:end */a.decimal, grp = /* ios:cut */a && a.ios && /* ios:end */a.group;
     if ((dec === '.' || dec === ',') && typeof grp === 'string' && /^[.,'’\s]$/.test(grp) && grp !== dec
       && (dec !== sepOf('decimal') || grp !== GROUP)) {
       marks = { decimal: dec, group: grp };
@@ -853,7 +902,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   }
 
   // ---- numbers ----
-  // Pure helpers live in lib.js (tested in CI); these bind them to this locale.
+  // Pure helpers live in lib.js; these bind them to this locale.
   const { fractionDigits } = BureauLib;
   // Coins get decimals to suit their price (see cryptoDigits).
   const usdPrice = code => (state.rates && state.rates[code] > 0 ? 1 / state.rates[code] : undefined);
@@ -865,7 +914,9 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   const ascii = s => String(s)
     .replace(/[\u0660-\u0669\u06F0-\u06F9\u0966-\u096F\u09E6-\u09EF]/g, c => { const n = c.charCodeAt(0); return String(n < 0x0900 ? n & 15 : (n & 15) - 6); })
     .replace(/\u066B/g, POINT).replace(/\u066C/g, '');
+  /* ios:cut */
   const parseNumber = s => BureauLib.parseNumber(ascii(s), GROUP);
+  /* ios:end */
   // A sum still being typed ("100+") is read without its last sign, so its answer stays.
   const evaluate = text => BureauLib.evaluate(ascii(text).replace(/[\s+\-*/×÷−–xX]+$/, ''), GROUP);
   // Building a formatter is far slower than using one, and a render formats
@@ -1030,7 +1081,9 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
       $('pick' + (side === 'from' ? 'From' : 'To')).setAttribute('aria-label', `${side === 'from' ? 'You have' : 'You get'} ${nameOf(code)}. Change currency`);
       $(side + 'Amount').setAttribute('aria-label', `Amount in ${nameOf(code)}`);
     }
+    /* ios:cut */
     document.title = `${state.from} → ${state.to} · Bureau`;
+    /* ios:end */
   }
 
   const field = side => $(side + 'Amount');
@@ -1071,7 +1124,9 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     field(dst).placeholder = Number.isFinite(r) && !field(src).value.trim() ? '0' : '–';
     fitAll();
     store.set('amount', { side: src, value: field(src).value });
+    /* ios:cut */
     tellAppPair();
+    /* ios:end */
   }
 
   // Read the answer out after something the user did (typing, a swap, a new
@@ -1087,7 +1142,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
 
   // Long amounts shrink to fit instead of being cut off, though not on an iPhone
   // below the 16px that stops it zooming into the field.
-  const smallest = CSS.supports('-webkit-touch-callout', 'none') ? 16 : 0;
+  const smallest = /* ios:cut */CSS.supports('-webkit-touch-callout', 'none') ? /* ios:end */16/* ios:cut */ : 0/* ios:end */;
   // Whether an amount is wider than its room. Measured with a ruler of our own:
   // browsers disagree about a field's scrollWidth, and Safari's said every amount
   // was too wide, which hid the currency's name on an iPhone.
@@ -1143,12 +1198,17 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   // The line under the amounts: the rate, beside how old it is (see renderStatus).
   // With no rates at all and none to be had, that other half says so and this is blank.
   function renderRateLine() {
+    /* ios:cut */
     renderBell();
     // The alert's open rows keep their "x% above now" true to the rate.
     if (!$('alertRow').hidden) renderAlertHint();
+    /* ios:end */
     const r = rate(state.from, state.to);
-    // Sharing is the iPhone app's, and only once there is a rate to share.
-    $('shareBtn').hidden = !ios || !Number.isFinite(r);
+    /* ios:cut */
+    // Sharing is the iPhone app's.
+    /* ios:end */
+    // The share row shows only once there is a rate to share.
+    $('shareBtn').hidden = /* ios:cut */!ios || /* ios:end */!Number.isFinite(r);
     const main = $('rateMain'), sub = $('rateSub');
     if (!Number.isFinite(r)) {
       const missing = [state.from, state.to].filter(c => !(state.rates && state.rates[c] > 0));
@@ -1179,15 +1239,21 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   }
   // The page's name takes focus, never a field: the keyboard waits for a tap.
   function openSettings() {
+    /* ios:cut */
     closeAlert();
+    /* ios:end */
     feeBefore = state.fee;
     $('feeInput').value = state.fee ? fmtPct(state.fee) : '';
     $('feeInput').removeAttribute('aria-invalid');
     settings.showModal();
     $('settingsTitle').focus();
+    /* ios:cut */
     syncBack();
+    /* ios:end */
   }
+  /* ios:cut */
   settings.addEventListener('close', () => { closeAlert(); syncBack(); });
+  /* ios:end */
   $('settingsClose').addEventListener('click', () => settings.close());
   settings.addEventListener('click', e => { if (e.target === settings) settings.close(); });
   // Escape in the fee's field puts back the fee from before and leaves the field, not the page.
@@ -1200,6 +1266,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     $('feeInput').blur();
   });
 
+  /* ios:cut */
   // ---- rate alerts (in the app only) ----
   // The app keeps the alerts and checks them in the background; the page
   // holds a copy for Settings. One alert per pair, on the plain
@@ -1271,6 +1338,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     closeAlert();
     renderBell();
   }
+  /* ios:end */
 
   // A day as "2 Nov", with its year when that isn't this one: "2 Nov 2025".
   const dayOpts = (year, opts) => ({ day: 'numeric', month: 'short', ...(year === new Date().getFullYear() ? null : { year: 'numeric' }), ...opts });
@@ -1285,9 +1353,11 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   // The day a daily rate is for, as its source dates it. Sources date by UTC,
   // so this does too, and "6 Nov" reads the same everywhere.
   const dayText = ms => new Date(ms).toLocaleDateString(fmtLocale, dayOpts(new Date(ms).getUTCFullYear(), { timeZone: 'UTC' }));
+  /* ios:cut */
   // The pair's own date: a coin can be a day behind the currencies, or the
   // other way round, and the older side is the honest one to show.
   const pairAt = () => BureauLib.pairUpdatedAt(state.from, state.to, state.fiatAt, state.coinAt, state.dated);
+  /* ios:end */
   // Rates are saved on the device after every refresh, so the app keeps
   // working offline. This line always says how old the rates in use are,
   // and a pair on a daily rate never reads as live.
@@ -1427,7 +1497,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
       const load = (async () => {
         for (const url of SNAPSHOT_URLS) {
           try {
-            // AbortSignal.timeout is missing on older WebViews; there the request simply runs on.
+            // AbortSignal.timeout is missing on older engines; there the request simply runs on.
             const signal = AbortSignal.timeout ? AbortSignal.timeout(FETCH_TIMEOUT_MS) : undefined;
             const res = await fetch(url(date), { cache: 'force-cache', signal });
             if (res.ok) return await res.json();
@@ -1559,22 +1629,34 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     renderStatus();
   }
 
-  // ---- Android app bridge (absent in a browser) ----
-  // The app injects window.bureauApp for its own origin only. It uses the pair
-  // for the home-screen widget, the picker state for the Back gesture, and
-  // answers with its version and update checks.
-  const app = window.bureauApp || null;
-  // The iPhone app sets this before the page runs. It has no widget, no Back
-  // gesture and no background checks, so no rate alerts.
+  // ---- app bridge ----
+  // The app injects window.bureauApp for its own origin only.
+  /* ios:cut */
+  // (Absent in a browser: there `app` is null and nothing below is sent.)
+  /* ios:end */
+  /* ios:cut */
+  // The Android app uses the pair for the home-screen widget, the picker state for
+  // the Back gesture, and answers with its version and update checks.
+  /* ios:end */
+  const app = window.bureauApp/* ios:cut */ || null/* ios:end */;
+  /* ios:cut */
+  // True only inside an iPhone shell that sets it. The iPhone app now ships a copy of
+  // this page made by scripts/ios-bundle.mjs, which leaves out everything between
+  // these marks, this flag included: that copy has no widget, no Back gesture, no
+  // rate alerts and no updater in it at all.
   const ios = !!(app && app.ios);
+  /* ios:end */
   function toApp(msg) {
+    /* ios:cut */
     if (!app) return;
+    /* ios:end */
     try { app.postMessage(JSON.stringify(msg)); } catch {}
   }
-  // A light vibration on taps, as native Android controls give: "tick" for
+  // A light vibration on taps, as native controls give: "tick" for
   // small steps (keys, ranges), "tap" for actions. Follows the phone's
   // touch feedback setting.
   const haptic = (kind = 'tap') => toApp({ type: 'haptic', kind });
+  /* ios:cut */
   let pairTimer = 0;
   function tellAppPair() {
     if (!app || ios) return;
@@ -1586,16 +1668,28 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
       if (Number.isFinite(r)) toApp({ type: 'pair', from: state.from, to: state.to, fee: state.fee, home, rate: r, updatedAt: pairAt(), amount: amount > 0 ? amount : 1 });
     }, 400);
   }
+  /* ios:end */
+  /* ios:cut */
   if (app) {
+  /* ios:end */
     app.onmessage = e => {
       let m;
       try { m = JSON.parse(e.data); } catch { return; }
       if (m.type === 'info') {
         appVersion = m.version;
+        /* ios:cut */
         selfUpdates = m.updates === true;
+        /* ios:end */
         showVersion();
+        /* ios:cut */
         $('aboutCheck').hidden = !selfUpdates;
         showLabel();
+        /* ios:end */
+      } else if (m.type === 'active') {
+        // The app is in front again: the page isn't always told it was away.
+        if (Date.now() - state.fetchedAt > REFRESH_MS) loadRates();
+        renderStatus();
+      /* ios:cut */
       } else if (m.type === 'updateStatus' && selfUpdates) {
         if (m.state === 'available') return markUpdateReady();
         showNote(m.state === 'latest' ? 'Up to date' : "Couldn't check");
@@ -1625,16 +1719,14 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
         // up. The app says when the keyboard has really gone, and the field lets go.
         const a = document.activeElement;
         if (a === field('from') || a === field('to')) a.blur();
-      } else if (m.type === 'active') {
-        // The iPhone app is in front again: the page isn't always told it was away.
-        if (Date.now() - state.fetchedAt > REFRESH_MS) loadRates();
-        renderStatus();
       } else if (m.type === 'update' && selfUpdates) {
         if (m.state === 'available') updateReady = true;
         showUpdate(m);
         showLabel();
+      /* ios:end */
       }
     };
+    /* ios:cut */
     $('updateGo').addEventListener('click', () => {
       showUpdate({ state: 'downloading', progress: 0 });
       toApp({ type: 'installUpdate' });
@@ -1642,7 +1734,8 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     // Put away, the card leaves "Update available" in the menu (and a dot on its button) to bring it back.
     $('updateLater').addEventListener('click', () => { $('updateCard').hidden = true; markUpdateReady(); });
     $('alertBtn').hidden = ios;
-    // The iPhone app shares the conversion on screen through the phone's share sheet
+    /* ios:end */
+    // Sharing: the conversion on screen goes to the phone's share sheet
     // (the button shows once there is a rate: see renderRateLine).
     $('shareBtn').addEventListener('click', () => {
       if (!Number.isFinite(rate(state.from, state.to))) return;
@@ -1656,6 +1749,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
       haptic();
       toApp({ type: 'share', text: [sum, line, dated].filter(Boolean).join('\n') });
     });
+    /* ios:cut */
     // Checking for updates; once one is known the row brings its card back instead.
     $('aboutCheck').addEventListener('click', () => {
       if (updateReady) {
@@ -1668,18 +1762,26 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
       showNote('Checking…');
       toApp({ type: 'checkUpdate' });
     });
+    /* ios:end */
+  /* ios:cut */
   }
+  /* ios:end */
 
   // ---- About, in the menu ----
-  // The page has the version (once the app has said it), the update check and the
-  // links. selfUpdates is off until the app says otherwise: Play builds and iPhones
-  // update through their store, so there the page has no check.
+  // The page has the version (once the app has said it) and the links.
+  /* ios:cut */
+  // In the Android app it has the update check too. selfUpdates is off until the app
+  // says otherwise: Play builds update through their store, so there the page has no check.
+  /* ios:end */
   const about = $('aboutDlg');
-  let appVersion = '', selfUpdates = false, updateReady = false, versionTimer = 0;
-  // The app says which build it is. The website's copy is stamped with its version when it is published.
+  let appVersion = ''/* ios:cut */, selfUpdates = false, updateReady = false, versionTimer = 0/* ios:end */;
+  // The app says which build it is.
+  /* ios:cut */
+  // The website's copy is stamped with its version when it is published.
   const WEB_VERSION = '__VERSION__';
+  /* ios:end */
   function showVersion() {
-    const v = appVersion || (WEB_VERSION.startsWith('__') ? '' : WEB_VERSION);
+    const v = appVersion/* ios:cut */ || (WEB_VERSION.startsWith('__') ? '' : WEB_VERSION)/* ios:end */;
     // A row of About's list: the word at the left, the number at the right in grey.
     const word = document.createElement('span'), number = document.createElement('span');
     word.textContent = 'Version';
@@ -1688,6 +1790,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     $('aboutVer').hidden = !v;
   }
   showVersion();
+  /* ios:cut */
   // While the update card shows, the menu's row stays About: the card says the rest.
   function showLabel() {
     const waiting = updateReady && $('updateCard').hidden;
@@ -1703,40 +1806,50 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     updateReady = true;
     showLabel();
   }
-  // The page's name takes focus, never a row. The app hears of it as it does the
-  // picker, so Back closes it.
+  /* ios:end */
+  // The page's name takes focus, never a row.
   function openAbout() {
     about.showModal();
     $('aboutTitle').focus();
+    /* ios:cut */
+    // The Android app hears of it as it does the picker, so Back closes it.
     syncBack();
+    /* ios:end */
   }
   $('version').addEventListener('click', openAbout);
+  /* ios:cut */
   about.addEventListener('close', syncBack);
+  /* ios:end */
   $('aboutClose').addEventListener('click', () => about.close());
   about.addEventListener('click', e => { if (e.target === about) about.close(); });
 
+  /* ios:cut */
   // The app's Back gesture is the page's only while something is open over it: the
   // menu, the currency picker, Settings or About. The app is told each time that
   // changes (its "picker" message), and then asks bureauBack to close what is open.
   function syncBack() {
     toApp({ type: 'picker', open: !menu.hidden || dlg.open || about.open || settings.open });
   }
+  /* ios:end */
 
   // ---- More, top right ----
-  // The panel under the three dots: Settings, sharing (in the iPhone app) and
+  // The panel under the three dots: Settings, sharing (where there is any) and
   // About. Choosing a row puts the panel away, as does a tap anywhere else, or
   // Escape.
   const menu = $('menu');
   function showMenu(on) {
     menu.hidden = !on;
     $('menuBtn').setAttribute('aria-expanded', String(on));
+    /* ios:cut */
     syncBack();
+    /* ios:end */
   }
   $('menuBtn').addEventListener('click', () => showMenu(menu.hidden));
   menu.addEventListener('click', e => { if (e.target.closest('.menu-row')) showMenu(false); });
   document.addEventListener('pointerdown', e => { if (!menu.hidden && !e.target.closest('#menu, #menuBtn')) showMenu(false); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { showMenu(false); $('menuBtn').focus(); } });
 
+  /* ios:cut */
   // The update card. The app sends: available (version, notes, size),
   // downloading (progress 0..1), installing, and failed (message).
   let updateVersion = '', updateSize = 0;
@@ -1772,6 +1885,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
       $('updatePct').textContent = p + '%';
     }
   }
+  /* ios:end */
 
   // ---- interactions ----
   let focused = 'from';   // the amount field the sign keys type into
@@ -1787,7 +1901,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
       before = input.value;
       input.select();
       // An iPhone drops a selection made while the keyboard is still coming up.
-      if (ios) setTimeout(() => { if (document.activeElement === input) input.setSelectionRange(0, input.value.length); });
+      /* ios:cut */if (ios) /* ios:end */setTimeout(() => { if (document.activeElement === input) input.setSelectionRange(0, input.value.length); });
       showOps(true);
     });
     input.addEventListener('input', () => { state.edited = side; convert(); announce(); });
@@ -1818,7 +1932,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     if (on) { if (coarse.matches) $('ops').hidden = false; }
     else opsTimer = setTimeout(() => { $('ops').hidden = true; }, 120);
   }
-  // On the web the keyboard covers the page rather than shrinking it, so the keys
+  // Where the keyboard covers the page rather than shrinking it, the keys
   // go by what's still visible, and drop the gap for the home bar while it's up.
   const seen = window.visualViewport;
   function placeOps() {
@@ -1826,7 +1940,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     $('ops').style.bottom = `${keyboard}px`;
     $('ops').style.paddingBottom = keyboard ? '2px' : '';
   }
-  if (seen && (!app || ios)) { seen.addEventListener('resize', placeOps); seen.addEventListener('scroll', placeOps); }
+  if (seen/* ios:cut */ && (!app || ios)/* ios:end */) { seen.addEventListener('resize', placeOps); seen.addEventListener('scroll', placeOps); }
   $('ops').addEventListener('pointerdown', e => e.preventDefault());   // keep the keyboard up
   $('ops').addEventListener('click', e => {
     const b = e.target.closest('button[data-op]');
@@ -1845,7 +1959,9 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     store.set('pair', { from: state.from, to: state.to });
   }
   function swap() {
+    /* ios:cut */
     closeAlert();
+    /* ios:end */
     [state.from, state.to] = [state.to, state.from];
     const f = field('from').value;
     field('from').value = field('to').value;
@@ -1894,7 +2010,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     feeBefore = state.fee;
     input.select();
     // An iPhone drops a selection made while the keyboard is still coming up.
-    if (ios) setTimeout(() => { if (document.activeElement === input) input.setSelectionRange(0, input.value.length); });
+    /* ios:cut */if (ios) /* ios:end */setTimeout(() => { if (document.activeElement === input) input.setSelectionRange(0, input.value.length); });
   });
   // The fee applies as you type; one that can't be read (or over 20%) leaves the
   // last good one, and shows in red until it can be.
@@ -1913,17 +2029,20 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     e.target.value = state.fee ? fmtPct(state.fee) : '';
     e.target.removeAttribute('aria-invalid');
   });
+  /* ios:cut */
   $('alertBtn').addEventListener('click', () => ($('alertRow').hidden ? openAlert() : closeAlert()));
   $('alertTarget').addEventListener('input', renderAlertHint);
   $('alertTarget').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); setAlert(); } });
   $('alertSet').addEventListener('click', setAlert);
   $('alertRemove').addEventListener('click', removeAlert);
   $('alertAllow').addEventListener('click', () => toApp({ type: 'notificationSettings' }));
+  /* ios:end */
   // With no Back on an iPhone, a tap away from a field puts the keyboard down.
-  if (ios) document.addEventListener('pointerdown', e => {
+  /* ios:cut */if (ios) /* ios:end */document.addEventListener('pointerdown', e => {
     const a = document.activeElement;
     if (a && a.tagName === 'INPUT' && e.target !== a && !e.target.closest('input, label, .ops, .amount-wrap')) a.blur();
   });
+  /* ios:cut */
   // The app's Back gesture calls this first: it closes Settings, the picker or About, and then the menu.
   window.bureauBack = () => {
     const page = [settings, dlg, about].find(d => d.open);
@@ -1933,6 +2052,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     syncBack();
     return true;
   };
+  /* ios:end */
   $('range').addEventListener('click', e => {
     const b = e.target.closest('button[data-days]');
     if (!b || Number(b.dataset.days) === state.days) return;
@@ -1958,16 +2078,20 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     $('pickerSearch').autofocus = search;
     dlg.showModal();
     (search ? $('pickerSearch') : dlg).focus();
+    /* ios:cut */
     syncBack();
+    /* ios:end */
   }
+  /* ios:cut */
   dlg.addEventListener('close', syncBack);
+  /* ios:end */
   // An iPhone's keyboard covers the page rather than shrinking it, so while it is
   // up the list ends with that much room and its last rows can be reached.
   function padPicker() {
     const keyboard = Math.max(0, Math.round(innerHeight - seen.height - seen.offsetTop));
     $('pickerList').style.paddingBottom = dlg.open && keyboard ? `${keyboard + 12}px` : '';
   }
-  if (seen && ios) {
+  if (seen/* ios:cut */ && ios/* ios:end */) {
     seen.addEventListener('resize', padPicker);
     seen.addEventListener('scroll', padPicker);
     dlg.addEventListener('close', padPicker);
@@ -2061,7 +2185,9 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     store.set('recent', state.recent);
     savePair();
     dlg.close();
+    /* ios:cut */
     closeAlert();
+    /* ios:end */
     renderAll();
     renderTrend();
     announce();

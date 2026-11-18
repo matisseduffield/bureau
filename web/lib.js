@@ -1,11 +1,15 @@
 // Bureau's pure logic: number parsing, sums, formatting options, rate merging
-// and reading the rate sources. No DOM and no app state, so the same file runs in the page and
-// under `node --test tests/` in CI.
+// and reading the rate sources. No DOM and no app state.
+/* ios:cut */
+// So the same file runs in the page and under `node --test tests/` in CI.
+/* ios:end */
 (function (root) {
+  /* ios:cut */
   // Raised with every change here, together with lib.js?v= in index.html and
   // FILES in sw.js. The page checks it, so a page and a lib.js from different
   // releases never run together.
   const VERSION = 6;
+  /* ios:end */
 
   // The most traded coins, in market order; Coinbase quotes them all live, and
   // the daily rate file has them for when it can't.
@@ -36,6 +40,9 @@
     return { minimumFractionDigits: d, maximumFractionDigits: d };
   }
 
+  /* ios:cut */
+  // (The quick amounts are tested here but no page draws them now, so the iPhone
+  // app's copy goes without them.)
   // Stablecoins track the dollar, so they read like money.
   const STABLE = new Set(['USDT', 'USDC']);
 
@@ -55,6 +62,7 @@
     // Rounded so 0.00001 doesn't come out as 0.000009999999999999999.
     return [1, 5, 10, 20, 50, 100].map(a => Number((a * mult).toPrecision(12)));
   }
+  /* ios:end */
 
   // The fee as typed in the rate line, in percent: blank (or 0) is no fee; a "%"
   // may come with it. Anything else, or over MAX_FEE, is NaN and leaves the fee as it was.
@@ -342,7 +350,10 @@
     return [...(last === day ? series.slice(0, -1) : series), [day, rate]];
   }
 
-  const lib = { VERSION, CRYPTO, MAX_FEE, quickAmounts, parseFee, withFee, NAMES, REPLACED, isCurrency, currencyOf, currentCode, coinQuickOpts, withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, FILE_SKIP, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  const lib = { /* ios:cut */VERSION, /* ios:end */CRYPTO, MAX_FEE, /* ios:cut */quickAmounts, /* ios:end */parseFee, withFee, NAMES, REPLACED, isCurrency, currencyOf, currentCode, /* ios:cut */coinQuickOpts, /* ios:end */withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, FILE_SKIP, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  /* ios:cut */
   if (typeof module === 'object' && module.exports) module.exports = lib;
-  else root.BureauLib = lib;
+  else
+  /* ios:end */
+  root.BureauLib = lib;
 })(this);
