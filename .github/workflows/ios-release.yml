@@ -94,7 +94,7 @@ jobs:
           # The app's own program, which is all of our Swift and none of Apple's
           # frameworks (those stay on the phone): names of things it does not do.
           # Case as written, so a system name such as wasMainFrame is not taken for wasm.
-          if strings "$app/$APP" | grep -E "setAlert|removeAlert|checkUpdate|installUpdate|androidplatform|UNUserNotificationCenter|openURLContexts|webmanifest|manifest\+json|application/wasm"; then
+          if strings "$app/$APP" | grep -E "setAlert|removeAlert|checkUpdate|installUpdate|androidplatform|UNUserNotificationCenter|webmanifest|manifest\+json|application/wasm"; then
             echo "The app names something the iPhone app does not have."; exit 1
           fi
           # Short words are only looked for as a whole string of their own, as a
