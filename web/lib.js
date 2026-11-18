@@ -5,7 +5,7 @@
   // Raised with every change here, together with lib.js?v= in index.html and
   // FILES in sw.js. The page checks it, so a page and a lib.js from different
   // releases never run together.
-  const VERSION = 5;
+  const VERSION = 6;
 
   // The most traded coins, in market order; Coinbase quotes them all live, and
   // the daily rate file has them for when it can't.
@@ -88,10 +88,10 @@
     } else if (hasDot || hasComma) {
       const ch = hasDot ? '.' : ',';
       const parts = s.split(ch);
-      // Grouping needs every group three digits after something other than a bare 0,
+      // Grouping needs every group three digits after a first of one to three, not all 0,
       // and a lone mark must be the locale's: "1.234.567" anywhere, "1.500" in Germany,
-      // but "0.500" is a half and "1.5." is a typo, not 15.
-      const threes = /^\d*[1-9]\d*$/.test(parts[0]) && parts.slice(1).every(p => p.length === 3);
+      // but "0.500" is a half, "1234.567" has a decimal point and "1.5." is a typo, not 15.
+      const threes = /^(?=\d{1,3}$)\d*[1-9]\d*$/.test(parts[0].replace(/^0+(?=\d)/, '')) && parts.slice(1).every(p => p.length === 3);
       // Indian grouping (1,50,000): twos, then a last three. Only as the locale's own grouping.
       const lakhs = ch === group && parts.length > 2 && /^[1-9]\d?$/.test(parts[0])
         && parts.slice(1, -1).every(p => p.length === 2) && parts[parts.length - 1].length === 3;

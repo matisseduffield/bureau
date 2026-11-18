@@ -262,6 +262,9 @@ button { cursor: pointer; }
 .incl { position: relative; z-index: 1; background: none; border: 0; color: var(--accent); }
 /* A 44px tap area on a line of small text */
 .incl::before { content: ""; position: absolute; inset: -13px -8px -13px 2px; }
+/* Where the amount, at its smallest, has no room beside the fee's note, the note goes under it (see fitLeg) */
+.leg.under .amount-wrap { grid-column: 1 / -1; }
+.leg.under .incl { grid-column: 1 / -1; justify-self: start; margin-top: 4px; padding-left: 0; }
 /* The amount sizes to its text so the muted symbol can sit right beside it. */
 .amount-wrap {
   grid-column: 1; align-self: baseline;
@@ -362,7 +365,6 @@ label.about-row { cursor: text; }
 /* What a card is for, in grey under it */
 .page-note { flex: none; margin: -4px 20px 0; font-size: .9rem; line-height: 1.45; color: var(--muted); }
 .page-note:empty { display: none; }
-.page-note + .page-note { margin-top: -8px; }
 .inline-in {
   width: 4ch; padding: 0;
   border: 0; background: none; outline: none;
@@ -673,7 +675,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
 <dialog id="picker" aria-label="Choose a currency" tabindex="-1">
   <div class="picker-head">
     <button class="icon-btn" type="button" id="pickerClose" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12H3M10.5 4.5 3 12l7.5 7.5"/></svg></button>
-    <input id="pickerSearch" type="search" placeholder="Currency or country" autocomplete="off" aria-label="Search currencies">
+    <input id="pickerSearch" type="search" placeholder="Currency or country" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Search currencies">
     <button class="clear-btn" id="pickerClear" type="button" aria-label="Clear" hidden><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg></button>
   </div>
   <ul class="picker-list" id="pickerList"></ul>
@@ -690,7 +692,6 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     <div class="about-links">
       <label class="about-row"><span>Fee</span><span class="row-field"><input class="inline-in" id="feeInput" type="text" inputmode="decimal" maxlength="5" enterkeyhint="done" autocomplete="off" spellcheck="false" placeholder="0" aria-label="Bank or card fee in percent, blank for none"><span aria-hidden="true">%</span></span></label>
     </div>
-    <p class="page-note">The percentage your bank or card charges, up to 20%. Leave blank for none.</p>
     <p class="page-note" id="rateSub"></p>
     <div class="about-links">
       <button class="about-row" type="button" id="alertBtn" aria-expanded="false" aria-controls="alertRow" aria-label="Set a rate alert" hidden><span>Rate alert</span><span id="alertVal"></span></button>
@@ -733,14 +734,14 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   </div>
 </dialog>
 
-<script src="lib.js?v=5"></script>
+<script src="lib.js?v=6"></script>
 <script src="pwa.js"></script>
 <script>
 (() => {
   // A page and a lib.js from different releases can meet right after one (an
   // edge or saved copy of one but not the other). Fetch lib.js afresh and load
   // again, once; a second miss runs anyway rather than loop.
-  const LIB = 5;
+  const LIB = 6;
   if (!window.BureauLib || BureauLib.VERSION !== LIB) {
     let tried = true;
     try { tried = sessionStorage.getItem('bureau.libRetry') === String(LIB); sessionStorage.setItem('bureau.libRetry', String(LIB)); } catch {}
@@ -769,6 +770,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   const TREND_TTL_MS = 6 * 60 * 60_000;
   const FETCH_TIMEOUT_MS = 8000;
   const GRACE_MS = 2000;       // how long a source gets before its backup is asked too
+  const LATE_MS = 1500;        // on a first launch, how long the daily rates wait for the live ones
 
   const COMMON = ['USD', 'EUR', 'GBP', 'AUD', 'JPY', 'CAD', 'CHF', 'CNY', 'NZD', 'INR', 'SGD', 'HKD'];
   const { CRYPTO } = BureauLib;
@@ -864,7 +866,8 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     .replace(/[\u0660-\u0669\u06F0-\u06F9\u0966-\u096F\u09E6-\u09EF]/g, c => { const n = c.charCodeAt(0); return String(n < 0x0900 ? n & 15 : (n & 15) - 6); })
     .replace(/\u066B/g, POINT).replace(/\u066C/g, '');
   const parseNumber = s => BureauLib.parseNumber(ascii(s), GROUP);
-  const evaluate = text => BureauLib.evaluate(ascii(text), GROUP);
+  // A sum still being typed ("100+") is read without its last sign, so its answer stays.
+  const evaluate = text => BureauLib.evaluate(ascii(text).replace(/[\s+\-*/×÷−–xX]+$/, ''), GROUP);
   // Building a formatter is far slower than using one, and a render formats
   // dozens of numbers with a handful of option sets, so each set is built once.
   const formatters = new Map();
@@ -889,7 +892,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   function df(opts) {
     const key = JSON.stringify(opts);
     let f = dateFormatters.get(key);
-    if (!f) { f = new Intl.DateTimeFormat(locale, opts); dateFormatters.set(key, f); }
+    if (!f) { f = new Intl.DateTimeFormat(fmtLocale, opts); dateFormatters.set(key, f); }
     return f;
   }
   const fmtAmount = (n, code) => Number.isFinite(n) ? nf(amountOpts(n, code)).format(n) : '';
@@ -952,6 +955,15 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     const needDaily = !reference || Date.now() - (reference.fetchedAt || 0) > DAILY_REFRESH_MS;
     const liveP = attempt(fetchLive);
     const firstP = needDaily ? attempt(fetchDaily) : null;
+    // A first launch has nothing to show while Coinbase hangs: once the daily rates are
+    // in, it gets LATE_MS more and then they show. Its answer still replaces them.
+    if (!state.rates && firstP) firstP.then(async daily => {
+      // (Not for a pair the daily rates cannot price, such as one with a coin: that waits.)
+      if (!daily || !(daily.fiat && daily.fiat[state.from] > 0 && daily.fiat[state.to] > 0)) return;
+      if (await Promise.race([liveP, wait(LATE_MS)]) || state.rates) return;
+      keepDaily(daily);
+      show(BureauLib.combineRates(state, daily, null));
+    });
     // Coinbase answers within a second or so. If it fails, or a connection hangs past
     // GRACE_MS, the other two start now rather than after its timeout; its answer
     // still wins if it comes.
@@ -967,7 +979,10 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     if (live && backupP && backupP !== firstP) backupP.then(keepDaily);
     const file = !live || !reference ? await (fileP || attempt(fetchFile)) : null;
     const yardstick = reference || file;
-    const next = live ? BureauLib.liveRates(live, yardstick && yardstick.fiat, isFiat, Date.now(), yardstick && yardstick.updatedAt) : BureauLib.combineRates(state, daily, file);
+    show(live ? BureauLib.liveRates(live, yardstick && yardstick.fiat, isFiat, Date.now(), yardstick && yardstick.updatedAt) : BureauLib.combineRates(state, daily, file), !!live);
+  }
+  // Takes up what a refresh brought (`live`: from Coinbase), saves it and draws it.
+  function show(next, live) {
     state.error = !!next.offline;
     if (!next.offline) {
       const source = live ? 'live' : next.fiatAt > state.fiatAt ? 'daily' : state.source;
@@ -1050,8 +1065,10 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     }
     answerBehind = !!hold && document.activeElement === field(dst);
     if (!answerBehind) field(dst).value = fmtAmount(out, state[dst]);
-    // With no rate there's no answer yet, and a 0 would read like one.
-    field('from').placeholder = field('to').placeholder = Number.isFinite(r) ? '0' : '–';
+    // With no rate there's no answer yet, and a 0 would read like one. The same goes
+    // for something typed that has no value ("5-10", "1/0").
+    field(src).placeholder = Number.isFinite(r) ? '0' : '–';
+    field(dst).placeholder = Number.isFinite(r) && !field(src).value.trim() ? '0' : '–';
     fitAll();
     store.set('amount', { side: src, value: field(src).value });
     tellAppPair();
@@ -1078,28 +1095,39 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   ruler.setAttribute('aria-hidden', 'true');
   ruler.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre;pointer-events:none';
   document.body.appendChild(ruler);
+  // The phone's text size setting scales every font size, and a size read back comes
+  // scaled: written as it is, it would be scaled again. So it is divided by the scale
+  // first, which is measured once, on the ruler at a known size. The sizes in fit and
+  // fitAll are all as written, before that scale.
+  ruler.style.fontSize = '100px';
+  const textScale = parseFloat(getComputedStyle(ruler).fontSize) / 100 || 1;
   function over(input) {
     const wrap = input.parentElement, sym = wrap.querySelector('.sym');
     let room = wrap.clientWidth;
     if (!room) return false;
     if (sym && sym.offsetWidth) room -= sym.offsetWidth + 6;
     const cs = getComputedStyle(input);
-    for (const k of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'fontVariantNumeric', 'fontFeatureSettings']) ruler.style[k] = cs[k];
+    for (const k of ['fontFamily', 'fontWeight', 'fontStyle', 'letterSpacing', 'fontVariantNumeric', 'fontFeatureSettings']) ruler.style[k] = cs[k];
+    ruler.style.fontSize = parseFloat(cs.fontSize) / textScale + 'px';
     ruler.textContent = input.value || input.placeholder || '';
     return ruler.getBoundingClientRect().width > room - 1;
   }
   function fit(input, floor = 15) {
     input.style.fontSize = '';
-    let size = parseFloat(getComputedStyle(input).fontSize);
+    let size = parseFloat(getComputedStyle(input).fontSize) / textScale;
     while (over(input) && size > floor) {
-      size *= 0.92;
+      size = Math.max(size * 0.92, floor);
       input.style.fontSize = Math.max(size, smallest) + 'px';
     }
   }
-  // If it still doesn't fit (big text on a small phone), it is drawn smaller yet, so
-  // no digit is hidden.
+  // If it still doesn't fit (big text on a small phone), the fee's note beside it goes
+  // under it, and the amount has the card's width. Failing that it is drawn smaller
+  // yet, so no digit is hidden.
   function fitLeg(input) {
+    const leg = input.closest('.leg');
+    leg.classList.remove('under');
     fit(input);
+    if (over(input) && !leg.querySelector('.incl').hidden) { leg.classList.add('under'); fit(input); }
     if (over(input)) fit(input, 10);
   }
   // Both amounts are drawn the same size: each is fitted, then the larger comes down to the
@@ -1107,7 +1135,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   const fitAll = () => {
     const pair = [field('from'), field('to')];
     pair.forEach(input => fitLeg(input));
-    const sizes = pair.map(input => parseFloat(getComputedStyle(input).fontSize));
+    const sizes = pair.map(input => parseFloat(getComputedStyle(input).fontSize) / textScale);
     const size = Math.max(Math.min(...sizes), 15);
     pair.forEach((input, i) => { if (sizes[i] > size) input.style.fontSize = size + 'px'; });
   };
@@ -1244,17 +1272,19 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     renderBell();
   }
 
+  // A day as "2 Nov", with its year when that isn't this one: "2 Nov 2025".
+  const dayOpts = (year, opts) => ({ day: 'numeric', month: 'short', ...(year === new Date().getFullYear() ? null : { year: 'numeric' }), ...opts });
   // "14:05" (or "2:05 pm") today, otherwise "2 Nov, 14:05".
   function whenText(ms) {
     const d = new Date(ms);
-    const time = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+    const time = d.toLocaleTimeString(fmtLocale, { hour: 'numeric', minute: '2-digit' });
     return d.toDateString() === new Date().toDateString()
       ? time
-      : `${d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}, ${time}`;
+      : `${d.toLocaleDateString(fmtLocale, dayOpts(d.getFullYear()))}, ${time}`;
   }
   // The day a daily rate is for, as its source dates it. Sources date by UTC,
   // so this does too, and "6 Nov" reads the same everywhere.
-  const dayText = ms => new Date(ms).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  const dayText = ms => new Date(ms).toLocaleDateString(fmtLocale, dayOpts(new Date(ms).getUTCFullYear(), { timeZone: 'UTC' }));
   // The pair's own date: a coin can be a day behind the currencies, or the
   // other way round, and the older side is the honest one to show.
   const pairAt = () => BureauLib.pairUpdatedAt(state.from, state.to, state.fiatAt, state.coinAt, state.dated);
@@ -2040,7 +2070,13 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   $('pickTo').addEventListener('click', () => openPicker('to'));
   $('pickerClose').addEventListener('click', () => dlg.close());
   dlg.addEventListener('click', e => {
-    if (e.target === dlg) return dlg.close();
+    // A click outside the panel puts it away. On a phone the picker is the whole
+    // screen, so nothing is outside it: blank space under a short list does nothing.
+    if (e.target === dlg) {
+      const box = dlg.getBoundingClientRect();
+      if (e.clientX < box.left || e.clientX > box.right || e.clientY < box.top || e.clientY > box.bottom) dlg.close();
+      return;
+    }
     const b = e.target.closest('button[data-code]');
     if (b) choose(b.dataset.code);
   });
@@ -2085,7 +2121,9 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   setInterval(() => { if (!document.hidden) loadRates(); }, REFRESH_MS);
   setInterval(renderStatus, 15_000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && Date.now() - state.fetchedAt > REFRESH_MS) loadRates();
+    if (document.hidden) return;
+    if (Date.now() - state.fetchedAt > REFRESH_MS) loadRates();
+    renderStatus();
   });
   addEventListener('online', loadRates);
   const scrubbing = () => !!$('trend').querySelector('.probe-dot:not([hidden])');

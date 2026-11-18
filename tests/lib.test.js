@@ -28,6 +28,38 @@ test('parseNumber reads either separator as the decimal point', () => {
   assert.ok(Number.isNaN(parseNumber('abc', ',')));
 });
 
+test('parseNumber takes a mark after four or more digits as the decimal point', () => {
+  // German-style locale (group "."): 1234.56 with a 7 typed after it is not 1,234,567
+  assert.equal(parseNumber('1234.56', '.'), 1234.56);
+  assert.equal(parseNumber('1234.567', '.'), 1234.567);
+  assert.equal(parseNumber('1234,567', '.'), 1234.567);
+  assert.equal(parseNumber('123456.789', '.'), 123456.789);
+  // English-style locale (group ",")
+  assert.equal(parseNumber('1234,56', ','), 1234.56);
+  assert.equal(parseNumber('1234,567', ','), 1234.567);
+  assert.equal(parseNumber('1234.567', ','), 1234.567);
+  assert.equal(evaluate('1234,567 + 1', ',').value, 1235.567);
+  // Four digits can't lead groups either
+  assert.ok(Number.isNaN(parseNumber('1234.567.890', '.')));
+  assert.ok(Number.isNaN(parseNumber('1234,567,890', ',')));
+  // Grouping as each locale writes it still reads as grouping
+  assert.equal(parseNumber('1,500', ','), 1500);
+  assert.equal(parseNumber('1.500', '.'), 1500);
+  assert.equal(parseNumber('150.000', '.'), 150000);
+  assert.equal(parseNumber('12.345', '.'), 12345);
+  assert.equal(parseNumber('123,456', ','), 123456);
+  assert.equal(parseNumber('1.234.567', '.'), 1234567);
+  assert.equal(parseNumber('1,50,000', ','), 150000);
+  assert.equal(evaluate('1 234,56', ' ').value, 1234.56);
+  assert.equal(evaluate('1 234 567,89', ' ').value, 1234567.89);
+  for (const [locale, group] of [['en-AU', ','], ['de-DE', '.'], ['en-IN', ','], ['fr-FR', ' ']]) {
+    for (const n of [1234.56, 1234.567, 150000, 1234567.891]) {
+      const text = new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(n);
+      assert.equal(evaluate(text, group).value, n, `${locale} ${text}`);
+    }
+  }
+});
+
 test('evaluate handles sums without eval', () => {
   assert.deepEqual(evaluate('100', ','), { value: 100, isExpr: false });
   assert.deepEqual(evaluate('12*3.5', ','), { value: 42, isExpr: true });
