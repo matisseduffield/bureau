@@ -6,13 +6,13 @@ on:
     inputs:
       runner:
         description: The Mac image to build on
-        default: macos-26
+        default: xcode-27
 env:
   APP: Bureau
   BUNDLE: com.matisseduffield.bureau
 jobs:
   simulator:
-    runs-on: ${{ inputs.runner || 'macos-26' }}
+    runs-on: ${{ inputs.runner || 'xcode-27' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -41,8 +41,9 @@ jobs:
           import json, sys
           d = json.load(sys.stdin)['devices']
           rt = sorted(k for k in d if 'iOS' in k and d[k])[-1]
-          ph = [x for x in d[rt] if x['name'].startswith('iPhone')]
+          ph = [x for x in d[rt] if x['name'].startswith('iPhone') and 'Fold' not in x['name']]
           best = [x for x in ph if 'Pro Max' in x['name']] or ph
+          print(best[-1]['name'], file=sys.stderr)
           print(best[-1]['udid'])
           PY
           ID=$(xcrun simctl list devices available -j | python3 pick.py)
