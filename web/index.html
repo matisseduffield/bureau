@@ -449,31 +449,40 @@ label.about-row { cursor: text; }
 @media (hover: hover) { .range button:hover { color: var(--ink); } }
 .range button[aria-pressed="true"] { background: linear-gradient(var(--card-key-hi), var(--card-key)); box-shadow: var(--rim); color: var(--ink); }
 
-.trend { position: relative; height: 116px; border-bottom: 1px solid var(--line); transition: opacity .2s; }
+/* The chart: the line over a soft fill, ruled at round rates that are named down its right
+   side, with dates along its foot. Both rows keep their height while it is empty. */
+.trend { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 148px 1.5rem; column-gap: 10px; transition: opacity .2s; touch-action: pan-y; }
 .trend.loading { opacity: .35; }
-.trend svg { position: absolute; top: 0; bottom: 0; left: 0; right: 6px; width: calc(100% - 6px); height: 100%; overflow: visible; }
+.trend .plot { position: relative; min-width: 0; box-shadow: 0 1px 0 var(--line); }
+.trend svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: visible; }
+.trend .rule { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.trend .fill { fill: url(#trendFill); stroke: none; }
+.trend .fill-top { stop-color: var(--accent); stop-opacity: .24; }
+.trend .fill-foot { stop-color: var(--accent); stop-opacity: 0; }
 .trend .line { fill: none; stroke: var(--accent); stroke-width: 1.75; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-.trend .end { position: absolute; left: calc(100% - 6px); width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); }
-/* Under the chart, one line: a date at each end, low and high between them. Nothing breaks.
-   Where low and high don't fit between the dates they take a line of their own under them
-   (.stack, see fitAxis; always on the narrowest phones), and only there, with very big
-   text, may a long one break inside a number rather than run off the page. */
-.trend-axis { display: flex; justify-content: space-between; gap: 0 12px; min-height: 1.5em; font-size: .78rem; color: var(--muted); }
-.trend-axis span { flex: none; white-space: nowrap; }
-.trend-axis .mid { flex: 0 1 auto; min-width: 0; text-align: center; overflow: hidden; text-overflow: ellipsis; }
-.trend-axis.stack { flex-wrap: wrap; }
-.trend-axis.stack .mid { order: 1; flex: 1 0 100%; white-space: normal; overflow-wrap: anywhere; }
-@media (max-width: 340px) {
-  .trend-axis { flex-wrap: wrap; min-height: 3em; }
-  .trend-axis .mid { order: 1; flex: 1 0 100%; white-space: normal; overflow-wrap: anywhere; }
-}
-.trend-axis .mid.active { color: var(--ink); font-weight: 500; }
-.trend { touch-action: pan-y; }
+.trend .end { position: absolute; left: 100%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); pointer-events: none; }
+.trend .scale, .trend .dates { position: relative; font-size: .72rem; line-height: 1.2; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* The scale is as wide as its longest rate, which an unseen copy holds open */
+.trend .scale .sizer { display: block; height: 0; visibility: hidden; white-space: nowrap; }
+.trend .scale .at { position: absolute; left: 0; margin-top: -.6em; white-space: nowrap; }
+.trend .dates { grid-column: 1; }
+.trend .dates span { position: absolute; top: .5rem; white-space: nowrap; }
+/* Under the chart, one line: the lowest and highest rate it shows */
+.trend-axis { min-height: 1.5em; font-size: .78rem; color: var(--muted); text-align: center; overflow-wrap: anywhere; }
+.trend-axis span { display: inline-block; }
 .trend .probe-line { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -.5px; background: var(--muted); opacity: .5; pointer-events: none; }
 .trend .probe-dot {
   position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
   background: var(--accent); box-shadow: 0 0 0 3px var(--surface); pointer-events: none;
 }
+/* A finger on the chart reads one day: its date takes the label's place and its rate the
+   change's. The heading holds its shape meanwhile, so the chart never shifts under the finger. */
+.change.probe { color: var(--ink); line-height: 2.1875rem; min-height: 2.1875rem; }
+.section-head.held h2 { min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; }
+.section-head.held .change { overflow: hidden; }
+.section-head.held.row { flex-wrap: nowrap; }
+.section-head.held:not(.row) h2 { flex: 1 0 100%; }
+.section-head.held .range { flex: none; }
 /* A trend that can't load is one grey line on the page, with no card and nothing to switch between. */
 .trend-note { margin: 0; font-size: .9rem; color: var(--muted); text-align: center; }
 .section.off { padding: 6px 20px; background: none; }
@@ -689,7 +698,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
 
   <section class="section" id="trendSection">
     <div class="section-head">
-      <h2>Trend<span class="change" id="trendChange"></span></h2>
+      <h2><span id="trendLabel">Trend</span><span class="change" id="trendChange"></span></h2>
       <div class="range" role="group" aria-label="Trend range" id="range">
         <button type="button" data-days="7" aria-pressed="false" aria-label="1 week">1W</button>
         <button type="button" data-days="30" aria-pressed="true" aria-label="1 month">1M</button>
@@ -779,7 +788,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   </div>
 </dialog>
 
-<script src="lib.js?v=6"></script>
+<script src="lib.js?v=7"></script>
 <!-- ios:cut -->
 <script src="pwa.js"></script>
 <!-- ios:end -->
@@ -789,7 +798,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   // A page and a lib.js from different releases can meet right after one (an
   // edge or saved copy of one but not the other). Fetch lib.js afresh and load
   // again, once; a second miss runs anyway rather than loop.
-  const LIB = 6;
+  const LIB = 7;
   if (!window.BureauLib || BureauLib.VERSION !== LIB) {
     let tried = true;
     try { tried = sessionStorage.getItem('bureau.libRetry') === String(LIB); sessionStorage.setItem('bureau.libRetry', String(LIB)); } catch {}
@@ -1524,6 +1533,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
   }
   function drawTrend(series, key) {
     const el = $('trend');
+    endScrub();
     el.classList.remove('loading');
     $('trendSection').classList.remove('off');
     $('trendNote').hidden = true;
@@ -1532,15 +1542,50 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     series = BureauLib.withLatest(series, rate(state.from, state.to), rateDay());
     const vals = series.map(p => p[1]);
     const min = Math.min(...vals), max = Math.max(...vals);
-    const span = max - min || max * 0.001;
-    const W = 300, H = 116, pad = 10;
+    // The chart spans a thousandth of the rate at least, so one that never moved, or
+    // moved by a hair, runs flat along the middle and is not drawn as a cliff.
+    const span = Math.max(max - min, max * 0.001);
+    const lo = (max + min) / 2 - span / 2;
+    const W = 300, H = 148, pad = 12;
     const x = i => (i / (vals.length - 1)) * W;
-    const y = v => pad + (1 - (v - min) / span) * (H - pad * 2);
+    const y = v => pad + (1 - (v - lo) / span) * (H - pad * 2);
+    const top = v => (y(v) / H * 100).toFixed(2) + '%';
     const line = 'M' + vals.map((v, i) => `${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' L');
-    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-        <path class="line" d="${line}"/>
-      </svg><span class="end" style="top:${(y(vals.at(-1)) / H * 100).toFixed(2)}%"></span>
-      <span class="probe-line" hidden></span><span class="probe-dot" hidden></span>`;
+    // A lib.js from an older release has neither of these: the chart then goes without them.
+    const { ticks, digits } = BureauLib.scaleTicks ? BureauLib.scaleTicks(lo, lo + span) : { ticks: [], digits: 0 };
+    const rules = ticks.map(t => `<line class="rule" x1="0" x2="${W}" y1="${y(t).toFixed(2)}" y2="${y(t).toFixed(2)}"/>`).join('');
+    el.innerHTML = `<div class="plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1"><stop class="fill-top" offset="0"/><stop class="fill-foot" offset="1"/></linearGradient></defs>
+        ${rules}<path class="fill" d="${line} L${W},${H} L0,${H} Z"/><path class="line" d="${line}"/>
+      </svg><span class="end" style="top:${top(vals.at(-1))}"></span>
+      <span class="probe-line" hidden></span><span class="probe-dot" hidden></span></div>
+      <div class="scale" aria-hidden="true"></div><div class="dates" aria-hidden="true"></div>`;
+    const label = (text, cls) => {
+      const s = document.createElement('span');
+      if (cls) s.className = cls;
+      s.textContent = text;
+      return s;
+    };
+    const places = Math.min(digits, 20);
+    let named = ticks.map(t => nf({ minimumFractionDigits: places, maximumFractionDigits: places }).format(t));
+    // Tens of thousands and up are named short (1.4B), to as few places as tell them
+    // apart and the same number for each; where three places can't, they stay in full.
+    if (ticks.every(t => Math.abs(t) >= 1e4)) {
+      for (let d = 0; d <= 3; d++) {
+        const short = ticks.map(t => nf({ notation: 'compact', minimumFractionDigits: d, maximumFractionDigits: d }).format(t));
+        if (new Set(short).size === ticks.length) { named = short; break; }
+      }
+    }
+    const scaleEl = el.querySelector('.scale');
+    if (named.length) scaleEl.append(label(named.reduce((a, b) => (b.length > a.length ? b : a)), 'sizer'));
+    ticks.forEach((t, k) => { const s = label(named[k], 'at'); s.style.top = top(t); scaleEl.append(s); });
+    const DATE = { day: { day: 'numeric', month: 'short' }, month: { month: 'short' }, year: { year: 'numeric' } };
+    const datesEl = el.querySelector('.dates');
+    for (const { i, kind } of BureauLib.dateTicks ? BureauLib.dateTicks(series, state.days) : []) {
+      const s = label(df(DATE[kind]).format(new Date(series[i][0] + 'T00:00:00')));
+      s.dataset.at = String(i / (vals.length - 1));
+      datesEl.append(s);
+    }
     if (fresh && !reduceMotion.matches && el.animate) {
       el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out' });
     }
@@ -1550,56 +1595,85 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     changeEl.textContent = `${change >= 0 ? '+' : '−'}${nf({ minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(change))}%`;
     el.setAttribute('role', 'img');
     el.setAttribute('aria-label', `${state.from} to ${state.to}: ${fmtRate(vals[0])} to ${fmtRate(vals.at(-1))}, low ${fmtRate(min)}, high ${fmtRate(max)}`);
-    const long = state.days > 60;
-    const d = s => df(long ? { month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' }).format(new Date(s + 'T00:00:00'));
-    $('trendAxis').innerHTML = '';
-    for (const [cls, text] of [['', d(series[0][0])], ['mid', `Low ${fmtRate(min)} · High ${fmtRate(max)}`], ['', d(series.at(-1)[0])]]) {
-      const s = document.createElement('span');
-      if (cls) s.className = cls;
-      s.textContent = text;
-      $('trendAxis').append(s);
-    }
-    scrub = { series, y, H, rest: `Low ${fmtRate(min)} · High ${fmtRate(max)}` };
-    fitAxis();
+    $('trendAxis').replaceChildren(label(`Low ${fmtRate(min)}`), ' · ', label(`High ${fmtRate(max)}`));
+    scrub = { series, top, i: -1, on: false, change: [changeEl.className, changeEl.textContent] };
+    fitDates();
   }
-  // For the page's layout only: low and high go on a line of their own under the
-  // dates where they don't fit between them (the styles do the rest).
-  function fitAxis() {
-    const axis = $('trendAxis'), mid = axis.querySelector('.mid');
-    axis.classList.remove('stack');
-    if (mid && mid.scrollWidth > mid.clientWidth + 1) axis.classList.add('stack');
+  // For the page's layout only: each date sits under its own point, kept inside the card.
+  // Where they would run into one another, every second one is shown, or every third,
+  // and so on, so those left are evenly spread.
+  function fitDates() {
+    const el = $('trend'), row = el.querySelector('.dates');
+    if (!row) return;
+    const full = el.clientWidth, plot = row.clientWidth;
+    const all = [...row.children].map(s => {
+      s.hidden = false;
+      const w = s.offsetWidth;
+      const left = Math.max(0, Math.min(full - w, Number(s.dataset.at) * plot - w / 2));
+      s.style.left = left + 'px';
+      return { s, left, right: left + w };
+    });
+    let every = 1;
+    const clear = () => all.every((d, k) => k % every || k < every || d.left >= all[k - every].right + 12);
+    while (every < all.length && !clear()) every++;
+    all.forEach((d, k) => { d.s.hidden = k % every !== 0; });
   }
 
-  // Touch or hover the chart to read the rate on a given day. The reading
-  // replaces the low/high line under the chart until you let go.
+  // Touch or hover the chart to read the rate on a given day, with a tick as each
+  // new day comes under the finger. The reading takes the heading's place, above
+  // the hand, until you let go.
   let scrub = null;
+  let lastTick = 0;
   function scrubAt(clientX) {
-    const el = $('trend');
-    if (!scrub || !el.querySelector('svg')) return;
-    const rect = el.getBoundingClientRect();
-    const width = rect.width - 6;
+    const el = $('trend'), plot = el.querySelector('.plot');
+    if (!scrub || !plot) return;
+    const rect = plot.getBoundingClientRect();
+    if (!(rect.width > 0)) return;
     const n = scrub.series.length;
-    const i = Math.round(Math.max(0, Math.min(1, (clientX - rect.left) / width)) * (n - 1));
+    const i = Math.round(Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * (n - 1));
     const [date, value] = scrub.series[i];
-    const left = (i / (n - 1)) * width;
-    const top = scrub.y(value) / scrub.H * 100;
-    const lineEl = el.querySelector('.probe-line'), dot = el.querySelector('.probe-dot');
-    lineEl.hidden = dot.hidden = false;
-    lineEl.style.left = left + 'px';
-    dot.style.left = left + 'px';
-    dot.style.top = top + '%';
-    const mid = $('trendAxis').querySelector('.mid');
-    if (mid) {
-      mid.classList.add('active');
-      const day = df(state.days > 60 ? { day: 'numeric', month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' }).format(new Date(date + 'T00:00:00'));
-      mid.textContent = `${day} · ${fmtRate(value)}`;
+    const head = $('trendSection').querySelector('.section-head');
+    const changeEl = $('trendChange');
+    if (!scrub.on) {
+      scrub.on = true;
+      // Held as it stands: on one row or two, and no taller.
+      const range = $('range'), h2 = head.querySelector('h2');
+      head.style.minHeight = head.getBoundingClientRect().height + 'px';
+      head.classList.toggle('row', range.offsetTop < h2.offsetTop + h2.offsetHeight);
+      head.classList.add('held');
+      // The longest rate on the chart sets the size they are all read at, so a long one
+      // is never cut short and the size never changes from one day to the next.
+      const longest = scrub.series.reduce((a, p) => { const t = fmtRate(p[1]); return t.length > a.length ? t : a; }, '');
+      changeEl.className = 'change probe';
+      changeEl.textContent = longest;
+      const room = changeEl.clientWidth, need = changeEl.scrollWidth;
+      if (need > room && room > 0) changeEl.style.fontSize = Math.floor(parseFloat(getComputedStyle(changeEl).fontSize) * room / need * 10) / 10 + 'px';
     }
+    if (i !== scrub.i) {
+      scrub.i = i;
+      const now = performance.now();
+      if (now - lastTick > 40) { lastTick = now; haptic('tick'); }
+    }
+    const left = (i / (n - 1) * 100) + '%';
+    const lineEl = plot.querySelector('.probe-line'), dot = plot.querySelector('.probe-dot');
+    lineEl.hidden = dot.hidden = false;
+    lineEl.style.left = left;
+    dot.style.left = left;
+    dot.style.top = scrub.top(value);
+    $('trendLabel').textContent = df({ day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(date + 'T00:00:00'));
+    changeEl.textContent = fmtRate(value);
   }
   function endScrub() {
-    const el = $('trend');
-    el.querySelectorAll('.probe-line, .probe-dot').forEach(p => { p.hidden = true; });
-    const mid = $('trendAxis').querySelector('.mid');
-    if (mid && scrub) { mid.classList.remove('active'); mid.textContent = scrub.rest; }
+    $('trend').querySelectorAll('.probe-line, .probe-dot').forEach(p => { p.hidden = true; });
+    if (!scrub || !scrub.on) return;
+    scrub.on = false;
+    scrub.i = -1;
+    const head = $('trendSection').querySelector('.section-head');
+    head.style.minHeight = '';
+    head.classList.remove('held', 'row');
+    $('trendLabel').textContent = 'Trend';
+    $('trendChange').style.fontSize = '';
+    [$('trendChange').className, $('trendChange').textContent] = scrub.change;
   }
   $('trend').addEventListener('pointerdown', e => scrubAt(e.clientX));
   $('trend').addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) scrubAt(e.clientX); });
@@ -1607,6 +1681,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
 
   // No chart box, range or heading: the section folds to one grey line.
   function showTrendEmpty(msg) {
+    endScrub();
     scrub = null;
     drawnKey = '';
     const el = $('trend');
@@ -1615,7 +1690,7 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     el.removeAttribute('aria-label');
     el.innerHTML = '';
     $('trendChange').textContent = '';
-    $('trendAxis').innerHTML = '';
+    $('trendAxis').textContent = '';
     $('trendNote').textContent = msg;
     $('trendNote').hidden = false;
     $('trendSection').classList.add('off');
@@ -2252,9 +2327,8 @@ a.about-row::after { content: ""; flex: none; width: 9px; height: 9px; margin-ri
     renderStatus();
   });
   addEventListener('online', loadRates);
-  const scrubbing = () => !!$('trend').querySelector('.probe-dot:not([hidden])');
-  addEventListener('resize', () => { fitAll(); fitStatus(); if (!scrubbing()) fitAxis(); });
-  if (document.fonts) document.fonts.ready.then(() => { fitAll(); fitStatus(); if (!scrubbing()) fitAxis(); });
+  addEventListener('resize', () => { fitAll(); fitStatus(); fitDates(); });
+  if (document.fonts) document.fonts.ready.then(() => { fitAll(); fitStatus(); fitDates(); });
 })();
 </script>
 </body>

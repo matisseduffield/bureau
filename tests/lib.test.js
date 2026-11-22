@@ -443,3 +443,58 @@ test('no trend is drawn from the file for currencies it gets wrong', () => {
   const page = require('node:fs').readFileSync(require('node:path').join(__dirname, '../web/index.html'), 'utf8');
   assert.ok(page.includes('if (BureauLib.FILE_SKIP.has(from) || BureauLib.FILE_SKIP.has(to)) return [];'));
 });
+
+test('a chart is ruled at round rates inside its range: three for choice, two at least', () => {
+  const { scaleTicks } = require('../web/lib.js');
+  assert.deepEqual(scaleTicks(0.55935, 0.63171), { ticks: [0.56, 0.58, 0.6, 0.62], digits: 2 });
+  assert.deepEqual(scaleTicks(150000, 171234), { ticks: [150000, 160000, 170000], digits: 0 });
+  assert.deepEqual(scaleTicks(98.2, 104.9), { ticks: [100, 102, 104], digits: 0 });
+  // Four before two, named to as many places as tell them apart
+  assert.deepEqual(scaleTicks(1.6, 1.6016), { ticks: [1.6, 1.6005, 1.601, 1.6015], digits: 4 });
+  assert.deepEqual(scaleTicks(1.3083, 1.35), { ticks: [1.31, 1.32, 1.33, 1.34, 1.35], digits: 2 });
+  // Two only where no step gives three, four or five
+  assert.deepEqual(scaleTicks(1.21, 2.42).ticks, [1.5, 2]);
+  assert.deepEqual(scaleTicks(0.0000121, 0.0000129).digits, 7);
+  for (const [lo, hi] of [[0.9995, 1.0005], [3.6724, 3.6731], [1e-9, 3e-9], [12345, 12346], [0.3, 0.9], [-0.2, 0.2]]) {
+    const { ticks, digits } = scaleTicks(lo, hi);
+    assert.ok(ticks.length >= 2 && ticks.length <= 6, lo + ' to ' + hi + ': ' + ticks);
+    assert.ok(ticks.every(t => t >= lo - (hi - lo) * 1e-6 && t <= hi + (hi - lo) * 1e-6));
+    assert.equal(new Set(ticks.map(t => t.toFixed(digits))).size, ticks.length);
+  }
+  // Nothing to rule: no range, or not numbers
+  assert.deepEqual(scaleTicks(1, 1).ticks, []);
+  assert.deepEqual(scaleTicks(2, 1).ticks, []);
+  assert.deepEqual(scaleTicks(NaN, 1).ticks, []);
+  assert.deepEqual(scaleTicks(0, Infinity).ticks, []);
+});
+
+test('dates under a chart: days of a week, Mondays of a month, quarters of a year', () => {
+  const { dateTicks } = require('../web/lib.js');
+  const run = (n, gap, end) => Array.from({ length: n }, (_, k) => [new Date(Date.parse(end) - (n - 1 - k) * gap * 864e5).toISOString().slice(0, 10), 1]);
+  const at = (s, days) => dateTicks(s, days).map(t => s[t.i][0] + ' ' + t.kind);
+  // A week: about four, the newest day among them
+  assert.deepEqual(at(run(7, 1, '2026-11-22'), 7), ['2026-11-16 day', '2026-11-18 day', '2026-11-20 day', '2026-11-22 day']);
+  assert.deepEqual(at(run(2, 1, '2026-11-22'), 7), ['2026-11-21 day', '2026-11-22 day']);
+  assert.equal(at(run(9, 1, '2026-11-22'), 7).at(-1), '2026-11-22 day');
+  // A month: each Monday (16 November 2026 is one), never the first point for its own sake
+  assert.deepEqual(at(run(31, 1, '2026-11-22'), 30), ['2026-10-26 day', '2026-11-02 day', '2026-11-09 day', '2026-11-16 day']);
+  // With no point on a Monday, the first one after it
+  assert.deepEqual(at([['2026-11-13', 1], ['2026-11-17', 1], ['2026-11-19', 1], ['2026-11-24', 1]], 30), ['2026-11-17 day', '2026-11-24 day']);
+  // A year: January is named by its year, the other quarters by their month
+  assert.deepEqual(at(run(366, 1, '2026-11-22'), 365), ['2026-01-01 year', '2026-04-01 month', '2026-07-01 month', '2026-10-01 month']);
+  assert.deepEqual(at(run(27, 14, '2026-11-22'), 365), ['2026-01-04 year', '2026-04-12 month', '2026-07-05 month', '2026-10-11 month']);
+  assert.deepEqual(dateTicks([['2026-11-22', 1]], 30), []);
+  assert.deepEqual(dateTicks([], 365), []);
+});
+
+test('a broken figure in one day of a trend is left out', () => {
+  const { crossSeries } = require('../web/lib.js');
+  const dates = ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05'];
+  const day = (idr, btc) => ({ usd: { idr, btc } });
+  const snaps = [day(16000, 0.00001), day(16100, 40), day(16050, 0.0000102), day(16020, 0.0000099), day(16010, 0.0000101)];
+  assert.deepEqual(crossSeries(dates, snaps, 'IDR', 'BTC').map(p => p[0]), ['2026-01-01', '2026-01-03', '2026-01-04', '2026-01-05']);
+  // A coin that really did rise a hundredfold keeps every day
+  const rise = [day(1, 1), day(1, 3), day(1, 10), day(1, 40), day(1, 100)];
+  assert.equal(crossSeries(dates, rise, 'IDR', 'BTC').length, 5);
+  assert.deepEqual(crossSeries([], [], 'IDR', 'BTC'), []);
+});

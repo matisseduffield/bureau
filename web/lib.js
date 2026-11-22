@@ -8,7 +8,7 @@
   // Raised with every change here, together with lib.js?v= in index.html and
   // FILES in sw.js. The page checks it, so a page and a lib.js from different
   // releases never run together.
-  const VERSION = 6;
+  const VERSION = 7;
   /* ios:end */
 
   // The most traded coins, in market order; Coinbase quotes them all live, and
@@ -337,7 +337,11 @@
       const a = per(usd, from), b = per(usd, to);
       if (a > 0 && b > 0) out.push([date, b / a]);
     });
-    return out;
+    // A day's file now and then holds a figure that is plainly broken. A rate a thousand
+    // times the middle one, or a thousandth of it, is left out.
+    const sorted = out.map(p => p[1]).sort((m, n) => m - n);
+    const mid = sorted[Math.floor(sorted.length / 2)];
+    return out.filter(p => p[1] < mid * 1000 && p[1] > mid / 1000);
   }
 
   // A trend ends at the rate shown above it, so its change, low and high include
@@ -350,7 +354,59 @@
     return [...(last === day ? series.slice(0, -1) : series), [day, rate]];
   }
 
-  const lib = { /* ios:cut */VERSION, /* ios:end */CRYPTO, MAX_FEE, /* ios:cut */quickAmounts, /* ios:end */parseFee, withFee, NAMES, REPLACED, isCurrency, currencyOf, currentCode, /* ios:cut */coinQuickOpts, /* ios:end */withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, FILE_SKIP, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries };
+  // Round rates to rule a chart at, between lo and hi: steps of 1, 2 or 5 of a power of
+  // ten. Three of them for choice, then four, then five, and two only when no step gives
+  // any of those. `digits` is how many decimal places name every one of them.
+  function scaleTicks(lo, hi) {
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || !(hi > lo)) return { ticks: [], digits: 0 };
+    const exp = Math.floor(Math.log10((hi - lo) / 3));
+    let best = null;
+    for (let e = exp - 1; e <= exp + 1; e++) {
+      for (const m of [1, 2, 5]) {
+        const step = m * Math.pow(10, e);
+        const first = Math.ceil(lo / step - 1e-9), last = Math.floor(hi / step + 1e-9);
+        const n = last - first + 1;
+        if (n < 2) continue;
+        const miss = n === 2 ? 2.5 : n - 3;
+        if (!best || miss < best.miss) best = { miss, step, first, last, e };
+      }
+    }
+    if (!best) return { ticks: [], digits: 0 };
+    const ticks = [];
+    for (let k = best.first; k <= best.last; k++) ticks.push(Number((k * best.step).toPrecision(12)));
+    return { ticks, digits: Math.max(0, -best.e) };
+  }
+
+  // Which points of a trend take a date under the chart, as { i, kind }. A week: about four
+  // of its days, the newest among them. A month: the first point of each week (Monday on).
+  // A year: the first point of each quarter, the new year's read as the year itself.
+  function dateTicks(series, days) {
+    const out = [];
+    const n = series.length;
+    if (n < 2) return out;
+    if (days <= 7) {
+      const step = Math.ceil(n / 4);
+      for (let i = n - 1; i >= 0; i -= step) out.unshift({ i, kind: 'day' });
+      return out;
+    }
+    let prev = null;
+    series.forEach(([date], i) => {
+      let mark, kind = 'day';
+      if (days <= 62) {
+        // 1 January 1970 was a Thursday: three days on, the count turns over each Monday.
+        mark = Math.floor((Date.parse(date + 'T00:00:00Z') / 864e5 + 3) / 7);
+      } else {
+        const quarter = Math.floor((Number(date.slice(5, 7)) - 1) / 3);
+        mark = Number(date.slice(0, 4)) * 4 + quarter;
+        kind = quarter ? 'month' : 'year';
+      }
+      if (prev !== null && mark !== prev) out.push({ i, kind });
+      prev = mark;
+    });
+    return out;
+  }
+
+  const lib = { /* ios:cut */VERSION, /* ios:end */CRYPTO, MAX_FEE, /* ios:cut */quickAmounts, /* ios:end */parseFee, withFee, NAMES, REPLACED, isCurrency, currencyOf, currentCode, /* ios:cut */coinQuickOpts, /* ios:end */withLatest, fractionDigits, cryptoDigits, amountOpts, parseNumber, evaluate, mergeRates, liveRates, dailyRates, fileRates, combineRates, pairUpdatedAt, rateStatus, FILE_SKIP, regionsOf, REGION_ALIASES, searchScore, sampleDates, crossSeries, scaleTicks, dateTicks };
   /* ios:cut */
   if (typeof module === 'object' && module.exports) module.exports = lib;
   else
